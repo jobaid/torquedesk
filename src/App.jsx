@@ -46,6 +46,7 @@ const OwnerCompanyDetail = lazy(() => import('./pages/owner/CompanyDetail'))
 const OwnerSubscriptions = lazy(() => import('./pages/owner/Subscriptions'))
 const OwnerAuditLog = lazy(() => import('./pages/owner/AuditLog'))
 const OwnerPlaceholder = lazy(() => import('./pages/owner/Placeholder'))
+const OwnerSettings = lazy(() => import('./pages/owner/Settings'))
 
 function PageFallback() {
   return (
@@ -78,7 +79,7 @@ export default function App() {
             <Route path="urls" element={<OwnerPlaceholder title="Application URLs" body="Each company has an application URL on its detail page. Custom-domain management will be added in a later phase." />} />
             <Route path="billing" element={<OwnerPlaceholder title="Billing" body="Billing integration (Stripe) is planned for a later phase. Subscription plan prices on each company drive the MRR/ARR estimates on the dashboard." />} />
             <Route path="security" element={<OwnerPlaceholder title="Security" body="MFA, session management, and SSO settings are planned for a later phase. For now, owner passwords use Argon2id hashing." />} />
-            <Route path="settings" element={<OwnerPlaceholder title="Settings" body="Owner-portal settings (branding, email templates, invite flow) are planned for a later phase." />} />
+            <Route path="settings" element={<OwnerSettings />} />
           </Route>
         </Routes>
       </Suspense>

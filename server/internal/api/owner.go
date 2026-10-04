@@ -45,6 +45,7 @@ const saasOwnerRole = "saas_owner"
 func (s *Server) ownerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/owner/auth/login", s.ownerLogin)
 	mux.HandleFunc("GET /api/owner/me", s.ownerAuth(s.ownerMe))
+	mux.HandleFunc("POST /api/owner/me/change-password", s.ownerAuth(s.ownerChangePassword))
 	mux.HandleFunc("GET /api/owner/dashboard", s.ownerAuth(s.ownerDashboard))
 	mux.HandleFunc("GET /api/owner/companies", s.ownerAuth(s.listCompanies))
 	mux.HandleFunc("POST /api/owner/companies", s.ownerAuth(s.createCompany))
@@ -117,6 +118,46 @@ func (s *Server) ownerLogin(w http.ResponseWriter, r *http.Request) {
 func (s *Server) ownerMe(w http.ResponseWriter, r *http.Request) {
 	u := userFrom(r.Context())
 	writeJSON(w, 200, map[string]any{"user": u})
+}
+
+// ownerChangePassword rotates the signed-in SaaS owner's own password. Audited
+// in saas_audit_log so password changes are traceable.
+func (s *Server) ownerChangePassword(w http.ResponseWriter, r *http.Request) {
+	u := userFrom(r.Context())
+	var req changePasswordReq
+	if err := readJSON(r, &req); err != nil {
+		writeErr(w, 400, "Invalid request.")
+		return
+	}
+	if req.CurrentPassword == "" || req.NewPassword == "" {
+		writeErr(w, 400, "Current and new password are required.")
+		return
+	}
+	if len(req.NewPassword) < 8 {
+		writeErr(w, 400, "New password must be at least 8 characters.")
+		return
+	}
+	var adminID, hash string
+	err := s.db.QueryRow(r.Context(), `SELECT id::text, password_hash FROM saas_admin_users WHERE lower(email) = lower($1)`, u.Email).Scan(&adminID, &hash)
+	if err != nil {
+		writeErr(w, 404, "Owner account not found.")
+		return
+	}
+	if !VerifyPassword(req.CurrentPassword, hash) {
+		writeErr(w, 401, "Current password is incorrect.")
+		return
+	}
+	newHash, err := HashPassword(req.NewPassword)
+	if err != nil {
+		writeErr(w, 500, "Could not hash the new password.")
+		return
+	}
+	if _, err := s.db.Exec(r.Context(), `UPDATE saas_admin_users SET password_hash = $1 WHERE id::text = $2`, newHash, adminID); err != nil {
+		handleErr(w, err)
+		return
+	}
+	_ = s.recordSaasAudit(r.Context(), &adminID, u.Name, "owner_password_changed", "saas_admin", adminID, nil, nil, clientIP(r))
+	writeJSON(w, 200, map[string]any{"ok": true})
 }
 
 // ---------------------------------------------------------------- dashboard

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts'
 import { SkeletonCard, EmptyState } from '../../components/ui'
 import ReportFilters, { doCSVExport, doPrint } from './ReportFilters'
+import ReportPrintHeader from './ReportPrintHeader'
 import { fetchReport, presetRange, fmtMoney, fmtCompact, COLORS } from './common'
 
 function Metric({ label, value, strong }) {
@@ -51,7 +52,8 @@ export default function SalesSummary() {
 
   return (
     <div className="stack gap-16">
-      <div><h2 style={{ margin: 0 }}>Sales Summary</h2>
+      <ReportPrintHeader title="Sales Summary" filters={filters} extra={data?.totals ? `${data.totals.numberOfInvoices || 0} invoices · ${data.totals.numberOfCustomers || 0} customers` : null} />
+      <div className="no-print"><h2 style={{ margin: 0 }}>Sales Summary</h2>
         <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>Summarizes sales totals and all detail records.</div>
       </div>
 
@@ -133,7 +135,7 @@ export default function SalesSummary() {
             </Section>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(480px, 1fr))', gap: 20 }}>
             <Section title="Sales by Technician">
               <StaffTable rows={data.byTechnician} />
             </Section>
@@ -142,14 +144,16 @@ export default function SalesSummary() {
             </Section>
             <Section title="Sales by Payment Method">
               {(data.byPaymentMethod || []).length === 0 ? <EmptyState title="No data">No payments recorded.</EmptyState> : (
-                <table className="table" style={{ width: '100%', fontSize: 14 }}>
-                  <thead><tr><th>Method</th><th style={{ textAlign: 'right' }}>Count</th><th style={{ textAlign: 'right' }}>Amount</th></tr></thead>
-                  <tbody>{data.byPaymentMethod.map((r) => (
-                    <tr key={r.method}><td style={{ textTransform: 'capitalize' }}>{r.method.replace(/_/g, ' ')}</td>
-                      <td style={{ textAlign: 'right' }}>{r.count}</td>
-                      <td style={{ textAlign: 'right' }}>{fmtMoney(r.amount)}</td></tr>
-                  ))}</tbody>
-                </table>
+                <div style={{ overflowX: 'auto' }}>
+                  <table className="table" style={{ width: '100%', fontSize: 14, borderCollapse: 'collapse' }}>
+                    <thead><tr><th style={{ textAlign: 'left', padding: '8px 10px' }}>Method</th><th style={{ textAlign: 'right', padding: '8px 10px' }}>Count</th><th style={{ textAlign: 'right', padding: '8px 10px' }}>Amount</th></tr></thead>
+                    <tbody>{data.byPaymentMethod.map((r) => (
+                      <tr key={r.method}><td style={{ textTransform: 'capitalize', padding: '8px 10px' }}>{r.method.replace(/_/g, ' ')}</td>
+                        <td style={{ textAlign: 'right', padding: '8px 10px' }}>{r.count}</td>
+                        <td style={{ textAlign: 'right', padding: '8px 10px' }}>{fmtMoney(r.amount)}</td></tr>
+                    ))}</tbody>
+                  </table>
+                </div>
               )}
             </Section>
           </div>
@@ -200,18 +204,33 @@ export default function SalesSummary() {
 
 function StaffTable({ rows }) {
   if (!rows || rows.length === 0) return <EmptyState title="No data">No activity in this range.</EmptyState>
+  const cell = { padding: '8px 10px', whiteSpace: 'nowrap' }
+  const num = { ...cell, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }
   return (
-    <table className="table" style={{ width: '100%', fontSize: 14 }}>
-      <thead><tr><th>Name</th><th style={{ textAlign: 'right' }}>ROs</th><th style={{ textAlign: 'right' }}>Labor</th><th style={{ textAlign: 'right' }}>Parts</th><th style={{ textAlign: 'right' }}>Total</th><th style={{ textAlign: 'right' }}>Avg RO</th></tr></thead>
-      <tbody>{rows.map((r, i) => (
-        <tr key={i}><td>{r.name}</td>
-          <td style={{ textAlign: 'right' }}>{r.repairOrders}</td>
-          <td style={{ textAlign: 'right' }}>{fmtMoney(r.labor)}</td>
-          <td style={{ textAlign: 'right' }}>{fmtMoney(r.parts)}</td>
-          <td style={{ textAlign: 'right', fontWeight: 600 }}>{fmtMoney(r.total)}</td>
-          <td style={{ textAlign: 'right' }}>{fmtMoney(r.avgRO)}</td></tr>
-      ))}</tbody>
-    </table>
+    <div style={{ overflowX: 'auto' }}>
+      <table className="table" style={{ width: '100%', fontSize: 14, borderCollapse: 'collapse', minWidth: 420 }}>
+        <thead>
+          <tr>
+            <th style={{ ...cell, textAlign: 'left' }}>Name</th>
+            <th style={num}>ROs</th>
+            <th style={num}>Labor</th>
+            <th style={num}>Parts</th>
+            <th style={num}>Total</th>
+            <th style={num}>Avg RO</th>
+          </tr>
+        </thead>
+        <tbody>{rows.map((r, i) => (
+          <tr key={i}>
+            <td style={cell}>{r.name}</td>
+            <td style={num}>{r.repairOrders}</td>
+            <td style={num}>{fmtMoney(r.labor)}</td>
+            <td style={num}>{fmtMoney(r.parts)}</td>
+            <td style={{ ...num, fontWeight: 600 }}>{fmtMoney(r.total)}</td>
+            <td style={num}>{fmtMoney(r.avgRO)}</td>
+          </tr>
+        ))}</tbody>
+      </table>
+    </div>
   )
 }
 

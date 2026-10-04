@@ -233,24 +233,30 @@ func (s *Server) settingsRoutes(mux *http.ServeMux) {
 // document creation snapshots from the same data.
 type Bundle map[string]any
 
-func (s *Server) loadBundle(ctx context.Context, tx pgx.Tx) (Bundle, error) {
+func (s *Server) loadBundle(ctx context.Context, tx pgx.Tx, cid string) (Bundle, error) {
 	b := Bundle{}
+	// Self-heal: ensure every per-company settings row exists for this tenant
+	// before we read them, so a brand-new company (or any tenant missing a row
+	// after an upgrade) never 404s on /api/settings.
+	if err := s.InitCompanyDefaults(ctx, tx, cid); err != nil {
+		return nil, fmt.Errorf("init defaults: %w", err)
+	}
 	for _, r := range settingsResources {
 		if r.Singleton {
-			row, err := r.get(ctx, tx, 1)
+			row, err := r.getSingleton(ctx, tx, cid)
 			if err != nil {
 				return nil, fmt.Errorf("%s: %w", r.Path, err)
 			}
 			b[r.Path] = row
 		} else {
-			rows, err := r.list(ctx, tx)
+			rows, err := r.list(ctx, tx, cid)
 			if err != nil {
 				return nil, fmt.Errorf("%s: %w", r.Path, err)
 			}
 			b[r.Path] = rows
 		}
 	}
-	lr, err := laborRates(ctx, tx)
+	lr, err := laborRates(ctx, tx, cid)
 	if err != nil {
 		return nil, err
 	}
@@ -260,7 +266,7 @@ func (s *Server) loadBundle(ctx context.Context, tx pgx.Tx) (Bundle, error) {
 			b["laborRate"] = x
 		}
 	}
-	nb, err := numbering(ctx, tx)
+	nb, err := numbering(ctx, tx, cid)
 	if err != nil {
 		return nil, err
 	}
@@ -269,8 +275,9 @@ func (s *Server) loadBundle(ctx context.Context, tx pgx.Tx) (Bundle, error) {
 }
 
 func (s *Server) bundle(w http.ResponseWriter, r *http.Request) {
+	cid := companyFrom(r.Context())
 	var b Bundle
-	err := s.tx(r.Context(), func(tx pgx.Tx) (err error) { b, err = s.loadBundle(r.Context(), tx); return })
+	err := s.tx(r.Context(), func(tx pgx.Tx) (err error) { b, err = s.loadBundle(r.Context(), tx, cid); return })
 	if err != nil {
 		handleErr(w, err)
 		return
@@ -280,9 +287,9 @@ func (s *Server) bundle(w http.ResponseWriter, r *http.Request) {
 
 // ---------------------------------------------------------------- labor rates
 
-func laborRates(ctx context.Context, tx pgx.Tx) ([]map[string]any, error) {
+func laborRates(ctx context.Context, tx pgx.Tx, cid string) ([]map[string]any, error) {
 	rows, err := tx.Query(ctx, `SELECT id, rate::float8, currency, to_char(effective_date, 'YYYY-MM-DD'), active, notes, created_at, created_by
-		FROM labor_rates ORDER BY active DESC, effective_date DESC, id DESC`)
+		FROM labor_rates WHERE company_id::text = $1 ORDER BY active DESC, effective_date DESC, id DESC`, cid)
 	if err != nil {
 		return nil, err
 	}
@@ -303,8 +310,9 @@ func laborRates(ctx context.Context, tx pgx.Tx) ([]map[string]any, error) {
 }
 
 func (s *Server) listLaborRates(w http.ResponseWriter, r *http.Request) {
+	cid := companyFrom(r.Context())
 	var out []map[string]any
-	err := s.tx(r.Context(), func(tx pgx.Tx) (err error) { out, err = laborRates(r.Context(), tx); return })
+	err := s.tx(r.Context(), func(tx pgx.Tx) (err error) { out, err = laborRates(r.Context(), tx, cid); return })
 	if err != nil {
 		handleErr(w, err)
 		return
@@ -334,22 +342,23 @@ func (s *Server) createLaborRate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	u := userFrom(r.Context())
+	cid := u.CompanyID
 	err = s.tx(r.Context(), func(tx pgx.Tx) error {
 		var oldRate *float64
-		tx.QueryRow(r.Context(), `SELECT rate::float8 FROM labor_rates WHERE active FOR UPDATE`).Scan(&oldRate)
-		if _, err := tx.Exec(r.Context(), `UPDATE labor_rates SET active = false, updated_at = now(), updated_by = $1 WHERE active`, u.Name); err != nil {
+		tx.QueryRow(r.Context(), `SELECT rate::float8 FROM labor_rates WHERE active AND company_id::text = $1 FOR UPDATE`, cid).Scan(&oldRate)
+		if _, err := tx.Exec(r.Context(), `UPDATE labor_rates SET active = false, updated_at = now(), updated_by = $1 WHERE active AND company_id::text = $2`, u.Name, cid); err != nil {
 			return err
 		}
 		var id int64
-		if err := tx.QueryRow(r.Context(), `INSERT INTO labor_rates (rate, currency, effective_date, active, notes, created_by, updated_by)
-			VALUES ($1, $2, $3, true, $4, $5, $5) RETURNING id`, vals["rate"], vals["currency"], vals["effectiveDate"], vals["notes"], u.Name).Scan(&id); err != nil {
+		if err := tx.QueryRow(r.Context(), `INSERT INTO labor_rates (company_id, rate, currency, effective_date, active, notes, created_by, updated_by)
+			VALUES ($1::uuid, $2, $3, $4, true, $5, $6, $6) RETURNING id`, cid, vals["rate"], vals["currency"], vals["effectiveDate"], vals["notes"], u.Name).Scan(&id); err != nil {
 			return err
 		}
 		old := ""
 		if oldRate != nil {
 			old = fmt.Sprintf("$%.2f", *oldRate)
 		}
-		return audit(r.Context(), tx, u, "labor_rate", id, "update", "Labor rate", old, fmt.Sprintf("$%.2f", vals["rate"]))
+		return audit(r.Context(), tx, u, "labor_rate", id, "update", "Labor rate", old, fmt.Sprintf("$%.2f", vals["rate"]), cid)
 	})
 	if err != nil {
 		handleErr(w, err)
@@ -360,11 +369,11 @@ func (s *Server) createLaborRate(w http.ResponseWriter, r *http.Request) {
 
 // ---------------------------------------------------------------- numbering
 
-func numbering(ctx context.Context, tx pgx.Tx) ([]map[string]any, error) {
+func numbering(ctx context.Context, tx pgx.Tx, cid string) ([]map[string]any, error) {
 	rows, err := tx.Query(ctx, `SELECT n.doc_type, n.prefix, n.next_number,
-		coalesce((SELECT max(number) FROM documents d WHERE d.number_type = n.doc_type), 0)
-		FROM document_number_settings n
-		ORDER BY array_position(ARRAY['estimate','repair_order','invoice','statement'], n.doc_type)`)
+		coalesce((SELECT max(number) FROM documents d WHERE d.number_type = n.doc_type AND d.company_id = n.company_id), 0)
+		FROM document_number_settings n WHERE n.company_id::text = $1
+		ORDER BY array_position(ARRAY['estimate','repair_order','invoice','statement'], n.doc_type)`, cid)
 	if err != nil {
 		return nil, err
 	}
@@ -382,8 +391,9 @@ func numbering(ctx context.Context, tx pgx.Tx) ([]map[string]any, error) {
 }
 
 func (s *Server) listNumbering(w http.ResponseWriter, r *http.Request) {
+	cid := companyFrom(r.Context())
 	var out []map[string]any
-	err := s.tx(r.Context(), func(tx pgx.Tx) (err error) { out, err = numbering(r.Context(), tx); return })
+	err := s.tx(r.Context(), func(tx pgx.Tx) (err error) { out, err = numbering(r.Context(), tx, cid); return })
 	if err != nil {
 		handleErr(w, err)
 		return
@@ -408,10 +418,11 @@ func (s *Server) updateNumbering(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	u := userFrom(r.Context())
+	cid := u.CompanyID
 	err = s.tx(r.Context(), func(tx pgx.Tx) error {
 		var oldNext int64
 		var oldPrefix string
-		if err := tx.QueryRow(r.Context(), `SELECT next_number, prefix FROM document_number_settings WHERE doc_type = $1 FOR UPDATE`, docType).Scan(&oldNext, &oldPrefix); err != nil {
+		if err := tx.QueryRow(r.Context(), `SELECT next_number, prefix FROM document_number_settings WHERE company_id::text = $1 AND doc_type = $2 FOR UPDATE`, cid, docType).Scan(&oldNext, &oldPrefix); err != nil {
 			return err
 		}
 		next := vals["nextNumber"].(int64)
@@ -420,25 +431,25 @@ func (s *Server) updateNumbering(w http.ResponseWriter, r *http.Request) {
 			prefix = p
 		}
 		var maxIssued int64
-		tx.QueryRow(r.Context(), `SELECT coalesce(max(number), 0) FROM documents WHERE number_type = $1`, docType).Scan(&maxIssued)
+		tx.QueryRow(r.Context(), `SELECT coalesce(max(number), 0) FROM documents WHERE company_id::text = $1 AND number_type = $2`, cid, docType).Scan(&maxIssued)
 		if next <= maxIssued {
 			return ValidationError{"nextNumber": fmt.Sprintf("Must be greater than the last issued number (%d) to avoid duplicates.", maxIssued)}
 		}
 		var clash bool
-		tx.QueryRow(r.Context(), `SELECT EXISTS (SELECT 1 FROM documents WHERE display_number = $1)`, prefix+fmt.Sprint(next)).Scan(&clash)
+		tx.QueryRow(r.Context(), `SELECT EXISTS (SELECT 1 FROM documents WHERE company_id::text = $1 AND display_number = $2)`, cid, prefix+fmt.Sprint(next)).Scan(&clash)
 		if clash {
 			return ValidationError{"nextNumber": "A document with number " + prefix + fmt.Sprint(next) + " already exists. Choose another number or prefix."}
 		}
-		if _, err := tx.Exec(r.Context(), `UPDATE document_number_settings SET next_number = $1, prefix = $2, updated_at = now(), updated_by = $3 WHERE doc_type = $4`, next, prefix, u.Name, docType); err != nil {
+		if _, err := tx.Exec(r.Context(), `UPDATE document_number_settings SET next_number = $1, prefix = $2, updated_at = now(), updated_by = $3 WHERE company_id::text = $4 AND doc_type = $5`, next, prefix, u.Name, cid, docType); err != nil {
 			return err
 		}
 		if next != oldNext {
-			if err := audit(r.Context(), tx, u, "document_numbering", docType, "update", "Next number", fmt.Sprint(oldNext), fmt.Sprint(next)); err != nil {
+			if err := audit(r.Context(), tx, u, "document_numbering", docType, "update", "Next number", fmt.Sprint(oldNext), fmt.Sprint(next), cid); err != nil {
 				return err
 			}
 		}
 		if prefix != oldPrefix {
-			return audit(r.Context(), tx, u, "document_numbering", docType, "update", "Prefix", oldPrefix, prefix)
+			return audit(r.Context(), tx, u, "document_numbering", docType, "update", "Prefix", oldPrefix, prefix, cid)
 		}
 		return nil
 	})
@@ -494,44 +505,54 @@ func (s *Server) uploadLogo(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	u := userFrom(r.Context())
+	cid := u.CompanyID
 	err = s.tx(r.Context(), func(tx pgx.Tx) error {
 		var old string
-		tx.QueryRow(r.Context(), `SELECT coalesce(logo_name, '') FROM printing_settings WHERE id = 1`).Scan(&old)
+		tx.QueryRow(r.Context(), `SELECT coalesce(logo_name, '') FROM printing_settings WHERE company_id::text = $1`, cid).Scan(&old)
 		if _, err := tx.Exec(r.Context(), `UPDATE printing_settings SET logo_name = $1, logo_mime = $2, logo_size = $3, logo_data = $4,
-			logo_updated_at = now(), updated_at = now(), updated_by = $5 WHERE id = 1`, name, mime, len(data), data, u.Name); err != nil {
+			logo_updated_at = now(), updated_at = now(), updated_by = $5 WHERE company_id::text = $6`, name, mime, len(data), data, u.Name, cid); err != nil {
 			return err
 		}
-		return audit(r.Context(), tx, u, "printing", 1, "update", "Shop logo", old, name)
+		return audit(r.Context(), tx, u, "printing", "singleton", "update", "Shop logo", old, name, cid)
 	})
 	if err != nil {
 		handleErr(w, err)
 		return
 	}
-	s.getSingleton(w, r, printingRes)
+	s.serveSingleton(w, r, printingRes)
 }
 
 func (s *Server) deleteLogo(w http.ResponseWriter, r *http.Request) {
 	u := userFrom(r.Context())
+	cid := u.CompanyID
 	err := s.tx(r.Context(), func(tx pgx.Tx) error {
 		var old string
-		tx.QueryRow(r.Context(), `SELECT coalesce(logo_name, '') FROM printing_settings WHERE id = 1`).Scan(&old)
+		tx.QueryRow(r.Context(), `SELECT coalesce(logo_name, '') FROM printing_settings WHERE company_id::text = $1`, cid).Scan(&old)
 		if _, err := tx.Exec(r.Context(), `UPDATE printing_settings SET logo_name = NULL, logo_mime = NULL, logo_size = NULL, logo_data = NULL,
-			logo_updated_at = now(), updated_at = now(), updated_by = $1 WHERE id = 1`, u.Name); err != nil {
+			logo_updated_at = now(), updated_at = now(), updated_by = $1 WHERE company_id::text = $2`, u.Name, cid); err != nil {
 			return err
 		}
-		return audit(r.Context(), tx, u, "printing", 1, "update", "Shop logo", old, "(removed)")
+		return audit(r.Context(), tx, u, "printing", "singleton", "update", "Shop logo", old, "(removed)", cid)
 	})
 	if err != nil {
 		handleErr(w, err)
 		return
 	}
-	s.getSingleton(w, r, printingRes)
+	s.serveSingleton(w, r, printingRes)
 }
 
+// getLogo is public (used by <img> on printed documents) so it accepts a
+// company id via ?company query param. If omitted, falls back to the demo tenant.
 func (s *Server) getLogo(w http.ResponseWriter, r *http.Request) {
+	cid := r.URL.Query().Get("company")
+	if cid == "" {
+		if demo, err := s.demoCompanyID(r.Context()); err == nil {
+			cid = demo
+		}
+	}
 	var mime *string
 	var data []byte
-	if err := s.db.QueryRow(r.Context(), `SELECT logo_mime, logo_data FROM printing_settings WHERE id = 1`).Scan(&mime, &data); err != nil || mime == nil {
+	if err := s.db.QueryRow(r.Context(), `SELECT logo_mime, logo_data FROM printing_settings WHERE company_id::text = $1`, cid).Scan(&mime, &data); err != nil || mime == nil {
 		writeErr(w, 404, "No logo.")
 		return
 	}
@@ -541,9 +562,11 @@ func (s *Server) getLogo(w http.ResponseWriter, r *http.Request) {
 	w.Write(data)
 }
 
-func (s *Server) getSingleton(w http.ResponseWriter, r *http.Request, res *Resource) {
+// serveSingleton returns the current user's per-company singleton row.
+func (s *Server) serveSingleton(w http.ResponseWriter, r *http.Request, res *Resource) {
+	cid := companyFrom(r.Context())
 	var row map[string]any
-	err := s.tx(r.Context(), func(tx pgx.Tx) (err error) { row, err = res.get(r.Context(), tx, 1); return })
+	err := s.tx(r.Context(), func(tx pgx.Tx) (err error) { row, err = res.getSingleton(r.Context(), tx, cid); return })
 	if err != nil {
 		handleErr(w, err)
 		return
@@ -565,20 +588,21 @@ func (s *Server) uploadLicenseDoc(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	u := userFrom(r.Context())
+	cid := u.CompanyID
 	var row map[string]any
 	err = s.tx(r.Context(), func(tx pgx.Tx) error {
 		tag, err := tx.Exec(r.Context(), `UPDATE shop_licenses SET document_name = $1, document_mime = $2, document_size = $3, document_data = $4,
-			updated_at = now(), updated_by = $5 WHERE id = $6`, name, mime, len(data), data, u.Name, id)
+			updated_at = now(), updated_by = $5 WHERE id = $6 AND company_id::text = $7`, name, mime, len(data), data, u.Name, id, cid)
 		if err != nil {
 			return err
 		}
 		if tag.RowsAffected() == 0 {
 			return pgx.ErrNoRows
 		}
-		if err := audit(r.Context(), tx, u, "license", id, "update", "Supporting document", "", name); err != nil {
+		if err := audit(r.Context(), tx, u, "license", id, "update", "Supporting document", "", name, cid); err != nil {
 			return err
 		}
-		row, err = licenseRes.get(r.Context(), tx, id)
+		row, err = licenseRes.get(r.Context(), tx, cid, id)
 		return err
 	})
 	if err != nil {
@@ -594,21 +618,22 @@ func (s *Server) deleteLicenseDoc(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	u := userFrom(r.Context())
+	cid := u.CompanyID
 	var row map[string]any
 	err := s.tx(r.Context(), func(tx pgx.Tx) error {
 		var old string
-		if err := tx.QueryRow(r.Context(), `SELECT coalesce(document_name, '') FROM shop_licenses WHERE id = $1`, id).Scan(&old); err != nil {
+		if err := tx.QueryRow(r.Context(), `SELECT coalesce(document_name, '') FROM shop_licenses WHERE id = $1 AND company_id::text = $2`, id, cid).Scan(&old); err != nil {
 			return err
 		}
 		if _, err := tx.Exec(r.Context(), `UPDATE shop_licenses SET document_name = NULL, document_mime = NULL, document_size = NULL, document_data = NULL,
-			updated_at = now(), updated_by = $1 WHERE id = $2`, u.Name, id); err != nil {
+			updated_at = now(), updated_by = $1 WHERE id = $2 AND company_id::text = $3`, u.Name, id, cid); err != nil {
 			return err
 		}
-		if err := audit(r.Context(), tx, u, "license", id, "update", "Supporting document", old, "(removed)"); err != nil {
+		if err := audit(r.Context(), tx, u, "license", id, "update", "Supporting document", old, "(removed)", cid); err != nil {
 			return err
 		}
 		var err error
-		row, err = licenseRes.get(r.Context(), tx, id)
+		row, err = licenseRes.get(r.Context(), tx, cid, id)
 		return err
 	})
 	if err != nil {
@@ -623,9 +648,10 @@ func (s *Server) getLicenseDoc(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	cid := companyFrom(r.Context())
 	var name, mime *string
 	var data []byte
-	if err := s.db.QueryRow(r.Context(), `SELECT document_name, document_mime, document_data FROM shop_licenses WHERE id = $1`, id).Scan(&name, &mime, &data); err != nil || mime == nil {
+	if err := s.db.QueryRow(r.Context(), `SELECT document_name, document_mime, document_data FROM shop_licenses WHERE id = $1 AND company_id::text = $2`, id, cid).Scan(&name, &mime, &data); err != nil || mime == nil {
 		writeErr(w, 404, "No document uploaded.")
 		return
 	}

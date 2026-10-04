@@ -71,6 +71,15 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	if err := srv.SeedDefaultSaasAdmin(ctx); err != nil {
+		log.Printf("seed saas admin: %v", err)
+	}
+	if pw := os.Getenv("RESET_SAAS_ADMIN_PASSWORD"); pw != "" {
+		email := envOr("SAAS_ADMIN_EMAIL", "owner@curanex.local")
+		if err := srv.ResetSaasAdminPassword(ctx, email, pw); err != nil {
+			log.Printf("reset saas admin password: %v", err)
+		}
+	}
 	if *seedDemo {
 		if err := srv.SeedDemoDocuments(ctx); err != nil {
 			log.Printf("seed demo documents: %v", err)

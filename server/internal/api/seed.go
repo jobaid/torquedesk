@@ -4,10 +4,125 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"log"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 )
+
+func envOr(key, def string) string {
+	if v := strings.TrimSpace(os.Getenv(key)); v != "" {
+		return v
+	}
+	return def
+}
+
+// InitCompanyDefaults seeds the minimum settings a brand-new company needs so
+// its shop owner can sign in and start creating documents immediately. Called
+// from the Owner Portal's "Add Company" flow inside the same transaction so a
+// failed init rolls back the whole company creation.
+//
+// Each inserted row carries the company_id FK; the migration backfilled
+// defaults for pre-existing companies, so new tenants need only ensure these
+// per-company rows exist.
+func (s *Server) InitCompanyDefaults(ctx context.Context, tx pgx.Tx, cid string) error {
+	// Singleton settings — a NOP if the migration already created them, which
+	// it will have for companies that existed when 005_tenancy ran.
+	for _, t := range []string{"shop_settings", "document_preferences", "printing_settings",
+		"document_options", "estimate_settings", "document_header_footer", "company_features"} {
+		if _, err := tx.Exec(ctx, "INSERT INTO "+t+" (company_id) VALUES ($1::uuid) ON CONFLICT (company_id) DO NOTHING", cid); err != nil {
+			return fmt.Errorf("init %s: %w", t, err)
+		}
+	}
+	// Document numbering: one row per doc type.
+	if _, err := tx.Exec(ctx, `INSERT INTO document_number_settings (company_id, doc_type, prefix, next_number)
+		SELECT $1::uuid, dt.doc_type, '', 10001
+		FROM (VALUES ('estimate'), ('repair_order'), ('invoice'), ('statement')) AS dt(doc_type)
+		ON CONFLICT (company_id, doc_type) DO NOTHING`, cid); err != nil {
+		return fmt.Errorf("init numbering: %w", err)
+	}
+	// A default labor rate so document creation doesn't 409 on "no active rate".
+	var exists bool
+	if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM labor_rates WHERE company_id::text = $1)`, cid).Scan(&exists); err != nil {
+		return err
+	}
+	if !exists {
+		if _, err := tx.Exec(ctx, `INSERT INTO labor_rates (company_id, rate, currency, effective_date, active, notes, created_by, updated_by)
+			VALUES ($1::uuid, 125.00, 'USD', current_date, true, 'Default rate created with the company. Change it in Settings → Financial.', 'system', 'system')`, cid); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// SeedDefaultSaasAdmin creates the initial CuraNex SaaS owner account if none
+// exists. Credentials come from env (SAAS_ADMIN_EMAIL / SAAS_ADMIN_PASSWORD);
+// otherwise a dev-mode default is used with the password logged ONCE on first
+// boot so the operator can sign in and rotate it immediately.
+func (s *Server) SeedDefaultSaasAdmin(ctx context.Context) error {
+	var count int64
+	if err := s.db.QueryRow(ctx, `SELECT count(*) FROM saas_admin_users`).Scan(&count); err != nil {
+		return err
+	}
+	if count > 0 {
+		return nil
+	}
+	email := envOr("SAAS_ADMIN_EMAIL", "owner@curanex.local")
+	password := envOr("SAAS_ADMIN_PASSWORD", "")
+	logged := false
+	if password == "" {
+		password = GenerateRandomPassword(12)
+		logged = true
+	}
+	hash, err := HashPassword(password)
+	if err != nil {
+		return err
+	}
+	if _, err := s.db.Exec(ctx, `INSERT INTO saas_admin_users (email, name, password_hash) VALUES ($1, $2, $3)`,
+		strings.ToLower(email), "CuraNex Owner", hash); err != nil {
+		return err
+	}
+	if logged {
+		log.Printf("---- CuraNex SaaS Owner Portal: initial admin created ----")
+		log.Printf("  email:    %s", email)
+		log.Printf("  password: %s", password)
+		log.Printf("  (set SAAS_ADMIN_EMAIL and SAAS_ADMIN_PASSWORD env vars before first run to override)")
+		log.Printf("---- change this password immediately after signing in ----")
+	}
+	return nil
+}
+
+// ResetSaasAdminPassword rewrites the password hash for the given SaaS Owner
+// email (creating the row if it doesn't exist). Triggered at boot by the
+// RESET_SAAS_ADMIN_PASSWORD env var — intended as a self-serve recovery path
+// when the operator has lost the initial password.
+func (s *Server) ResetSaasAdminPassword(ctx context.Context, email, password string) error {
+	email = strings.ToLower(strings.TrimSpace(email))
+	if email == "" || password == "" {
+		return nil
+	}
+	hash, err := HashPassword(password)
+	if err != nil {
+		return err
+	}
+	tag, err := s.db.Exec(ctx, `UPDATE saas_admin_users SET password_hash = $1, active = true WHERE lower(email) = $2`, hash, email)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		if _, err := s.db.Exec(ctx, `INSERT INTO saas_admin_users (email, name, password_hash) VALUES ($1, $2, $3)`,
+			email, "CuraNex Owner", hash); err != nil {
+			return err
+		}
+		log.Printf("CuraNex SaaS Owner reset: created new admin %s", email)
+	} else {
+		log.Printf("CuraNex SaaS Owner reset: password updated for %s", email)
+	}
+	return nil
+}
 
 // SeedDemoDocuments inserts the sample documents once, on first run.
 func (s *Server) SeedDemoDocuments(ctx context.Context) error {
@@ -15,10 +130,15 @@ func (s *Server) SeedDemoDocuments(ctx context.Context) error {
 	if err := s.db.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM app_secrets WHERE name = 'demo_seeded')`).Scan(&done); err != nil || done {
 		return err
 	}
-	u := User{Name: "system", Role: "admin"}
+	// Demo rows all belong to the backfill demo tenant.
+	cid, err := s.demoCompanyID(ctx)
+	if err != nil {
+		return err
+	}
+	u := User{Name: "system", Role: "admin", CompanyID: cid}
 	writerID := func(name string) *int64 {
 		var id int64
-		if err := s.db.QueryRow(ctx, `SELECT id FROM shop_service_writers WHERE display_name = $1`, name).Scan(&id); err != nil {
+		if err := s.db.QueryRow(ctx, `SELECT id FROM shop_service_writers WHERE display_name = $1 AND company_id::text = $2`, name, cid).Scan(&id); err != nil {
 			return nil
 		}
 		return &id
@@ -76,9 +196,9 @@ func (s *Server) SeedDemoDocuments(ctx context.Context) error {
 		}
 	}
 	// The repair order gets its authorization and technician.
-	err := pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
+	err = pgx.BeginFunc(ctx, s.db, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, `UPDATE documents SET authorization_info = $1, technician_id = t.id, technician_name = t.display_name
-			FROM shop_technicians t WHERE t.display_name = 'DOUGLAZ' AND documents.display_number = '301329'`,
+			FROM shop_technicians t WHERE t.display_name = 'DOUGLAZ' AND documents.display_number = '301329' AND documents.company_id = t.company_id`,
 			raw(map[string]any{"approved": true, "by": "Marcus Reyes", "method": "Phone", "at": time.Now().Add(-4 * time.Hour).UnixMilli()})); err != nil {
 			return err
 		}

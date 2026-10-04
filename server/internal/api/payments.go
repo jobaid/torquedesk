@@ -73,7 +73,8 @@ func (s *Server) paymentRoutes(mux *http.ServeMux) {
 }
 
 func (s *Server) listDocumentPayments(w http.ResponseWriter, r *http.Request) {
-	rows, err := s.db.Query(r.Context(), `SELECT `+paymentCols+` FROM payments p WHERE p.document_id::text = $1 ORDER BY p.paid_at, p.payment_number`, r.PathValue("id"))
+	cid := companyFrom(r.Context())
+	rows, err := s.db.Query(r.Context(), `SELECT `+paymentCols+` FROM payments p WHERE p.document_id::text = $1 AND p.company_id::text = $2 ORDER BY p.paid_at, p.payment_number`, r.PathValue("id"), cid)
 	if err != nil {
 		handleErr(w, err)
 		return
@@ -127,19 +128,20 @@ func (s *Server) createPayment(w http.ResponseWriter, r *http.Request) {
 	if in.PaidAt != nil {
 		paidAt = time.UnixMilli(*in.PaidAt).UTC()
 	}
+	cid := u.CompanyID
 	var out map[string]any
 	err := s.tx(r.Context(), func(tx pgx.Tx) error {
 		var exists bool
-		if err := tx.QueryRow(r.Context(), `SELECT EXISTS (SELECT 1 FROM documents WHERE id::text = $1)`, id).Scan(&exists); err != nil {
+		if err := tx.QueryRow(r.Context(), `SELECT EXISTS (SELECT 1 FROM documents WHERE id::text = $1 AND company_id::text = $2)`, id, cid).Scan(&exists); err != nil {
 			return err
 		}
 		if !exists {
 			return errStatus(404, "Document not found.")
 		}
 		var payID string
-		if err := tx.QueryRow(r.Context(), `INSERT INTO payments (document_id, paid_at, method, amount, check_number, reference, notes, recorded_by, updated_by)
-			VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $8) RETURNING id::text`,
-			id, paidAt, in.Method, amt.StringFixed(2),
+		if err := tx.QueryRow(r.Context(), `INSERT INTO payments (company_id, document_id, paid_at, method, amount, check_number, reference, notes, recorded_by, updated_by)
+			VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7, $8, $9, $9) RETURNING id::text`,
+			cid, id, paidAt, in.Method, amt.StringFixed(2),
 			strings.TrimSpace(in.CheckNumber), strings.TrimSpace(in.Reference), strings.TrimSpace(in.Notes), u.Name,
 		).Scan(&payID); err != nil {
 			return err
@@ -152,7 +154,7 @@ func (s *Server) createPayment(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		out = p
-		return audit(r.Context(), tx, u, "payment", payID, "create", "amount", "", amt.StringFixed(2))
+		return audit(r.Context(), tx, u, "payment", payID, "create", "amount", "", amt.StringFixed(2), u.CompanyID)
 	})
 	if err != nil {
 		handleErr(w, err)
@@ -181,7 +183,7 @@ func (s *Server) updatePayment(w http.ResponseWriter, r *http.Request) {
 	var out map[string]any
 	err := s.tx(r.Context(), func(tx pgx.Tx) error {
 		var docID, status, amount string
-		if err := tx.QueryRow(r.Context(), `SELECT document_id::text, status, amount::text FROM payments WHERE id::text = $1 FOR UPDATE`, id).
+		if err := tx.QueryRow(r.Context(), `SELECT document_id::text, status, amount::text FROM payments WHERE id::text = $1 AND company_id::text = $2 FOR UPDATE`, id, u.CompanyID).
 			Scan(&docID, &status, &amount); err != nil {
 			return err
 		}
@@ -257,7 +259,7 @@ func (s *Server) updatePayment(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		out = p
-		return audit(r.Context(), tx, u, "payment", id, "update", "", "", "")
+		return audit(r.Context(), tx, u, "payment", id, "update", "", "", "", u.CompanyID)
 	})
 	if err != nil {
 		handleErr(w, err)
@@ -271,16 +273,16 @@ func (s *Server) voidPayment(w http.ResponseWriter, r *http.Request) {
 	u := userFrom(r.Context())
 	err := s.tx(r.Context(), func(tx pgx.Tx) error {
 		var docID string
-		if err := tx.QueryRow(r.Context(), `SELECT document_id::text FROM payments WHERE id::text = $1 FOR UPDATE`, id).Scan(&docID); err != nil {
+		if err := tx.QueryRow(r.Context(), `SELECT document_id::text FROM payments WHERE id::text = $1 AND company_id::text = $2 FOR UPDATE`, id, u.CompanyID).Scan(&docID); err != nil {
 			return err
 		}
-		if _, err := tx.Exec(r.Context(), `UPDATE payments SET status = 'voided', voided_at = now(), updated_at = now(), updated_by = $2 WHERE id::text = $1`, id, u.Name); err != nil {
+		if _, err := tx.Exec(r.Context(), `UPDATE payments SET status = 'voided', voided_at = now(), updated_at = now(), updated_by = $2 WHERE id::text = $1 AND company_id::text = $3`, id, u.Name, u.CompanyID); err != nil {
 			return err
 		}
 		if err := recalcDocument(r.Context(), tx, docID); err != nil {
 			return err
 		}
-		return audit(r.Context(), tx, u, "payment", id, "delete", "status", "", "voided")
+		return audit(r.Context(), tx, u, "payment", id, "delete", "status", "", "voided", u.CompanyID)
 	})
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

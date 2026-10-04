@@ -11,15 +11,16 @@ export const useSettings = create((set, get) => ({
   data: null,
   loading: false,
   error: null,
+  errorStatus: 0,
 
   load: async () => {
-    set({ loading: true, error: null })
+    set({ loading: true, error: null, errorStatus: 0 })
     try {
       const data = await api('/settings')
       set({ data, loading: false })
       return data
     } catch (e) {
-      set({ loading: false, error: e.message })
+      set({ loading: false, error: e.message, errorStatus: e.status || 0 })
       throw e
     }
   },

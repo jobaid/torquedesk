@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
 import { SkeletonCard, EmptyState } from '../../components/ui'
 import ReportFilters, { doCSVExport, doPrint } from './ReportFilters'
+import ReportPrintHeader from './ReportPrintHeader'
 import { fetchReport, presetRange, fmtMoney, fmtCompact, COLORS } from './common'
 
 export default function Tax() {
@@ -26,7 +27,8 @@ export default function Tax() {
 
   return (
     <div className="stack gap-16">
-      <div><h2 style={{ margin: 0 }}>Tax</h2>
+      <ReportPrintHeader title="Tax Report" filters={filters} extra={data?.totals ? `Taxable sales: ${fmtMoney(data.totals.totalTaxableSales)} · Tax collected: ${fmtMoney(data.totals.totalTaxCollected)}` : null} />
+      <div className="no-print"><h2 style={{ margin: 0 }}>Tax</h2>
         <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>Breaks down collected taxes using the tax amounts stored on each invoice.</div>
       </div>
 

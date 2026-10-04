@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from 'recharts'
 import { SkeletonCard, EmptyState } from '../../components/ui'
 import ReportFilters, { doCSVExport, doPrint } from './ReportFilters'
+import ReportPrintHeader from './ReportPrintHeader'
 import { fetchReport, presetRange, fmtMoney, COLORS } from './common'
 
 export default function Payments() {
@@ -28,7 +29,8 @@ export default function Payments() {
 
   return (
     <div className="stack gap-16">
-      <div><h2 style={{ margin: 0 }}>Payments</h2>
+      <ReportPrintHeader title="Payments Report" filters={filters} extra={data?.totals ? `Total: ${fmtMoney(data.totals.totalPayments)} · Refunds: ${fmtMoney(data.totals.refunds)}` : null} />
+      <div className="no-print"><h2 style={{ margin: 0 }}>Payments</h2>
         <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>All payments received by the shop.</div>
       </div>
 

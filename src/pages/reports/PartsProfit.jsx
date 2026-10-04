@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { SkeletonCard, EmptyState } from '../../components/ui'
 import ReportFilters, { doCSVExport, doPrint } from './ReportFilters'
+import ReportPrintHeader from './ReportPrintHeader'
 import { fetchReport, presetRange, fmtMoney } from './common'
 
 export default function PartsProfit() {
@@ -24,7 +25,8 @@ export default function PartsProfit() {
 
   return (
     <div className="stack gap-16">
-      <div><h2 style={{ margin: 0 }}>Parts Profit</h2>
+      <ReportPrintHeader title="Parts Profit Report" filters={filters} extra={data?.totals ? `Total profit: ${fmtMoney(data.totals.totalProfit)} · Avg margin: ${Number(data.totals.averageMarginPct || 0).toFixed(2)}%` : null} />
+      <div className="no-print"><h2 style={{ margin: 0 }}>Parts Profit</h2>
         <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>Profit earned from parts sold. Parts Profit = Parts Sales Price − Parts Cost.</div>
       </div>
 

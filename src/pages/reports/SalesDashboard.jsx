@@ -6,6 +6,7 @@ import {
 import { TrendingUp, TrendingDown, DollarSign, Users, Calendar, Receipt, Minus } from 'lucide-react'
 import { SkeletonCard, EmptyState } from '../../components/ui'
 import ReportFilters, { doCSVExport, doPrint } from './ReportFilters'
+import ReportPrintHeader from './ReportPrintHeader'
 import { fetchReport, presetRange, fmtMoney, fmtCompact, pct, COLORS } from './common'
 
 function KpiCard({ title, value, sub, delta, deltaLabel, icon: Icon }) {
@@ -94,7 +95,8 @@ export default function SalesDashboard() {
 
   return (
     <div className="stack gap-16">
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+      <ReportPrintHeader title="Sales Dashboard" filters={filters} extra={data?.kpis ? `Invoices in period: ${data.kpis.invoiceCount || 0}` : null} />
+      <div className="no-print" style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
         <div>
           <h2 style={{ margin: 0 }}>Sales Dashboard</h2>
           <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>Shop financial performance at a glance.</div>

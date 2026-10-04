@@ -32,9 +32,11 @@ func (s *Server) documentRoutes(mux *http.ServeMux) {
 
 // ---------------------------------------------------------------- snapshot
 
-// buildSnapshot freezes the settings a new document is priced and displayed with.
-func (s *Server) buildSnapshot(ctx context.Context, tx pgx.Tx) (map[string]any, error) {
-	b, err := s.loadBundle(ctx, tx)
+// buildSnapshot freezes the settings a new document is priced and displayed
+// with. Uses the given company's settings bundle so each tenant gets its own
+// labor rate, taxes, fees, etc.
+func (s *Server) buildSnapshot(ctx context.Context, tx pgx.Tx, cid string) (map[string]any, error) {
+	b, err := s.loadBundle(ctx, tx, cid)
 	if err != nil {
 		return nil, err
 	}
@@ -194,7 +196,8 @@ func attachPayments(ctx context.Context, q queryer, docs []map[string]any) error
 }
 
 func (s *Server) listDocuments(w http.ResponseWriter, r *http.Request) {
-	rows, err := s.db.Query(r.Context(), `SELECT `+docCols+` FROM documents ORDER BY updated_at DESC LIMIT 2000`)
+	cid := companyFrom(r.Context())
+	rows, err := s.db.Query(r.Context(), `SELECT `+docCols+` FROM documents WHERE company_id::text = $1 ORDER BY updated_at DESC LIMIT 2000`, cid)
 	if err != nil {
 		handleErr(w, err)
 		return
@@ -217,8 +220,18 @@ func (s *Server) listDocuments(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, out)
 }
 
+// docByID is tenant-scoped: a document from another company returns ErrNoRows
+// (surfaced as a 404 by handleErr), so cross-tenant id guessing can't leak.
+// Uses the caller's authenticated company from the context.
 func (s *Server) docByID(ctx context.Context, q queryer, id string) (map[string]any, error) {
-	d, err := scanDoc(q.QueryRow(ctx, `SELECT `+docCols+` FROM documents WHERE id::text = $1`, id))
+	return s.docByIDTenant(ctx, q, id, companyFrom(ctx))
+}
+
+// docByIDTenant looks up a document in a specific company. Used by internal
+// code (seed, insertDocument) that holds the cid directly and isn't carrying
+// an authenticated-user context.
+func (s *Server) docByIDTenant(ctx context.Context, q queryer, id, cid string) (map[string]any, error) {
+	d, err := scanDoc(q.QueryRow(ctx, `SELECT `+docCols+` FROM documents WHERE id::text = $1 AND company_id::text = $2`, id, cid))
 	if err != nil {
 		return nil, err
 	}
@@ -238,17 +251,20 @@ func (s *Server) getDocument(w http.ResponseWriter, r *http.Request) {
 
 // allocateNumber takes the next number for docType under a row lock, skipping any
 // number whose display string already exists (e.g. after prefix changes).
-func allocateNumber(ctx context.Context, tx pgx.Tx, docType string) (int64, string, error) {
+func allocateNumber(ctx context.Context, tx pgx.Tx, cid, docType string) (int64, string, error) {
 	for range 100 {
 		var n int64
 		var prefix string
 		if err := tx.QueryRow(ctx, `UPDATE document_number_settings SET next_number = next_number + 1
-			WHERE doc_type = $1 RETURNING next_number - 1, prefix`, docType).Scan(&n, &prefix); err != nil {
+			WHERE company_id::text = $1 AND doc_type = $2 RETURNING next_number - 1, prefix`, cid, docType).Scan(&n, &prefix); err != nil {
 			return 0, "", err
 		}
 		display := prefix + fmt.Sprint(n)
 		var exists bool
-		if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM documents WHERE display_number = $1 OR (number_type = $2 AND number = $3))`, display, docType, n).Scan(&exists); err != nil {
+		if err := tx.QueryRow(ctx, `SELECT EXISTS (
+				SELECT 1 FROM documents
+				WHERE company_id::text = $1 AND (display_number = $2 OR (number_type = $3 AND number = $4)))`,
+			cid, display, docType, n).Scan(&exists); err != nil {
 			return 0, "", err
 		}
 		if !exists {
@@ -312,9 +328,13 @@ func (s *Server) insertDocument(ctx context.Context, u User, in docInput, fixedN
 	if len(ve) > 0 {
 		return nil, ve
 	}
+	cid := u.CompanyID
+	if cid == "" {
+		return nil, errStatus(401, "Missing company context.")
+	}
 	var out map[string]any
 	err = s.tx(ctx, func(tx pgx.Tx) error {
-		snap, err := s.buildSnapshot(ctx, tx)
+		snap, err := s.buildSnapshot(ctx, tx, cid)
 		if err != nil {
 			return err
 		}
@@ -322,7 +342,7 @@ func (s *Server) insertDocument(ctx context.Context, u User, in docInput, fixedN
 		var display string
 		if fixedNumber != nil {
 			num, display = *fixedNumber, fmt.Sprint(*fixedNumber)
-		} else if num, display, err = allocateNumber(ctx, tx, in.Type); err != nil {
+		} else if num, display, err = allocateNumber(ctx, tx, cid, in.Type); err != nil {
 			return err
 		}
 		numberType := in.Type
@@ -331,21 +351,21 @@ func (s *Server) insertDocument(ctx context.Context, u User, in docInput, fixedN
 		}
 		writerName := ""
 		if in.WriterID != nil {
-			if writerName, err = staffName(ctx, tx, "shop_service_writers", *in.WriterID, nil); err != nil {
+			if writerName, err = staffName(ctx, tx, "shop_service_writers", *in.WriterID, nil, cid); err != nil {
 				return err
 			}
 		}
 		snapJSON, _ := json.Marshal(snap)
 		itemsJSON, _ := json.Marshal(items)
 		var id string
-		err = tx.QueryRow(ctx, `INSERT INTO documents (number_type, number, display_number, type, status, customer_id, customer_snapshot,
+		err = tx.QueryRow(ctx, `INSERT INTO documents (company_id, number_type, number, display_number, type, status, customer_id, customer_snapshot,
 			vehicle_id, vehicle_snapshot, writer_id, writer_name, odometer_unit, shop_note, save_parts, estimate_date, expires_at,
 			items, tax_ids, settings_snapshot, created_by, updated_by)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
-			CASE WHEN $4 = 'estimate' THEN current_date END,
-			CASE WHEN $4 = 'estimate' THEN current_date + $15::int END,
-			$16, $17, $18, $19, $19) RETURNING id::text`,
-			numberType, num, display, in.Type, in.Status, in.CustomerID, nullJSON(in.CustomerSnapshot), in.VehicleID, nullJSON(in.VehicleSnapshot),
+			VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
+			CASE WHEN $5 = 'estimate' THEN current_date END,
+			CASE WHEN $5 = 'estimate' THEN current_date + $16::int END,
+			$17, $18, $19, $20, $20) RETURNING id::text`,
+			cid, numberType, num, display, in.Type, in.Status, in.CustomerID, nullJSON(in.CustomerSnapshot), in.VehicleID, nullJSON(in.VehicleSnapshot),
 			in.WriterID, writerName, snap["odometerUnit"], strings.TrimSpace(in.ShopNote), snap["savePartsDefault"] == true,
 			snap["validityDays"], itemsJSON, defaultTaxIDs(snap), snapJSON, u.Name).Scan(&id)
 		if err != nil {
@@ -359,7 +379,7 @@ func (s *Server) insertDocument(ctx context.Context, u User, in docInput, fixedN
 		if err := recalcDocument(ctx, tx, id); err != nil {
 			return err
 		}
-		out, err = s.docByID(ctx, tx, id)
+		out, err = s.docByIDTenant(ctx, tx, id, cid)
 		return err
 	})
 	return out, err
@@ -388,10 +408,11 @@ func checkSnapshotJSON(b json.RawMessage) error {
 
 // staffName returns the display name for an active staff member. Inactive staff
 // can only stay on a document they are already assigned to (current == id).
-func staffName(ctx context.Context, tx pgx.Tx, table string, id int64, current *int64) (string, error) {
+// Scoped to the given company so one tenant can't reference another's staff.
+func staffName(ctx context.Context, tx pgx.Tx, table string, id int64, current *int64, cid string) (string, error) {
 	var name string
 	var active bool
-	if err := tx.QueryRow(ctx, `SELECT display_name, active FROM `+table+` WHERE id = $1`, id).Scan(&name, &active); err != nil {
+	if err := tx.QueryRow(ctx, `SELECT display_name, active FROM `+table+` WHERE id = $1 AND company_id::text = $2`, id, cid).Scan(&name, &active); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return "", ValidationError{"staff": "That staff member no longer exists."}
 		}
@@ -504,9 +525,10 @@ func (s *Server) updateDocument(w http.ResponseWriter, r *http.Request) {
 	}
 	u := userFrom(r.Context())
 	id := r.PathValue("id")
+	cid := u.CompanyID
 	var out map[string]any
 	err := s.tx(r.Context(), func(tx pgx.Tx) error {
-		cur, err := scanDoc(tx.QueryRow(r.Context(), `SELECT `+docCols+` FROM documents WHERE id::text = $1 FOR UPDATE`, id))
+		cur, err := scanDoc(tx.QueryRow(r.Context(), `SELECT `+docCols+` FROM documents WHERE id::text = $1 AND company_id::text = $2 FOR UPDATE`, id, cid))
 		if err != nil {
 			return err
 		}
@@ -634,7 +656,7 @@ func (s *Server) updateDocument(w http.ResponseWriter, r *http.Request) {
 				set(st.nameCol, "")
 				continue
 			}
-			name, err := staffName(r.Context(), tx, st.table, *nid, curID)
+			name, err := staffName(r.Context(), tx, st.table, *nid, curID, cid)
 			if err != nil {
 				var v ValidationError
 				if errors.As(err, &v) {
@@ -659,8 +681,8 @@ func (s *Server) updateDocument(w http.ResponseWriter, r *http.Request) {
 				sets = append(sets, "invoiced_at = NULL")
 			}
 		}
-		args = append(args, id)
-		if _, err := tx.Exec(r.Context(), fmt.Sprintf("UPDATE documents SET %s WHERE id::text = $%d", strings.Join(sets, ", "), len(args)), args...); err != nil {
+		args = append(args, id, cid)
+		if _, err := tx.Exec(r.Context(), fmt.Sprintf("UPDATE documents SET %s WHERE id::text = $%d AND company_id::text = $%d", strings.Join(sets, ", "), len(args)-1, len(args)), args...); err != nil {
 			return err
 		}
 		if err := recalcDocument(r.Context(), tx, id); err != nil {
@@ -677,7 +699,8 @@ func (s *Server) updateDocument(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) deleteDocument(w http.ResponseWriter, r *http.Request) {
-	tag, err := s.db.Exec(r.Context(), `DELETE FROM documents WHERE id::text = $1`, r.PathValue("id"))
+	cid := companyFrom(r.Context())
+	tag, err := s.db.Exec(r.Context(), `DELETE FROM documents WHERE id::text = $1 AND company_id::text = $2`, r.PathValue("id"), cid)
 	if err != nil {
 		handleErr(w, err)
 		return
@@ -695,15 +718,16 @@ func (s *Server) deleteDocument(w http.ResponseWriter, r *http.Request) {
 func (s *Server) applyCurrentSettings(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	u := userFrom(r.Context())
+	cid := u.CompanyID
 	var out map[string]any
 	err := s.tx(r.Context(), func(tx pgx.Tx) error {
-		cur, err := scanDoc(tx.QueryRow(r.Context(), `SELECT `+docCols+` FROM documents WHERE id::text = $1 FOR UPDATE`, id))
+		cur, err := scanDoc(tx.QueryRow(r.Context(), `SELECT `+docCols+` FROM documents WHERE id::text = $1 AND company_id::text = $2 FOR UPDATE`, id, cid))
 		if err != nil {
 			return err
 		}
 		var oldSnap map[string]any
 		json.Unmarshal(cur["snapshot"].(json.RawMessage), &oldSnap)
-		snap, err := s.buildSnapshot(r.Context(), tx)
+		snap, err := s.buildSnapshot(r.Context(), tx, cid)
 		if err != nil {
 			return err
 		}
@@ -733,7 +757,7 @@ func (s *Server) applyCurrentSettings(w http.ResponseWriter, r *http.Request) {
 		snapJSON, _ := json.Marshal(snap)
 		itemsJSON, _ := json.Marshal(items)
 		if _, err := tx.Exec(r.Context(), `UPDATE documents SET settings_snapshot = $1, items = $2, tax_ids = $3, fees_off = '{}',
-			updated_at = now(), updated_by = $4 WHERE id::text = $5`, snapJSON, itemsJSON, defaultTaxIDs(snap), u.Name, id); err != nil {
+			updated_at = now(), updated_by = $4 WHERE id::text = $5 AND company_id::text = $6`, snapJSON, itemsJSON, defaultTaxIDs(snap), u.Name, id, cid); err != nil {
 			return err
 		}
 		if err := recalcDocument(r.Context(), tx, id); err != nil {

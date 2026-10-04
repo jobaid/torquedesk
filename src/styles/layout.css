@@ -232,5 +232,34 @@
   body { background: #fff; color: #000; }
   .card { box-shadow: none; border-color: #ccc; break-inside: avoid; }
   .print-only { display: block !important; }
+
+  /* Report-specific print layout: strip the sidebar/filter chrome and present
+     a document-style report with its own header and clean typography. */
+  .reports-page { display: block !important; grid-template-columns: none !important; gap: 0 !important; }
+  .reports-sidebar { display: none !important; }
+  .reports-page main { padding: 0 !important; }
+  .report-print-header { display: block !important; }
+
+  /* Charts: Recharts renders SVG which prints fine, but constrain height so
+     each chart fits within a page break. */
+  .report-print-header + * .recharts-wrapper, .recharts-responsive-container { max-height: 320px; }
+
+  /* Collapse card padding/shadows for a flatter print look */
+  .reports-page .card { padding: 12px !important; border-radius: 8px; }
+
+  /* Tables */
+  table { width: 100%; border-collapse: collapse; font-size: 11pt; }
+  th, td { padding: 6px 8px; border-bottom: 1px solid #ddd; }
+  thead { display: table-header-group; } /* repeat headers on each page */
+  tr { page-break-inside: avoid; }
+
+  @page { margin: 14mm 12mm; }
 }
+
 .print-only { display: none; }
+.report-print-header { display: none; }
+.report-print-header .rph-top { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 10px; }
+.report-print-header .rph-shop { font-size: 18pt; font-weight: 700; letter-spacing: -0.01em; }
+.report-print-header .rph-contact { font-size: 10pt; color: #444; text-align: right; }
+.report-print-header .rph-title { font-size: 20pt; font-weight: 700; margin: 6px 0 2px; }
+.report-print-header .rph-meta { font-size: 10pt; color: #333; margin-bottom: 10px; }

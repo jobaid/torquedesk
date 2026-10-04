@@ -81,7 +81,13 @@ func selectExpr(f Field) string {
 }
 
 func (r *Resource) selectList() string {
-	cols := []string{"id::text"}
+	cols := []string{}
+	if r.Singleton {
+		// Post-tenancy, singleton tables have no id column; company_id is the PK.
+		cols = append(cols, "company_id::text")
+	} else {
+		cols = append(cols, "id::text")
+	}
 	for _, f := range r.Fields {
 		cols = append(cols, selectExpr(f))
 	}
@@ -123,20 +129,40 @@ func (r *Resource) scanRows(rows pgx.Rows) ([]map[string]any, error) {
 	return out, rows.Err()
 }
 
-func (r *Resource) list(ctx context.Context, q pgx.Tx) ([]map[string]any, error) {
+// All settings tables are tenant-scoped: list/get accept a company id and
+// restrict rows to that tenant. For singletons the primary key is company_id,
+// so getSingleton reads that single per-company row.
+func (r *Resource) list(ctx context.Context, q pgx.Tx, cid string) ([]map[string]any, error) {
 	order := r.OrderBy
 	if order == "" {
 		order = "id"
 	}
-	rows, err := q.Query(ctx, "SELECT "+r.selectList()+" FROM "+r.Table+" ORDER BY "+order)
+	rows, err := q.Query(ctx, "SELECT "+r.selectList()+" FROM "+r.Table+" WHERE company_id::text = $1 ORDER BY "+order, cid)
 	if err != nil {
 		return nil, err
 	}
 	return r.scanRows(rows)
 }
 
-func (r *Resource) get(ctx context.Context, q pgx.Tx, id int64) (map[string]any, error) {
-	rows, err := q.Query(ctx, "SELECT "+r.selectList()+" FROM "+r.Table+" WHERE id = $1", id)
+func (r *Resource) get(ctx context.Context, q pgx.Tx, cid string, id int64) (map[string]any, error) {
+	rows, err := q.Query(ctx, "SELECT "+r.selectList()+" FROM "+r.Table+" WHERE id = $1 AND company_id::text = $2", id, cid)
+	if err != nil {
+		return nil, err
+	}
+	list, err := r.scanRows(rows)
+	if err != nil {
+		return nil, err
+	}
+	if len(list) == 0 {
+		return nil, pgx.ErrNoRows
+	}
+	return list[0], nil
+}
+
+// getSingleton reads the per-company row from a singleton settings table whose
+// primary key is company_id (post-tenancy migration).
+func (r *Resource) getSingleton(ctx context.Context, q pgx.Tx, cid string) (map[string]any, error) {
+	rows, err := q.Query(ctx, "SELECT "+r.selectList()+" FROM "+r.Table+" WHERE company_id::text = $1", cid)
 	if err != nil {
 		return nil, err
 	}
@@ -335,8 +361,9 @@ func (s *Server) registerResource(mux *http.ServeMux, r *Resource) {
 	base := "/api/settings/" + r.Path
 	if r.Singleton {
 		mux.HandleFunc("GET "+base, s.auth("settings.view", func(w http.ResponseWriter, req *http.Request) {
+			cid := companyFrom(req.Context())
 			var row map[string]any
-			err := s.tx(req.Context(), func(tx pgx.Tx) (err error) { row, err = r.get(req.Context(), tx, 1); return })
+			err := s.tx(req.Context(), func(tx pgx.Tx) (err error) { row, err = r.getSingleton(req.Context(), tx, cid); return })
 			if err != nil {
 				handleErr(w, err)
 				return
@@ -344,13 +371,14 @@ func (s *Server) registerResource(mux *http.ServeMux, r *Resource) {
 			writeJSON(w, 200, row)
 		}))
 		mux.HandleFunc("PUT "+base, s.auth(r.Perm, func(w http.ResponseWriter, req *http.Request) {
-			s.updateRow(w, req, r, 1)
+			s.updateSingleton(w, req, r)
 		}))
 		return
 	}
 	mux.HandleFunc("GET "+base, s.auth("settings.view", func(w http.ResponseWriter, req *http.Request) {
+		cid := companyFrom(req.Context())
 		var rows []map[string]any
-		err := s.tx(req.Context(), func(tx pgx.Tx) (err error) { rows, err = r.list(req.Context(), tx); return })
+		err := s.tx(req.Context(), func(tx pgx.Tx) (err error) { rows, err = r.list(req.Context(), tx, cid); return })
 		if err != nil {
 			handleErr(w, err)
 			return
@@ -362,8 +390,9 @@ func (s *Server) registerResource(mux *http.ServeMux, r *Resource) {
 		if !ok {
 			return
 		}
+		cid := companyFrom(req.Context())
 		var row map[string]any
-		err := s.tx(req.Context(), func(tx pgx.Tx) (err error) { row, err = r.get(req.Context(), tx, id); return })
+		err := s.tx(req.Context(), func(tx pgx.Tx) (err error) { row, err = r.get(req.Context(), tx, cid, id); return })
 		if err != nil {
 			handleErr(w, err)
 			return
@@ -387,15 +416,16 @@ func (s *Server) registerResource(mux *http.ServeMux, r *Resource) {
 			return
 		}
 		u := userFrom(req.Context())
+		cid := u.CompanyID
 		err := s.tx(req.Context(), func(tx pgx.Tx) error {
-			old, err := r.get(req.Context(), tx, id)
+			old, err := r.get(req.Context(), tx, cid, id)
 			if err != nil {
 				return err
 			}
-			if _, err := tx.Exec(req.Context(), "DELETE FROM "+r.Table+" WHERE id = $1", id); err != nil {
+			if _, err := tx.Exec(req.Context(), "DELETE FROM "+r.Table+" WHERE id = $1 AND company_id::text = $2", id, cid); err != nil {
 				return err
 			}
-			return audit(req.Context(), tx, u, r.Entity, id, "delete", "", r.labelOf(old), "")
+			return audit(req.Context(), tx, u, r.Entity, id, "delete", "", r.labelOf(old), "", cid)
 		})
 		if err != nil {
 			handleErr(w, err)
@@ -436,9 +466,13 @@ func (s *Server) createRow(w http.ResponseWriter, req *http.Request, r *Resource
 		return
 	}
 	u := userFrom(req.Context())
+	cid := u.CompanyID
 	var row map[string]any
 	err = s.tx(req.Context(), func(tx pgx.Tx) error {
-		cols, ph, args := []string{"created_by", "updated_by"}, []string{"$1", "$1"}, []any{u.Name}
+		// company_id is always first so the generated placeholders line up predictably.
+		cols := []string{"company_id", "created_by", "updated_by"}
+		ph := []string{"$1::uuid", "$2", "$2"}
+		args := []any{cid, u.Name}
 		for _, f := range r.Fields {
 			if v, ok := vals[f.JSON]; ok {
 				args = append(args, v)
@@ -451,10 +485,10 @@ func (s *Server) createRow(w http.ResponseWriter, req *http.Request, r *Resource
 			return err
 		}
 		var err error
-		if row, err = r.get(req.Context(), tx, id); err != nil {
+		if row, err = r.get(req.Context(), tx, cid, id); err != nil {
 			return err
 		}
-		return audit(req.Context(), tx, u, r.Entity, id, "create", "", "", r.labelOf(row))
+		return audit(req.Context(), tx, u, r.Entity, id, "create", "", "", r.labelOf(row), cid)
 	})
 	if err != nil {
 		handleErr(w, err)
@@ -470,13 +504,14 @@ func (s *Server) updateRow(w http.ResponseWriter, req *http.Request, r *Resource
 		return
 	}
 	u := userFrom(req.Context())
+	cid := u.CompanyID
 	var row map[string]any
 	err := s.tx(req.Context(), func(tx pgx.Tx) error {
 		// Lock the row so concurrent edits serialize and the audit diff is accurate.
-		if _, err := tx.Exec(req.Context(), "SELECT 1 FROM "+r.Table+" WHERE id = $1 FOR UPDATE", id); err != nil {
+		if _, err := tx.Exec(req.Context(), "SELECT 1 FROM "+r.Table+" WHERE id = $1 AND company_id::text = $2 FOR UPDATE", id, cid); err != nil {
 			return err
 		}
-		old, err := r.get(req.Context(), tx, id)
+		old, err := r.get(req.Context(), tx, cid, id)
 		if err != nil {
 			return err
 		}
@@ -494,17 +529,70 @@ func (s *Server) updateRow(w http.ResponseWriter, req *http.Request, r *Resource
 			changed = true
 			args = append(args, v)
 			sets = append(sets, f.Col+" = $"+strconv.Itoa(len(args)))
-			if err := audit(req.Context(), tx, u, r.Entity, id, "update", label(f), show(old[f.JSON]), show(v)); err != nil {
+			if err := audit(req.Context(), tx, u, r.Entity, id, "update", label(f), show(old[f.JSON]), show(v), cid); err != nil {
 				return err
 			}
 		}
 		if changed {
-			args = append(args, id)
-			if _, err := tx.Exec(req.Context(), fmt.Sprintf("UPDATE %s SET %s WHERE id = $%d", r.Table, strings.Join(sets, ", "), len(args)), args...); err != nil {
+			args = append(args, id, cid)
+			if _, err := tx.Exec(req.Context(), fmt.Sprintf("UPDATE %s SET %s WHERE id = $%d AND company_id::text = $%d", r.Table, strings.Join(sets, ", "), len(args)-1, len(args)), args...); err != nil {
 				return err
 			}
 		}
-		row, err = r.get(req.Context(), tx, id)
+		row, err = r.get(req.Context(), tx, cid, id)
+		return err
+	})
+	if err != nil {
+		handleErr(w, err)
+		return
+	}
+	writeJSON(w, 200, row)
+}
+
+// updateSingleton updates the per-company row of a singleton settings table
+// (shop_settings, document_options, etc.) where the primary key is company_id.
+func (s *Server) updateSingleton(w http.ResponseWriter, req *http.Request, r *Resource) {
+	var body map[string]any
+	if err := readJSON(req, &body); err != nil {
+		writeErr(w, 400, "Invalid JSON body.")
+		return
+	}
+	u := userFrom(req.Context())
+	cid := u.CompanyID
+	var row map[string]any
+	err := s.tx(req.Context(), func(tx pgx.Tx) error {
+		if _, err := tx.Exec(req.Context(), "SELECT 1 FROM "+r.Table+" WHERE company_id::text = $1 FOR UPDATE", cid); err != nil {
+			return err
+		}
+		old, err := r.getSingleton(req.Context(), tx, cid)
+		if err != nil {
+			return err
+		}
+		vals, err := r.validate(body, old, false)
+		if err != nil {
+			return err
+		}
+		sets, args := []string{"updated_at = now()", "updated_by = $1"}, []any{u.Name}
+		changed := false
+		for _, f := range r.Fields {
+			v, ok := vals[f.JSON]
+			if !ok || sameValue(old[f.JSON], v) {
+				continue
+			}
+			changed = true
+			args = append(args, v)
+			sets = append(sets, f.Col+" = $"+strconv.Itoa(len(args)))
+			if err := audit(req.Context(), tx, u, r.Entity, "singleton", "update", label(f), show(old[f.JSON]), show(v), cid); err != nil {
+				return err
+			}
+		}
+		if changed {
+			args = append(args, cid)
+			if _, err := tx.Exec(req.Context(), fmt.Sprintf("UPDATE %s SET %s WHERE company_id::text = $%d", r.Table, strings.Join(sets, ", "), len(args)), args...); err != nil {
+				return err
+			}
+		}
+		row, err = r.getSingleton(req.Context(), tx, cid)
 		return err
 	})
 	if err != nil {

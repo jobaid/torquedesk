@@ -1,10 +1,13 @@
 import { useApp } from '../store/useApp'
 
 export class ApiError extends Error {
-  constructor(status, message, fields) {
+  constructor(status, message, fields, extra) {
     super(message)
     this.status = status
     this.fields = fields || {}
+    // Server may set extra flags like {authRecoverable: true, missingPerm, role}
+    // so the UI can offer "sign in again" instead of a dead-end permission screen.
+    if (extra) Object.assign(this, extra)
   }
 }
 
@@ -27,8 +30,20 @@ export async function api(path, { method = 'GET', body, form } = {}) {
     throw new ApiError(0, 'Cannot reach the TorqueDesk API server. Start it in a terminal with: npm run api')
   }
   if (!res.ok) {
-    if (res.status === 401 && token) useApp.getState().logout()
-    throw new ApiError(res.status, data?.error || `Request failed (${res.status})`, data?.fields)
+    // 401 = session is gone — safe to log out silently.
+    // 403 (even with authRecoverable) must NOT auto-logout: that would make a
+    // fresh sign-in appear to "fail silently" and bounce the user back to
+    // Login with no explanation. Let the Boot/error UI show the real message
+    // and offer an explicit sign-out button.
+    if (token && res.status === 401) {
+      useApp.getState().logout()
+    }
+    throw new ApiError(res.status, data?.error || `Request failed (${res.status})`, data?.fields, {
+      authRecoverable: !!data?.authRecoverable,
+      missingPerm: data?.missingPerm,
+      role: data?.role,
+      companyStatus: data?.companyStatus,
+    })
   }
   return data
 }

@@ -29,8 +29,37 @@ export const useApp = create(
       favorites: [],
       notifications: SEED_NOTIFS,
 
-      login: (user) => set({ user }),
-      logout: () => set({ user: null }),
+      // When the tenant changes (new company signs in, or someone logs out and a
+      // different company signs in on the same browser), wipe browser-held
+      // tenant data: customers (per-browser list), the current vehicle,
+      // recent vehicles, search history, favorites. Notifications are system
+      // bulletins, not tenant data, so they survive.
+      // Dynamic-imported to avoid a cycle with useShop (which imports toast
+      // from this file). Non-blocking: the state reset happens on the next tick.
+      login: (user) => {
+        const prev = get().user
+        const newCid = user?.companyId || ''
+        const oldCid = prev?.companyId || ''
+        if (newCid !== oldCid) {
+          import('./useShop').then((m) => {
+            m.useShop.setState({ customers: [], documents: [], docsLoaded: false, docsError: null })
+          }).catch(() => {})
+          set({ vehicle: null, recentVehicles: [], searchHistory: [], favorites: [] })
+        }
+        set({ user })
+      },
+      logout: () => {
+        // Nuke the persisted stores entirely so no stale token, role, company
+        // id, customers, vehicles, favorites, etc. survive. The next sign-in
+        // starts from a truly clean slate — avoids the "sign in → still 403"
+        // loop caused by any leftover state.
+        try { localStorage.removeItem('torque-shop') } catch { /* ignore */ }
+        try { localStorage.removeItem('torque-app') } catch { /* ignore */ }
+        import('./useShop').then((m) => {
+          m.useShop.setState({ customers: [], documents: [], docsLoaded: false, docsError: null })
+        }).catch(() => {})
+        set({ user: null, vehicle: null, recentVehicles: [], searchHistory: [], favorites: [] })
+      },
       updateUser: (patch) => set((s) => ({ user: { ...s.user, ...patch } })),
       can: (perm) => !!get().user?.permissions?.includes(perm),
 

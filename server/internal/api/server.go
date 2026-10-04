@@ -44,6 +44,7 @@ func New(ctx context.Context, pool *pgxpool.Pool) (*Server, error) {
 func (s *Server) Handler(staticDir string) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /api/auth/login", s.login)
+	mux.HandleFunc("POST /api/auth/company-login", s.companyLogin)
 	mux.HandleFunc("GET /api/me", s.auth("", s.me))
 	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, 200, map[string]string{"status": "ok"}) })
 
@@ -51,6 +52,7 @@ func (s *Server) Handler(staticDir string) http.Handler {
 	s.documentRoutes(mux)
 	s.paymentRoutes(mux)
 	s.reportRoutes(mux)
+	s.ownerRoutes(mux)
 
 	if st, err := os.Stat(staticDir); err == nil && st.IsDir() {
 		fsrv := http.FileServer(http.Dir(staticDir))

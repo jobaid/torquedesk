@@ -84,11 +84,11 @@ func parseDate(s string) (time.Time, error) {
 const salesDateExpr = "coalesce(d.invoiced_at, d.updated_at)"
 
 // salesWhere builds the common sales WHERE clause and args.
-// Base: any non-voided document that is either an invoice OR has received payments.
-// This lets paid repair orders / estimates show up in Sales & Revenue alongside invoices.
-func salesWhere(f reportFilter) (string, []any) {
-	w := []string{"d.status <> 'void'", "(d.type = 'invoice' OR d.paid_total > 0)"}
-	a := []any{}
+// Base: any non-voided document that is either an invoice OR has received payments,
+// scoped to the authenticated user's company so cross-tenant leakage is impossible.
+func salesWhere(f reportFilter, cid string) (string, []any) {
+	w := []string{"d.company_id::text = $1", "d.status <> 'void'", "(d.type = 'invoice' OR d.paid_total > 0)"}
+	a := []any{cid}
 	add := func(sql string, v any) { a = append(a, v); w = append(w, fmt.Sprintf(sql, len(a))) }
 	if f.HasFrom {
 		add(salesDateExpr+" >= $%d", f.From)
@@ -119,7 +119,7 @@ func salesWhere(f reportFilter) (string, []any) {
 
 func (s *Server) reportSalesSummary(w http.ResponseWriter, r *http.Request) {
 	f := parseFilter(r)
-	where, args := salesWhere(f)
+	where, args := salesWhere(f, companyFrom(r.Context()))
 
 	var out = map[string]any{}
 	// Totals + counts
@@ -189,7 +189,7 @@ func (s *Server) reportSalesSummary(w http.ResponseWriter, r *http.Request) {
 		handleErr(w, err)
 		return
 	}
-	out["byPaymentMethod"], err = paymentsByMethod(r.Context(), s.db, f)
+	out["byPaymentMethod"], err = paymentsByMethod(r.Context(), s.db, f, companyFrom(r.Context()))
 	if err != nil {
 		handleErr(w, err)
 		return
@@ -257,7 +257,7 @@ func groupedByStaff(ctx context.Context, db queryer, where string, args []any, i
 
 func (s *Server) reportPartsProfit(w http.ResponseWriter, r *http.Request) {
 	f := parseFilter(r)
-	where, args := salesWhere(f)
+	where, args := salesWhere(f, companyFrom(r.Context()))
 	if f.PartNumber != "" {
 		args = append(args, f.PartNumber)
 		where += fmt.Sprintf(" AND l.part_number ILIKE $%d", len(args))
@@ -323,6 +323,7 @@ func (s *Server) reportPayments(w http.ResponseWriter, r *http.Request) {
 	w2 := []string{"1=1"}
 	a := []any{}
 	add := func(sql string, v any) { a = append(a, v); w2 = append(w2, fmt.Sprintf(sql, len(a))) }
+	add("p.company_id::text = $%d", companyFrom(r.Context()))
 	if f.HasFrom {
 		add("p.paid_at >= $%d", f.From)
 	}
@@ -390,9 +391,9 @@ func (s *Server) reportPayments(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func paymentsByMethod(ctx context.Context, db queryer, f reportFilter) ([]map[string]any, error) {
-	w2 := []string{"p.status <> 'voided'"}
-	a := []any{}
+func paymentsByMethod(ctx context.Context, db queryer, f reportFilter, cid string) ([]map[string]any, error) {
+	w2 := []string{"p.status <> 'voided'", "p.company_id::text = $1"}
+	a := []any{cid}
 	add := func(sql string, v any) { a = append(a, v); w2 = append(w2, fmt.Sprintf(sql, len(a))) }
 	if f.HasFrom {
 		add("p.paid_at >= $%d", f.From)
@@ -424,7 +425,7 @@ func paymentsByMethod(ctx context.Context, db queryer, f reportFilter) ([]map[st
 
 func (s *Server) reportPaymentMethods(w http.ResponseWriter, r *http.Request) {
 	f := parseFilter(r)
-	out, err := paymentsByMethod(r.Context(), s.db, f)
+	out, err := paymentsByMethod(r.Context(), s.db, f, companyFrom(r.Context()))
 	if err != nil {
 		handleErr(w, err)
 		return
@@ -436,7 +437,7 @@ func (s *Server) reportPaymentMethods(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) reportTax(w http.ResponseWriter, r *http.Request) {
 	f := parseFilter(r)
-	where, args := salesWhere(f)
+	where, args := salesWhere(f, companyFrom(r.Context()))
 	if f.TaxType != "" {
 		args = append(args, f.TaxType)
 		where += fmt.Sprintf(" AND t.name = $%d", len(args))
@@ -528,7 +529,7 @@ func taxByBucket(ctx context.Context, db queryer, where string, args []any, buck
 
 func (s *Server) reportCustomers(w http.ResponseWriter, r *http.Request) {
 	f := parseFilter(r)
-	where, args := salesWhere(f)
+	where, args := salesWhere(f, companyFrom(r.Context()))
 	rows, err := s.db.Query(r.Context(), `
 		SELECT coalesce(nullif(d.customer_id, ''), '(unknown)') AS cid,
 			   coalesce(d.customer_snapshot ->> 'name', d.customer_snapshot ->> 'firstName' || ' ' || (d.customer_snapshot ->> 'lastName'), '(unknown)') AS name,
@@ -567,16 +568,16 @@ func (s *Server) reportCustomers(w http.ResponseWriter, r *http.Request) {
 		if err := s.db.QueryRow(r.Context(), `
 			WITH firsts AS (
 				SELECT d.customer_id, min(`+salesDateExpr+`) AS first_at
-				FROM documents d WHERE d.status <> 'void' AND (d.type='invoice' OR d.paid_total > 0) AND nullif(d.customer_id,'') IS NOT NULL
+				FROM documents d WHERE d.company_id::text = $3 AND d.status <> 'void' AND (d.type='invoice' OR d.paid_total > 0) AND nullif(d.customer_id,'') IS NOT NULL
 				GROUP BY d.customer_id
 			), inrange AS (
 				SELECT DISTINCT d.customer_id FROM documents d
-				WHERE d.status <> 'void' AND (d.type='invoice' OR d.paid_total > 0) AND d.customer_id <> ''
+				WHERE d.company_id::text = $3 AND d.status <> 'void' AND (d.type='invoice' OR d.paid_total > 0) AND d.customer_id <> ''
 				  AND `+salesDateExpr+` >= $1 AND `+salesDateExpr+` < $2
 			)
 			SELECT count(*) FILTER (WHERE f.first_at >= $1 AND f.first_at < $2),
 				   count(*) FILTER (WHERE f.first_at < $1)
-			FROM inrange i JOIN firsts f USING (customer_id)`, f.From, f.To).Scan(&newC, &retC); err != nil {
+			FROM inrange i JOIN firsts f USING (customer_id)`, f.From, f.To, companyFrom(r.Context())).Scan(&newC, &retC); err != nil {
 			handleErr(w, err)
 			return
 		}
@@ -592,7 +593,7 @@ func (s *Server) reportCustomers(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) reportTechnicians(w http.ResponseWriter, r *http.Request) {
 	f := parseFilter(r)
-	where, args := salesWhere(f)
+	where, args := salesWhere(f, companyFrom(r.Context()))
 	out, err := groupedByStaff(r.Context(), s.db, where, args, "d.technician_id", "d.technician_name")
 	if err != nil {
 		handleErr(w, err)
@@ -603,7 +604,7 @@ func (s *Server) reportTechnicians(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) reportWriters(w http.ResponseWriter, r *http.Request) {
 	f := parseFilter(r)
-	where, args := salesWhere(f)
+	where, args := salesWhere(f, companyFrom(r.Context()))
 	out, err := groupedByStaff(r.Context(), s.db, where, args, "d.writer_id", "d.writer_name")
 	if err != nil {
 		handleErr(w, err)
@@ -616,7 +617,7 @@ func (s *Server) reportWriters(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) reportInvoices(w http.ResponseWriter, r *http.Request) {
 	f := parseFilter(r)
-	where, args := salesWhere(f)
+	where, args := salesWhere(f, companyFrom(r.Context()))
 	// Pagination
 	offset := (f.Page - 1) * f.Limit
 	args2 := append([]any{}, args...)
@@ -670,7 +671,8 @@ func (s *Server) reportDashboard(w http.ResponseWriter, r *http.Request) {
 		f.To = f.From.AddDate(0, 1, 0)
 		f.HasFrom, f.HasTo = true, true
 	}
-	where, args := salesWhere(f)
+	cid := companyFrom(r.Context())
+	where, args := salesWhere(f, cid)
 
 	// KPIs
 	var periodSales, periodTax string
@@ -691,8 +693,8 @@ func (s *Server) reportDashboard(w http.ResponseWriter, r *http.Request) {
 	totalBetween := func(a, b time.Time) (string, error) {
 		var t string
 		err := s.db.QueryRow(ctx, `SELECT coalesce(sum(d.total),0)::text FROM documents d
-			WHERE d.status <> 'void' AND (d.type='invoice' OR d.paid_total > 0)
-			  AND `+salesDateExpr+` >= $1 AND `+salesDateExpr+` < $2`, a, b).Scan(&t)
+			WHERE d.company_id::text = $3 AND d.status <> 'void' AND (d.type='invoice' OR d.paid_total > 0)
+			  AND `+salesDateExpr+` >= $1 AND `+salesDateExpr+` < $2`, a, b, cid).Scan(&t)
 		return t, err
 	}
 	mSales, err := totalBetween(monthStart, monthStart.AddDate(0, 1, 0))
@@ -732,8 +734,8 @@ func (s *Server) reportDashboard(w http.ResponseWriter, r *http.Request) {
 	// Monthly series last 12 months
 	twelveStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC).AddDate(0, -11, 0)
 	monthlyRows, err := groupedSales(ctx, s.db,
-		"d.status <> 'void' AND (d.type='invoice' OR d.paid_total > 0) AND "+salesDateExpr+" >= $1",
-		[]any{twelveStart},
+		"d.company_id::text = $2 AND d.status <> 'void' AND (d.type='invoice' OR d.paid_total > 0) AND "+salesDateExpr+" >= $1",
+		[]any{twelveStart, cid},
 		"to_char(date_trunc('month', "+salesDateExpr+"), 'YYYY-MM')", "month")
 	if err != nil {
 		handleErr(w, err)
@@ -783,7 +785,7 @@ func (s *Server) reportDashboard(w http.ResponseWriter, r *http.Request) {
 	// Top customers (reuse report)
 	byTech, _ := groupedByStaff(ctx, s.db, where, args, "d.technician_id", "d.technician_name")
 	byWriter, _ := groupedByStaff(ctx, s.db, where, args, "d.writer_id", "d.writer_name")
-	byMethod, _ := paymentsByMethod(ctx, s.db, f)
+	byMethod, _ := paymentsByMethod(ctx, s.db, f, companyFrom(ctx))
 	taxByMonth, _ := taxByBucket(ctx, s.db, where, args, "to_char(date_trunc('month', "+salesDateExpr+"), 'YYYY-MM')", "month")
 
 	writeJSON(w, 200, map[string]any{
@@ -797,8 +799,8 @@ func (s *Server) reportDashboard(w http.ResponseWriter, r *http.Request) {
 			"yearlySales":             dec(ySales),
 			"previousYearlySales":     dec(pySales),
 			"taxCollectedPeriod":      dec(periodTax),
-			"taxCollectedMonth":       taxBetween(ctx, s.db, monthStart, monthStart.AddDate(0, 1, 0)),
-			"taxCollectedYear":        taxBetween(ctx, s.db, yearStart, yearStart.AddDate(1, 0, 0)),
+			"taxCollectedMonth":       taxBetween(ctx, s.db, monthStart, monthStart.AddDate(0, 1, 0), cid),
+			"taxCollectedYear":        taxBetween(ctx, s.db, yearStart, yearStart.AddDate(1, 0, 0), cid),
 			"invoiceCount":            invCount,
 			"periodSales":             dec(periodSales),
 		},
@@ -816,11 +818,11 @@ func (s *Server) reportDashboard(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func taxBetween(ctx context.Context, db queryer, a, b time.Time) any {
+func taxBetween(ctx context.Context, db queryer, a, b time.Time, cid string) any {
 	var t string
 	_ = db.QueryRow(ctx, `SELECT coalesce(sum(d.tax_total),0)::text FROM documents d
-		WHERE d.status <> 'void' AND (d.type='invoice' OR d.paid_total > 0)
-		  AND `+salesDateExpr+` >= $1 AND `+salesDateExpr+` < $2`, a, b).Scan(&t)
+		WHERE d.company_id::text = $3 AND d.status <> 'void' AND (d.type='invoice' OR d.paid_total > 0)
+		  AND `+salesDateExpr+` >= $1 AND `+salesDateExpr+` < $2`, a, b, cid).Scan(&t)
 	return dec(t)
 }
 
@@ -885,7 +887,7 @@ func (s *Server) logReportExport(w http.ResponseWriter, r *http.Request) {
 	}
 	err := s.tx(r.Context(), func(tx pgx.Tx) error {
 		details := strings.TrimSpace(fmt.Sprintf("from=%s to=%s filters=%s", in.From, in.To, in.FiltersJS))
-		return audit(r.Context(), tx, u, "report", in.Report, "export", in.Format, "", details)
+		return audit(r.Context(), tx, u, "report", in.Report, "export", in.Format, "", details, u.CompanyID)
 	})
 	if err != nil {
 		handleErr(w, err)

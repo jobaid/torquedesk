@@ -27,8 +27,25 @@ const OrderEditor = lazy(() => import('./pages/OrderEditor'))
 const Customers = lazy(() => import('./pages/Customers'))
 const SettingsLayout = lazy(() => import('./pages/settings/SettingsLayout'))
 const ReportsLayout = lazy(() => import('./pages/reports/ReportsLayout'))
+const SalesDashboard = lazy(() => import('./pages/reports/SalesDashboard'))
+const SalesSummary = lazy(() => import('./pages/reports/SalesSummary'))
+const PartsProfit = lazy(() => import('./pages/reports/PartsProfit'))
+const PaymentsReport = lazy(() => import('./pages/reports/Payments'))
+const TaxReport = lazy(() => import('./pages/reports/Tax'))
 const Profile = lazy(() => import('./pages/Profile'))
 const NotFound = lazy(() => import('./pages/NotFound'))
+
+// Toraquedesk SaaS Owner Portal — its own self-contained route tree. It does NOT
+// render inside AppShell and does NOT touch the main app's auth state.
+const OwnerLogin = lazy(() => import('./pages/owner/OwnerLogin'))
+const OwnerLayout = lazy(() => import('./pages/owner/OwnerLayout'))
+const OwnerDashboard = lazy(() => import('./pages/owner/OwnerDashboard'))
+const OwnerCompanies = lazy(() => import('./pages/owner/Companies'))
+const OwnerAddCompany = lazy(() => import('./pages/owner/AddCompany'))
+const OwnerCompanyDetail = lazy(() => import('./pages/owner/CompanyDetail'))
+const OwnerSubscriptions = lazy(() => import('./pages/owner/Subscriptions'))
+const OwnerAuditLog = lazy(() => import('./pages/owner/AuditLog'))
+const OwnerPlaceholder = lazy(() => import('./pages/owner/Placeholder'))
 
 function PageFallback() {
   return (
@@ -41,15 +58,41 @@ function PageFallback() {
 
 export default function App() {
   useThemeSync()
+  // The owner-portal routes own their own auth and chrome; keep them separate
+  // from the customer app's gating so a company user can never land in /owner
+  // and vice-versa.
+  if (typeof window !== 'undefined' && (window.location.pathname === '/owner-login' || window.location.pathname.startsWith('/owner'))) {
+    return (
+      <Suspense fallback={null}>
+        <Routes>
+          <Route path="/owner-login" element={<OwnerLogin />} />
+          <Route path="/owner" element={<OwnerLayout />}>
+            <Route index element={<OwnerDashboard />} />
+            <Route path="companies" element={<OwnerCompanies />} />
+            <Route path="companies/new" element={<OwnerAddCompany />} />
+            <Route path="companies/:id" element={<OwnerCompanyDetail />} />
+            <Route path="subscriptions" element={<OwnerSubscriptions />} />
+            <Route path="audit" element={<OwnerAuditLog />} />
+            <Route path="users" element={<OwnerPlaceholder title="Users" body="Phase 1 scope: company owners are managed from each company's detail page. Platform-wide user management arrives in a later phase." />} />
+            <Route path="access" element={<OwnerPlaceholder title="Access Management" body="Access is controlled by changing a company's status from its detail page. A dedicated matrix view lands in a later phase." />} />
+            <Route path="urls" element={<OwnerPlaceholder title="Application URLs" body="Each company has an application URL on its detail page. Custom-domain management will be added in a later phase." />} />
+            <Route path="billing" element={<OwnerPlaceholder title="Billing" body="Billing integration (Stripe) is planned for a later phase. Subscription plan prices on each company drive the MRR/ARR estimates on the dashboard." />} />
+            <Route path="security" element={<OwnerPlaceholder title="Security" body="MFA, session management, and SSO settings are planned for a later phase. For now, owner passwords use Argon2id hashing." />} />
+            <Route path="settings" element={<OwnerPlaceholder title="Settings" body="Owner-portal settings (branding, email templates, invite flow) are planned for a later phase." />} />
+          </Route>
+        </Routes>
+      </Suspense>
+    )
+  }
   const user = useApp((s) => s.user)
-  // Sessions are issued by the Go API; older local-only sign-ins must sign in again.
   if (!user?.token) return <Login />
   return <Boot />
 }
 
 /** Loads settings and documents from the API before showing the app. */
 function Boot() {
-  const { data, error, load } = useSettings()
+  const { data, error, errorStatus, load } = useSettings()
+  const logout = useApp((s) => s.logout)
   const loadDocuments = useShop((s) => s.loadDocuments)
   const docsLoaded = useShop((s) => s.docsLoaded)
   useEffect(() => {
@@ -58,11 +101,29 @@ function Boot() {
   }, [load, loadDocuments])
 
   if (error && !data) {
+    // 401 is handled by the API client (auto-logout). 403 here means the token
+    // is valid but the role doesn't have settings.view — almost always because
+    // this is a stale session from before the multi-tenancy migration (role
+    // not in rolePerms map, or empty role). Offer a clean sign-out.
+    const isAuth = errorStatus === 401 || errorStatus === 403
     return (
       <div className="page" style={{ maxWidth: 640, paddingTop: '12vh' }}>
         <div className="card">
-          <EmptyState icon={ServerOff} title="Can't reach the TorqueDesk server" action={<button className="btn btn-primary" onClick={() => { load().catch(() => {}); loadDocuments() }}><RotateCw size={16} />Try again</button>}>
-            {error} Start it with <code>cd server &amp;&amp; go run .</code>
+          <EmptyState
+            icon={ServerOff}
+            title={isAuth ? 'Your session is no longer valid' : "Can't reach the TorqueDesk server"}
+            action={
+              isAuth
+                ? <button className="btn btn-primary" onClick={() => logout()}>Sign in again</button>
+                : <button className="btn btn-primary" onClick={() => { load().catch(() => {}); loadDocuments() }}><RotateCw size={16} />Try again</button>
+            }
+          >
+            <div style={{ background: 'rgba(220,53,69,0.08)', border: '1px solid rgba(220,53,69,0.3)', padding: 12, borderRadius: 8, marginBottom: 12, fontFamily: 'monospace', fontSize: 13, wordBreak: 'break-word' }}>
+              <strong>Error {errorStatus || ''}:</strong> {error}
+            </div>
+            {isAuth
+              ? 'This usually happens after an upgrade or role change. Sign in again to continue.'
+              : <>Start it with <code>cd server &amp;&amp; go run .</code></>}
           </EmptyState>
         </div>
       </div>
@@ -98,7 +159,14 @@ function Boot() {
           <Route path="customers" element={<S><Customers /></S>} />
           <Route path="customers/:id" element={<S><Customers /></S>} />
           <Route path="settings/*" element={<S><SettingsLayout /></S>} />
-          <Route path="reports/*" element={<S><ReportsLayout /></S>} />
+          <Route path="reports" element={<S><ReportsLayout /></S>}>
+            <Route index element={<Navigate to="sales/dashboard" replace />} />
+            <Route path="sales/dashboard" element={<S><SalesDashboard /></S>} />
+            <Route path="sales/summary" element={<S><SalesSummary /></S>} />
+            <Route path="sales/parts-profit" element={<S><PartsProfit /></S>} />
+            <Route path="sales/payments" element={<S><PaymentsReport /></S>} />
+            <Route path="sales/tax" element={<S><TaxReport /></S>} />
+          </Route>
           <Route path="profile" element={<S><Profile /></S>} />
           <Route path="login" element={<Navigate to="/" replace />} />
           <Route path="*" element={<S><NotFound /></S>} />

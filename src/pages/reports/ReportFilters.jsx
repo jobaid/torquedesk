@@ -25,7 +25,7 @@ export default function ReportFilters({ filters, onChange, onExport, exports = [
     setPreset('custom')
   }
   return (
-    <div className="card report-filters" style={{ padding: 16, display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'end' }}>
+    <div className="card report-filters no-print" style={{ padding: 16, display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'end' }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         <label className="label" style={{ fontSize: 12, color: 'var(--text-muted)' }}>Date range</label>
         <select className="input" value={preset} onChange={(e) => apply(e.target.value)} style={{ minWidth: 160 }}>

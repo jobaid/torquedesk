@@ -13,6 +13,9 @@ export const DOC_TYPES = {
 
 const hoursAgo = (h) => Date.now() - h * 3600_000
 
+// Demo customers only seed the special legacy "demo" tenant — see
+// resetDemoCustomers below and useApp.login's company-change reset. Shop
+// tenants start with an empty customer book so no demo bleed-through.
 const SEED_CUSTOMERS = [
   { id: 'c1', name: 'Marcus Reyes', phone: '(202) 555-0187', email: 'marcus.reyes@example.com', address: '45 Elm St, Silver Spring, MD', notes: 'Prefers text updates.', createdAt: hoursAgo(400),
     vehicles: [{ id: 'cv1', year: 2021, make: 'GMC', model: 'Yukon XL 1500', engineId: '5.3-v8-355', engineLabel: '5.3L V8', engineDetail: '5.3L V8 355hp Gas', trim: 'SLT', transmission: 'Automatic', vin: '1GKS2GKC5MR123456', plate: 'MD 7KX221', mileage: 48210 }] },
@@ -23,6 +26,8 @@ const SEED_CUSTOMERS = [
   { id: 'c4', name: 'Kenji Watanabe', phone: '(443) 555-0164', email: 'kenji.w@example.com', address: '77 Lakeside Dr, Towson, MD', notes: '', createdAt: hoursAgo(100),
     vehicles: [{ id: 'cv4', year: 2024, make: 'Toyota', model: 'Camry', engineId: '2.5-i4-203', engineLabel: '2.5L 4-Cylinder', engineDetail: '2.5L I4 203hp Gas', trim: 'SE', transmission: 'Automatic', vin: '4T1G11AK5RU123987', plate: 'MD 4CM1990', mileage: 12340 }] },
 ]
+
+export { SEED_CUSTOMERS }
 
 // Debounced document saves: edits apply locally at once and are merged into one PUT.
 const pending = {}
@@ -64,7 +69,7 @@ export function flushSaves() {
 export const useShop = create(
   persist(
     (set, get) => ({
-      customers: SEED_CUSTOMERS,
+      customers: [],
       documents: [],
       docsLoaded: false,
       docsError: null,

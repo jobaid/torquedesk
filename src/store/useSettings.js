@@ -46,4 +46,11 @@ export const PAYMENT_METHODS = {
 
 export const DOC_TYPE_LABELS = { estimate: 'Estimate', repair_order: 'Repair Order', invoice: 'Invoice', statement: 'Statement' }
 
-export const logoUrl = (printing) => (printing?.logoName ? `/api/settings/printing/logo?v=${printing.logoUpdatedAt}` : null)
+// Includes the tenant's company id so the public /api/settings/printing/logo
+// endpoint (used by <img> on printed documents too) returns THIS shop's logo,
+// not the demo tenant's.
+export const logoUrl = (printing, companyId) => {
+  if (!printing?.logoName) return null
+  const base = `/api/settings/printing/logo?v=${printing.logoUpdatedAt}`
+  return companyId ? `${base}&company=${encodeURIComponent(companyId)}` : base
+}

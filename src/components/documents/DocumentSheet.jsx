@@ -1,6 +1,7 @@
 import { computeTotals, lineTotal, discountAmount } from '../../lib/totals'
 import { money } from '../../lib/format'
 import { PAYMENT_METHODS, DOC_TYPE_LABELS, logoUrl } from '../../store/useSettings'
+import { useApp } from '../../store/useApp'
 
 const fmtDate = (s) => (s ? new Date(`${s}T12:00:00`).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : '')
 const fmtDateTime = (s) => (s ? new Date(s).toLocaleString(undefined, { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : '')
@@ -16,7 +17,8 @@ export default function DocumentSheet({ doc, settings, statementRows, logoOverri
   const hf = settings['header-footer'] || {}
   const opts = doc.snapshot?.options || {}
   const t = computeTotals(doc)
-  const logo = logoOverride !== undefined ? logoOverride : logoUrl(settings.printing)
+  const cid = useApp((s) => s.user?.companyId)
+  const logo = logoOverride !== undefined ? logoOverride : logoUrl(settings.printing, cid)
   const customer = doc.customerSnapshot || {}
   const v = doc.vehicleSnapshot
   const unit = doc.odometerUnit === 'km' ? 'km' : 'mi'

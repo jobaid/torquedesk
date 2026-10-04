@@ -4,7 +4,7 @@ import { SectionHead, useSectionForm, useUnsavedGuard, UnsavedBar, useCanEdit, F
 import { ConfirmDialog } from '../../components/ui/Modal'
 import { Field, Switch, Tabs } from '../../components/ui'
 import { useSettings, PAYMENT_METHODS, DOC_TYPE_LABELS, logoUrl } from '../../store/useSettings'
-import { toast } from '../../store/useApp'
+import { toast, useApp } from '../../store/useApp'
 import { api, ApiError } from '../../lib/api'
 import DocumentSheet, { buildPreviewDoc, SAMPLE_STATEMENT } from '../../components/documents/DocumentSheet'
 
@@ -130,7 +130,8 @@ export function Printing() {
   const [busy, setBusy] = useState(false)
   const [confirm, setConfirm] = useState(false)
   const [error, setError] = useState('')
-  const url = logoUrl(printing)
+  const cid = useApp((s) => s.user?.companyId)
+  const url = logoUrl(printing, cid)
 
   const upload = async (file) => {
     setError('')

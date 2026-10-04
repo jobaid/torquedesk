@@ -1,11 +1,58 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Sun, Moon, Monitor, PanelLeftClose, RotateCw, History, RotateCcw } from 'lucide-react'
+import { Sun, Moon, Monitor, PanelLeftClose, RotateCw, History, RotateCcw, Eye, EyeOff, KeyRound } from 'lucide-react'
 import { SectionHead } from './kit'
 import { ConfirmDialog } from '../../components/ui/Modal'
-import { Switch, EmptyState, SkeletonList } from '../../components/ui'
+import { Switch, EmptyState, SkeletonList, Field } from '../../components/ui'
 import { useApp, toast } from '../../store/useApp'
 import { useShop } from '../../store/useShop'
 import { api } from '../../lib/api'
+
+export function ChangePassword() {
+  const [current, setCurrent] = useState('')
+  const [next, setNext] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [show, setShow] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  const submit = async (e) => {
+    e.preventDefault()
+    setError('')
+    if (next.length < 8) { setError('New password must be at least 8 characters.'); return }
+    if (next !== confirm) { setError('New password and confirmation do not match.'); return }
+    if (current === next) { setError('New password must be different from the current one.'); return }
+    setBusy(true)
+    try {
+      await api('/me/change-password', { method: 'POST', body: { currentPassword: current, newPassword: next } })
+      setCurrent(''); setNext(''); setConfirm('')
+      toast.success('Password changed', 'Use the new password next time you sign in.')
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="stack gap-16">
+      <SectionHead title="Change password" description="Rotate your sign-in password. You stay signed in on this device." />
+      <form className="card card-pad stack gap-16" onSubmit={submit} style={{ maxWidth: 480 }} noValidate>
+        <Field label="Current password" required htmlFor="cp-cur">
+          <input id="cp-cur" type={show ? 'text' : 'password'} className="input" value={current} onChange={(e) => setCurrent(e.target.value)} autoComplete="current-password" />
+        </Field>
+        <Field label="New password" required htmlFor="cp-new" hint="At least 8 characters.">
+          <input id="cp-new" type={show ? 'text' : 'password'} className="input" value={next} onChange={(e) => setNext(e.target.value)} autoComplete="new-password" />
+        </Field>
+        <Field label="Confirm new password" required htmlFor="cp-conf">
+          <input id="cp-conf" type={show ? 'text' : 'password'} className="input" value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" />
+        </Field>
+        <label className="row gap-6 small"><input type="checkbox" checked={show} onChange={(e) => setShow(e.target.checked)} />{show ? <EyeOff size={14} /> : <Eye size={14} />} Show passwords</label>
+        {error && <div className="callout callout-danger" role="alert">{error}</div>}
+        <button className="btn btn-primary" type="submit" disabled={busy}><KeyRound size={16} />{busy ? 'Changing…' : 'Change password'}</button>
+      </form>
+    </div>
+  )
+}
 
 export function Appearance() {
   const theme = useApp((s) => s.theme)

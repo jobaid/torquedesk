@@ -243,3 +243,53 @@ func (s *Server) me(w http.ResponseWriter, r *http.Request) {
 	u := userFrom(r.Context())
 	writeJSON(w, 200, map[string]any{"user": u, "permissions": u.Perms()})
 }
+
+type changePasswordReq struct {
+	CurrentPassword string `json:"currentPassword"`
+	NewPassword     string `json:"newPassword"`
+}
+
+// changeOwnPassword lets a signed-in shop user rotate their own password. Only
+// works for shop sign-ins (company_owners rows) — demo-mode logins aren't
+// backed by a password row, so they get a clear 400.
+func (s *Server) changeOwnPassword(w http.ResponseWriter, r *http.Request) {
+	u := userFrom(r.Context())
+	var req changePasswordReq
+	if err := readJSON(r, &req); err != nil {
+		writeErr(w, 400, "Invalid request.")
+		return
+	}
+	if req.CurrentPassword == "" || req.NewPassword == "" {
+		writeErr(w, 400, "Current and new password are required.")
+		return
+	}
+	if len(req.NewPassword) < 8 {
+		writeErr(w, 400, "New password must be at least 8 characters.")
+		return
+	}
+	if u.CompanyID == "" {
+		writeErr(w, 400, "This account does not have a password. Sign in with the shop account instead.")
+		return
+	}
+	var ownerID, hash string
+	err := s.db.QueryRow(r.Context(), `SELECT id::text, password_hash FROM company_owners
+		WHERE lower(email) = lower($1) AND company_id::text = $2`, u.Email, u.CompanyID).Scan(&ownerID, &hash)
+	if err != nil {
+		writeErr(w, 400, "This account does not have a password. Sign in with the shop account instead.")
+		return
+	}
+	if !VerifyPassword(req.CurrentPassword, hash) {
+		writeErr(w, 401, "Current password is incorrect.")
+		return
+	}
+	newHash, err := HashPassword(req.NewPassword)
+	if err != nil {
+		writeErr(w, 500, "Could not hash the new password.")
+		return
+	}
+	if _, err := s.db.Exec(r.Context(), `UPDATE company_owners SET password_hash = $1, updated_at = now() WHERE id::text = $2`, newHash, ownerID); err != nil {
+		handleErr(w, err)
+		return
+	}
+	writeJSON(w, 200, map[string]any{"ok": true})
+}

@@ -46,6 +46,7 @@ func (s *Server) Handler(staticDir string) http.Handler {
 	mux.HandleFunc("POST /api/auth/login", s.login)
 	mux.HandleFunc("POST /api/auth/company-login", s.companyLogin)
 	mux.HandleFunc("GET /api/me", s.auth("", s.me))
+	mux.HandleFunc("POST /api/me/change-password", s.auth("", s.changeOwnPassword))
 	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, 200, map[string]string{"status": "ok"}) })
 
 	s.settingsRoutes(mux)

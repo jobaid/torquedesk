@@ -6,3 +6,8 @@ dist
 server/.data/
 server/torquedesk-server.exe
 server/torquedesk-server
+# Claude Code / MCP tool scratch databases (not part of the project)
+.claude/data/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm

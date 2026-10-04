@@ -1,0 +1,8 @@
+node_modules
+dist
+*.local
+.DS_Store
+# Go API: embedded PostgreSQL data/binaries and build output
+server/.data/
+server/torquedesk-server.exe
+server/torquedesk-server

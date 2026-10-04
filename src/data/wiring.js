@@ -1,0 +1,178 @@
+// Wiring schematics described as data and rendered to SVG by the viewer.
+// Canvas: 1000 x 640. Component kinds: box, module, battery, fuse, relay, motor, ground-less boxes.
+// Wire: { id, color: 'RD' | 'RD/WH', label, circuit, gauge, points: [[x,y]...], from, to }
+
+export const WIRE_COLORS = {
+  RD: '#dc2626', BK: '#1f2937', WH: '#cbd5e1', GN: '#16a34a', BU: '#2563eb', YE: '#eab308',
+  BN: '#92400e', OG: '#ea580c', VT: '#7c3aed', GY: '#6b7280', PK: '#ec4899', LG: '#84cc16',
+}
+
+const W = (id, color, label, circuit, points, from, to, gauge = '0.5 mm²') => ({ id, color, label, circuit, points, from, to, gauge })
+
+export const DIAGRAMS = [
+  {
+    id: 'charging', title: 'Charging System', system: 'Charging System', sheet: '1 of 1',
+    description: 'Battery, alternator, fuse block and ECM generator control.',
+    components: [
+      { id: 'battery', label: 'Battery', sub: '12 V', kind: 'battery', x: 60, y: 260, w: 110, h: 90 },
+      { id: 'fuse-block', label: 'Underhood Fuse Block', sub: 'MEGA 175A • ALT-S 7.5A', kind: 'fuse', x: 300, y: 60, w: 200, h: 90 },
+      { id: 'alternator', label: 'Alternator', sub: 'B+  S  L  F', kind: 'motor', x: 620, y: 240, w: 180, h: 130 },
+      { id: 'ecm', label: 'ECM', sub: 'Engine Control Module', kind: 'module', x: 600, y: 480, w: 260, h: 100 },
+      { id: 'cluster', label: 'Instrument Cluster', sub: 'Charge warning', kind: 'module', x: 260, y: 480, w: 200, h: 100 },
+    ],
+    grounds: [[115, 430, 'G101'], [900, 360, 'G102']],
+    wires: [
+      W('c1', 'RD', 'B+', '1', [[115, 260], [115, 105], [300, 105]], 'battery', 'fuse-block', '13 mm²'),
+      W('c2', 'RD', 'ALT B+', '2', [[500, 90], [660, 90], [660, 240]], 'fuse-block', 'alternator', '13 mm²'),
+      W('c3', 'RD/WH', 'S (sense)', '3', [[500, 130], [760, 130], [760, 240]], 'fuse-block', 'alternator'),
+      W('c4', 'GN', 'L (lamp)', '4', [[670, 370], [670, 440], [400, 440], [400, 480]], 'alternator', 'cluster'),
+      W('c5', 'BU', 'F (field duty)', '5', [[740, 370], [740, 480]], 'alternator', 'ecm'),
+      W('c6', 'BK', 'Case ground', '6', [[800, 330], [900, 330], [900, 360]], 'alternator', 'G102', '13 mm²'),
+      W('c7', 'BK', 'B−', '7', [[115, 350], [115, 430]], 'battery', 'G101', '13 mm²'),
+      W('c8', 'VT/WH', 'CAN-H', '8', [[600, 530], [460, 530]], 'ecm', 'cluster'),
+    ],
+  },
+  {
+    id: 'starting', title: 'Starting System', system: 'Starting System', sheet: '1 of 1',
+    description: 'Starter motor, starter relay and park/neutral switch.',
+    components: [
+      { id: 'battery', label: 'Battery', sub: '12 V', kind: 'battery', x: 60, y: 280, w: 110, h: 90 },
+      { id: 'fuse-block', label: 'Underhood Fuse Block', sub: 'STARTER 30A', kind: 'fuse', x: 280, y: 60, w: 220, h: 90 },
+      { id: 'starter-relay', label: 'Starter Relay', sub: '30  87  85  86', kind: 'relay', x: 580, y: 60, w: 160, h: 90 },
+      { id: 'ecm', label: 'ECM', sub: 'STA control', kind: 'module', x: 580, y: 300, w: 200, h: 100 },
+      { id: 'pnp-switch', label: 'Park/Neutral Switch', sub: 'Closed in P/N', kind: 'box', x: 830, y: 300, w: 150, h: 80 },
+      { id: 'starter', label: 'Starter', sub: 'M', kind: 'motor', x: 360, y: 430, w: 120, h: 120 },
+    ],
+    grounds: [[115, 440, 'G100'], [420, 610, 'G103'], [960, 240, 'G104']],
+    wires: [
+      W('s1', 'RD', 'B+ cable', '1', [[140, 280], [140, 200], [230, 200], [230, 490], [360, 490]], 'battery', 'starter', '21 mm²'),
+      W('s2', 'RD', 'Fuse feed', '2', [[95, 280], [95, 105], [280, 105]], 'battery', 'fuse-block', '8 mm²'),
+      W('s3', 'RD/WH', '30', '3', [[500, 90], [580, 90]], 'fuse-block', 'starter-relay', '2 mm²'),
+      W('s4', 'YE', 'ST (87)', '4', [[660, 150], [660, 240], [440, 240], [440, 430]], 'starter-relay', 'starter', '2 mm²'),
+      W('s5', 'BU', 'STA (85)', '5', [[620, 300], [620, 150]], 'ecm', 'starter-relay'),
+      W('s6', 'BK', '86 ground', '6', [[715, 150], [715, 200], [960, 200], [960, 240]], 'starter-relay', 'G104'),
+      W('s7', 'GN', 'P/N signal', '7', [[830, 340], [780, 340]], 'pnp-switch', 'ecm'),
+      W('s8', 'BK', 'Case ground', '8', [[420, 550], [420, 610]], 'starter', 'G103', '21 mm²'),
+      W('s9', 'BK', 'B−', '9', [[115, 370], [115, 440]], 'battery', 'G100', '21 mm²'),
+    ],
+  },
+  {
+    id: 'ignition', title: 'Ignition System (4-Cylinder)', system: 'Ignition', sheet: '1 of 2',
+    description: 'Coil-on-plug ignition coils, IGT control and crankshaft position sensor.',
+    components: [
+      { id: 'fuse-block', label: 'Fuse Block', sub: 'IG2 15A (Hot in RUN)', kind: 'fuse', x: 60, y: 60, w: 200, h: 80 },
+      ...[1, 2, 3, 4].map((n) => ({ id: `coil-${n}`, label: `Ignition Coil ${n}`, sub: '+B IGT GND', kind: 'box', x: 360 + 160 * (n - 1), y: 230, w: 120, h: 80, ref: 'ignition-coil' })),
+      { id: 'ecm', label: 'ECM', sub: 'IGT1  IGT2  IGT3  IGT4  NE+  NE−', kind: 'module', x: 360, y: 480, w: 600, h: 100 },
+      { id: 'ckp', label: 'CKP Sensor', sub: 'Crankshaft position', kind: 'box', x: 60, y: 480, w: 160, h: 80, ref: 'ckp-sensor' },
+    ],
+    grounds: [[980, 440, 'G105']],
+    splices: [[400, 100], [560, 100], [720, 100], [620, 410], [780, 410]],
+    wires: [
+      W('i0', 'RD/BK', '+B bus', '10', [[260, 100], [880, 100], [880, 230]], 'fuse-block', 'coil-4', '1.25 mm²'),
+      W('i0a', 'RD/BK', '+B', '10', [[400, 100], [400, 230]], 'fuse-block', 'coil-1'),
+      W('i0b', 'RD/BK', '+B', '10', [[560, 100], [560, 230]], 'fuse-block', 'coil-2'),
+      W('i0c', 'RD/BK', '+B', '10', [[720, 100], [720, 230]], 'fuse-block', 'coil-3'),
+      ...[1, 2, 3, 4].map((n, i) => W(`i${n}`, ['YE', 'GN', 'BU', 'VT'][i], `IGT${n}`, `2${n}`, [[400 + 160 * i + 20, 310], [400 + 160 * i + 20, 480]], `coil-${n}`, 'ecm')),
+      W('ig', 'BK', 'Coil ground', '30', [[460, 310], [460, 410], [980, 410], [980, 440]], 'coil-1', 'G105', '1.25 mm²'),
+      W('ig2', 'BK', 'GND', '30', [[620, 310], [620, 410]], 'coil-2', 'G105'),
+      W('ig3', 'BK', 'GND', '30', [[780, 310], [780, 410]], 'coil-3', 'G105'),
+      W('ig4', 'BK', 'GND', '30', [[940, 310], [940, 410]], 'coil-4', 'G105'),
+      W('ck1', 'WH', 'NE+', '41', [[220, 505], [360, 505]], 'ckp', 'ecm'),
+      W('ck2', 'BK/WH', 'NE−', '42', [[220, 540], [360, 540]], 'ckp', 'ecm'),
+    ],
+  },
+  {
+    id: 'cooling-fan', title: 'Engine Cooling Fan', system: 'Cooling System', sheet: '1 of 1',
+    description: 'Fan relay, fan motor, ECM fan control and ECT sensor.',
+    components: [
+      { id: 'fuse-block', label: 'Underhood Fuse Block', sub: 'FAN 50A • ECM 10A', kind: 'fuse', x: 60, y: 60, w: 220, h: 100 },
+      { id: 'fan-relay', label: 'Fan Relay', sub: '30  87  85  86', kind: 'relay', x: 420, y: 60, w: 160, h: 90 },
+      { id: 'fan', label: 'Cooling Fan', sub: 'M', kind: 'motor', x: 700, y: 90, w: 120, h: 120, ref: 'cooling-fan' },
+      { id: 'ecm', label: 'ECM', sub: 'FAN  THW  E2', kind: 'module', x: 380, y: 420, w: 260, h: 110 },
+      { id: 'ect', label: 'ECT Sensor', sub: 'Thermistor', kind: 'box', x: 60, y: 420, w: 150, h: 90, ref: 'ect-sensor' },
+    ],
+    grounds: [[760, 290, 'G106']],
+    wires: [
+      W('f1', 'RD', 'FAN 50A', '1', [[280, 90], [420, 90]], 'fuse-block', 'fan-relay', '5 mm²'),
+      W('f2', 'GN/RD', '87 → Fan +', '2', [[580, 120], [640, 120], [640, 150], [700, 150]], 'fan-relay', 'fan', '5 mm²'),
+      W('f3', 'BK', 'Fan ground', '3', [[760, 210], [760, 290]], 'fan', 'G106', '5 mm²'),
+      W('f4', 'BU', 'FAN control', '4', [[460, 420], [460, 150]], 'ecm', 'fan-relay'),
+      W('f5', 'RD/YE', 'Relay coil +', '5', [[280, 135], [340, 135], [340, 200], [540, 200], [540, 150]], 'fuse-block', 'fan-relay'),
+      W('f6', 'YE', 'THW signal', '6', [[210, 450], [380, 450]], 'ect', 'ecm'),
+      W('f7', 'BN', 'E2 sensor gnd', '7', [[210, 485], [380, 485]], 'ect', 'ecm'),
+    ],
+  },
+  {
+    id: 'fuel-pump', title: 'Fuel Pump Control', system: 'Fuel System', sheet: '1 of 1',
+    description: 'Fuel pump relay, fuel pump control module and in-tank pump.',
+    components: [
+      { id: 'fuse-block', label: 'Fuse Block', sub: 'EFI MAIN 20A', kind: 'fuse', x: 60, y: 60, w: 200, h: 90 },
+      { id: 'fp-relay', label: 'Fuel Pump Relay', sub: '30  87  85  86', kind: 'relay', x: 380, y: 60, w: 160, h: 90 },
+      { id: 'fpcm', label: 'Fuel Pump Control Module', sub: 'PWM driver', kind: 'module', x: 620, y: 60, w: 220, h: 100 },
+      { id: 'pump', label: 'Fuel Pump', sub: 'M', kind: 'motor', x: 660, y: 300, w: 120, h: 120, ref: 'fuel-pump' },
+      { id: 'ecm', label: 'ECM', sub: 'FC  FPR', kind: 'module', x: 100, y: 380, w: 260, h: 110 },
+    ],
+    grounds: [[720, 520, 'G107'], [500, 260, 'G108']],
+    wires: [
+      W('p1', 'RD', '30', '1', [[260, 95], [380, 95]], 'fuse-block', 'fp-relay', '3 mm²'),
+      W('p2', 'RD/WH', '87', '2', [[540, 95], [620, 95]], 'fp-relay', 'fpcm', '3 mm²'),
+      W('p3', 'GN', 'Pump +', '3', [[720, 160], [720, 300]], 'fpcm', 'pump', '2 mm²'),
+      W('p4', 'BK', 'Pump −', '4', [[720, 420], [720, 520]], 'pump', 'G107', '2 mm²'),
+      W('p5', 'BU', 'FC (relay ctrl)', '5', [[300, 380], [300, 210], [420, 210], [420, 150]], 'ecm', 'fp-relay'),
+      W('p6', 'BK', '86', '6', [[500, 150], [500, 260]], 'fp-relay', 'G108'),
+      W('p7', 'VT', 'FP duty', '7', [[360, 450], [900, 450], [900, 130], [840, 130]], 'ecm', 'fpcm'),
+    ],
+  },
+  {
+    id: 'abs', title: 'ABS Wheel Speed Sensors', system: 'ABS', sheet: '1 of 2',
+    description: 'Four-channel wheel speed sensor inputs to the ABS module.',
+    components: [
+      { id: 'fuse-block', label: 'Fuse Block', sub: 'ABS MTR 40A • ABS SOL 25A', kind: 'fuse', x: 380, y: 60, w: 240, h: 70 },
+      { id: 'abs-module', label: 'ABS Module', sub: 'Hydraulic Control Unit', kind: 'module', x: 380, y: 240, w: 240, h: 140, ref: 'abs-module' },
+      { id: 'wss-lf', label: 'LF Wheel Speed', sub: 'Sensor', kind: 'box', x: 60, y: 60, w: 150, h: 70, ref: 'wheel-speed-sensor' },
+      { id: 'wss-rf', label: 'RF Wheel Speed', sub: 'Sensor', kind: 'box', x: 790, y: 60, w: 150, h: 70, ref: 'wheel-speed-sensor' },
+      { id: 'wss-lr', label: 'LR Wheel Speed', sub: 'Sensor', kind: 'box', x: 60, y: 480, w: 150, h: 70, ref: 'wheel-speed-sensor' },
+      { id: 'wss-rr', label: 'RR Wheel Speed', sub: 'Sensor', kind: 'box', x: 790, y: 480, w: 150, h: 70, ref: 'wheel-speed-sensor' },
+    ],
+    grounds: [[500, 460, 'G109']],
+    wires: [
+      W('a0', 'RD', 'Power', '1', [[500, 130], [500, 240]], 'fuse-block', 'abs-module', '5 mm²'),
+      W('a1', 'YE', 'LF +', '11', [[210, 85], [300, 85], [300, 280], [380, 280]], 'wss-lf', 'abs-module'),
+      W('a2', 'WH', 'LF −', '12', [[210, 110], [270, 110], [270, 310], [380, 310]], 'wss-lf', 'abs-module'),
+      W('a3', 'GN', 'RF +', '13', [[790, 85], [700, 85], [700, 280], [620, 280]], 'wss-rf', 'abs-module'),
+      W('a4', 'WH/GN', 'RF −', '14', [[790, 110], [730, 110], [730, 310], [620, 310]], 'wss-rf', 'abs-module'),
+      W('a5', 'BU', 'LR +', '15', [[210, 505], [300, 505], [300, 340], [380, 340]], 'wss-lr', 'abs-module'),
+      W('a6', 'WH/BU', 'LR −', '16', [[210, 530], [270, 530], [270, 365], [380, 365]], 'wss-lr', 'abs-module'),
+      W('a7', 'OG', 'RR +', '17', [[790, 505], [700, 505], [700, 340], [620, 340]], 'wss-rr', 'abs-module'),
+      W('a8', 'WH/OG', 'RR −', '18', [[790, 530], [730, 530], [730, 365], [620, 365]], 'wss-rr', 'abs-module'),
+      W('a9', 'BK', 'Ground', '19', [[500, 380], [500, 460]], 'abs-module', 'G109', '5 mm²'),
+    ],
+  },
+  {
+    id: 'power-windows', title: 'Power Windows (Front)', system: 'Body Electrical', sheet: '1 of 2',
+    description: 'Master switch, passenger switch, front window motors and BCM LIN control.',
+    components: [
+      { id: 'fuse-block', label: 'Fuse Block', sub: 'PWR WDO 30A', kind: 'fuse', x: 60, y: 60, w: 200, h: 80 },
+      { id: 'bcm', label: 'Body Control Module', sub: 'LIN master', kind: 'module', x: 700, y: 60, w: 220, h: 100 },
+      { id: 'master-sw', label: 'Master Window Switch', sub: 'Driver door', kind: 'box', x: 60, y: 330, w: 200, h: 120, ref: 'window-switch' },
+      { id: 'pass-sw', label: 'Passenger Switch', sub: 'RF door', kind: 'box', x: 400, y: 330, w: 180, h: 100 },
+      { id: 'lf-motor', label: 'LF Window Motor', sub: 'M', kind: 'motor', x: 110, y: 510, w: 100, h: 100, ref: 'window-motor' },
+      { id: 'rf-motor', label: 'RF Window Motor', sub: 'M', kind: 'motor', x: 440, y: 510, w: 100, h: 100, ref: 'window-motor' },
+    ],
+    grounds: [[30, 480, 'G201']],
+    wires: [
+      W('w1', 'RD', 'Power', '1', [[160, 140], [160, 330]], 'fuse-block', 'master-sw', '3 mm²'),
+      W('w2', 'GN', 'LF UP', '2', [[140, 450], [140, 510]], 'master-sw', 'lf-motor', '2 mm²'),
+      W('w3', 'BU', 'LF DN', '3', [[180, 450], [180, 510]], 'master-sw', 'lf-motor', '2 mm²'),
+      W('w4', 'GN/WH', 'RF UP', '4', [[260, 370], [400, 370]], 'master-sw', 'pass-sw'),
+      W('w5', 'BU/WH', 'RF DN', '5', [[260, 410], [400, 410]], 'master-sw', 'pass-sw'),
+      W('w6', 'RD/BK', 'Power', '6', [[260, 100], [340, 100], [340, 350], [400, 350]], 'fuse-block', 'pass-sw', '2 mm²'),
+      W('w7', 'GN', 'RF UP', '7', [[470, 430], [470, 510]], 'pass-sw', 'rf-motor', '2 mm²'),
+      W('w8', 'BU', 'RF DN', '8', [[510, 430], [510, 510]], 'pass-sw', 'rf-motor', '2 mm²'),
+      W('w9', 'BK', 'Ground', '9', [[60, 420], [30, 420], [30, 480]], 'master-sw', 'G201', '3 mm²'),
+      W('w10', 'VT', 'LIN', '10', [[810, 160], [810, 260], [230, 260], [230, 330]], 'bcm', 'master-sw'),
+    ],
+  },
+]
+
+export const DIAGRAM_INDEX = Object.fromEntries(DIAGRAMS.map((d) => [d.id, d]))

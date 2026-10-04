@@ -1,0 +1,1 @@
+{"nodes":[{"id":"readme_auth","label":"auth.go login (demo)","file_type":"code","source_file":"server/internal/api/auth.go","source_location":null,"source_url":null,"captured_at":null,"author":null,"contributor":null,"rationale":"Demo sign-in; replace before production"}],"edges":[],"hyperedges":[]}

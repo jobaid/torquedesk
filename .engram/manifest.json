@@ -1,0 +1,330 @@
+{
+  "C:/Users/MD JOBAID AZIM/torquedesk/server/internal/api/audit.go": {
+    "mtime": 1790988888593.2803,
+    "hash": "e3bb4fb6781a52d833f13b4b227c5b87"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/server/internal/api/auth.go": {
+    "mtime": 1790988824303.6313,
+    "hash": "67a73b3dc84d5ebdade68bbac031ad7a"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/server/internal/api/documents.go": {
+    "mtime": 1790995731432.1052,
+    "hash": "eab9e6f151851414b86283079cc79823"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/server/internal/api/resource.go": {
+    "mtime": 1790988988962.0413,
+    "hash": "909e0d1df915f82474d7984ac657043f"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/server/internal/api/seed.go": {
+    "mtime": 1790989109006.9907,
+    "hash": "9943f466286858f3898cb2f60132a2b1"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/server/internal/api/server.go": {
+    "mtime": 1790988823248.0996,
+    "hash": "1db24962b8057d4ba2fe3f5e67e371e4"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/server/internal/api/settings.go": {
+    "mtime": 1790988988961.0396,
+    "hash": "c5f01889d2b4bebb327653ba4e7c4a9a"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/server/internal/api/totals.go": {
+    "mtime": 1790995659300.7405,
+    "hash": "05afc378174a38a69a783493d59154be"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/server/internal/db/db.go": {
+    "mtime": 1790988787673.2021,
+    "hash": "08461958654356b1e08ee3ccc17fff29"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/server/internal/db/migrations/001_settings.sql": {
+    "mtime": 1790988716509.7678,
+    "hash": "42dcc482f7e7458a55446fad93ecae02"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/server/internal/db/migrations/002_seed.sql": {
+    "mtime": 1790988729962.2373,
+    "hash": "68151e89936652210b8dd987169df664"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/server/internal/db/migrations/003_reports.sql": {
+    "mtime": 1790995618495.0337,
+    "hash": "dfb4b8f228d0ed6faf4b76650a3b9d49"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/server/main.go": {
+    "mtime": 1790988788731.7134,
+    "hash": "cdf79b41b06120d5afa8c43e87ca6788"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/App.jsx": {
+    "mtime": 1790989269888.5806,
+    "hash": "c2b538a03e0cc9cf5d27564eef30089a"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/components/documents/AddToOrderModal.jsx": {
+    "mtime": 1790989658370.6982,
+    "hash": "7710a2c0fed6e57e86e95b20f7c6155c"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/components/documents/DocumentSheet.jsx": {
+    "mtime": 1790989357240.7104,
+    "hash": "8621d9a284e9f4c5e144a1babb8a7197"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/components/documents/NewDocumentModal.jsx": {
+    "mtime": 1790989903500.5942,
+    "hash": "07723ec1517d35509bcd44dcd3e9bf19"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/components/layout/AppShell.jsx": {
+    "mtime": 1790983954507.1533,
+    "hash": "9e97ba36223650ae9eb7e986264afd54"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/components/layout/Header.jsx": {
+    "mtime": 1790990418338.257,
+    "hash": "4a43ba2a896539597330d10926866abc"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/components/layout/Logo.jsx": {
+    "mtime": 1790983805789.2588,
+    "hash": "0c474704a4e176807bf3fcf7a49ec970"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/components/layout/Sidebar.jsx": {
+    "mtime": 1790985002260.175,
+    "hash": "0af2027f2d856925fe9bc197b4eacd60"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/components/layout/nav.js": {
+    "mtime": 1790983803696.3066,
+    "hash": "394a34ef7d8d369d11ccf7881deb49cf"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/components/repair/Figure.jsx": {
+    "mtime": 1790984063631.2834,
+    "hash": "0b15360d29070021217dd378be04ccd9"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/components/repair/RelatedLinks.jsx": {
+    "mtime": 1790984807179.6582,
+    "hash": "f99ef7615decba246bed75f8e3903b4b"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/components/search/CommandPalette.jsx": {
+    "mtime": 1790983860575.959,
+    "hash": "5e8da4f4709e2453112f35d1ad229048"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/components/search/TypeIcon.jsx": {
+    "mtime": 1790983861611.6184,
+    "hash": "17248fbed488fb1d21448f9c338d2130"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/components/ui/DataTable.jsx": {
+    "mtime": 1790984341956.8025,
+    "hash": "751faa4b4e4b56a6aac79ee5b5004018"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/components/ui/Modal.jsx": {
+    "mtime": 1790990724738.462,
+    "hash": "0aa54cd13688694c22af0b6c5ffa6550"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/components/ui/index.jsx": {
+    "mtime": 1790983777783.7866,
+    "hash": "9febcd946e1006e09bc0758a91810656"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/components/vehicle/RequireVehicle.jsx": {
+    "mtime": 1790983996652.7393,
+    "hash": "3f2d1f60d39dde66f8931ca4f29ee681"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/components/vehicle/VehiclePickerModal.jsx": {
+    "mtime": 1790983909050.0173,
+    "hash": "34e3d85cca9fb76f3b541ec7c2ac21d6"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/components/vehicle/VehicleWizard.jsx": {
+    "mtime": 1790983908003.789,
+    "hash": "20353652dc8f45ac11e98ce6d0d9cb0c"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/components/wiring/DiagramViewer.jsx": {
+    "mtime": 1790984831528.091,
+    "hash": "959c60698bbe6cab1439d37cafb35f93"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/data/components.js": {
+    "mtime": 1790983555853.7532,
+    "hash": "fc6c37d32208b623c346d531c347a4bc"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/data/dtcs.js": {
+    "mtime": 1790983422596.2937,
+    "hash": "8786494f549e97dbd6e20f4123344eb9"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/data/maintenance.js": {
+    "mtime": 1790983612543.9834,
+    "hash": "c977c643d34cb62e34aec151a264a3ca"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/data/procedures.js": {
+    "mtime": 1790983340140.839,
+    "hash": "17199c04bd54562a252ad4f42e4912c5"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/data/specs.js": {
+    "mtime": 1790983610444.0186,
+    "hash": "c0d604024e2e05cc4e0d101516267bf6"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/data/symptoms.js": {
+    "mtime": 1790983651972.399,
+    "hash": "d43638f27b6af315cffe33a9c6b24d9e"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/data/tsbs.js": {
+    "mtime": 1790983611501.582,
+    "hash": "426ec2bdce76bb475c1d3c6bf1aba7c8"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/data/vehicles.js": {
+    "mtime": 1790983156190.7566,
+    "hash": "b635783ecead68f3e81c018fadc02b34"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/data/wiring.js": {
+    "mtime": 1790983556908.7224,
+    "hash": "aceae18dd5cbb551a9c161a9ffa12a7f"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/lib/api.js": {
+    "mtime": 1790990982966.2522,
+    "hash": "4c829e94c50d93a2fee0e2b98d3d39e6"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/lib/format.js": {
+    "mtime": 1790983684164.8984,
+    "hash": "7575b55bb52722cd638c21a7e73c5726"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/lib/search.js": {
+    "mtime": 1790983683121.2542,
+    "hash": "58bea9578f0845120b2c707c4365fc83"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/lib/totals.js": {
+    "mtime": 1790989302828.6108,
+    "hash": "cb561ce28c3dd965687166713c8a34b7"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/lib/totals.test.mjs": {
+    "mtime": 1790989303880.9724,
+    "hash": "d14b1408d9231a9002fb14ada8ce4245"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/lib/useTheme.js": {
+    "mtime": 1790983955561.3362,
+    "hash": "b5dda43f60a130b048c55e7de35faf1e"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/lib/vin.js": {
+    "mtime": 1790983172194.7837,
+    "hash": "1d1e1d103c7111f6b5c526f082111d54"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/main.jsx": {
+    "mtime": 1790989890630.7256,
+    "hash": "207ac8cd388c0ffb63ea1a9343111fde"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/pages/Bulletins.jsx": {
+    "mtime": 1790984409147.429,
+    "hash": "55c1672d79cbe7137cafb627f43ffc87"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/pages/ComponentsPage.jsx": {
+    "mtime": 1790984807179.6582,
+    "hash": "7cf4eb03eb0d4cc633093c29876472d8"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/pages/Customers.jsx": {
+    "mtime": 1790989674990.5095,
+    "hash": "517c203106f921e6d684e9b2188d7773"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/pages/Dashboard.jsx": {
+    "mtime": 1790989658368.4727,
+    "hash": "8b272d432cf5b993943231efde1de367"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/pages/Diagnostics.jsx": {
+    "mtime": 1790984164196.855,
+    "hash": "bdecea085d72d056422d412cde7c7085"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/pages/DtcPage.jsx": {
+    "mtime": 1790984199525.466,
+    "hash": "1747879d0b6d241fe5f80b7c518a8e29"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/pages/Favorites.jsx": {
+    "mtime": 1790984411243.927,
+    "hash": "2bfa4de2b15eedae34fa01101e745e5f"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/pages/HistoryPage.jsx": {
+    "mtime": 1790984412288.9949,
+    "hash": "09055a5b394e44d496861deefc356857"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/pages/Login.jsx": {
+    "mtime": 1790989259453.3877,
+    "hash": "e527aae194147ac22a3387f9e7907cbd"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/pages/Maintenance.jsx": {
+    "mtime": 1790989658369.4785,
+    "hash": "a7c75bffbef3234c7b8b17e2815e8cea"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/pages/NotFound.jsx": {
+    "mtime": 1790984413333.841,
+    "hash": "3d8d989ab746be3c438a18c2690355ed"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/pages/OrderEditor.jsx": {
+    "mtime": 1790989903500.5942,
+    "hash": "2e95c08987b701b8ea85fa542622186c"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/pages/Orders.jsx": {
+    "mtime": 1790989658367.167,
+    "hash": "3451a4df6edd656c42e128eb804b0b4a"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/pages/Profile.jsx": {
+    "mtime": 1790989259453.3877,
+    "hash": "b5d53a42cc62a11c91c46c99ea785203"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/pages/RepairInfo.jsx": {
+    "mtime": 1790989658369.4785,
+    "hash": "e0701f91942968f7d4ecd9943a1a486d"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/pages/SearchPage.jsx": {
+    "mtime": 1790984062583.529,
+    "hash": "afb782f9506235643a767e4180920da2"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/pages/Specifications.jsx": {
+    "mtime": 1790984343004.6272,
+    "hash": "dbde8e78c4d1e4bde8f0e05f738be28e"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/pages/VehiclePage.jsx": {
+    "mtime": 1790984029760.889,
+    "hash": "bdc8c158eb58c96ee8022441014321f5"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/pages/WiringPage.jsx": {
+    "mtime": 1790984293462.7505,
+    "hash": "f8c874d3388ac9fe3c85c2fa112dbb2f"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/pages/settings/DocumentSettings.jsx": {
+    "mtime": 1790990442456.0796,
+    "hash": "f90c1dd610c17019461480eb2a0f53ae"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/pages/settings/FinancialSettings.jsx": {
+    "mtime": 1790989552128.791,
+    "hash": "bdaef2cb68c0029a7b4e208cbe690674"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/pages/settings/GeneralSettings.jsx": {
+    "mtime": 1790989636535.8923,
+    "hash": "e993a3aaa447311caa4dcfdc40675309"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/pages/settings/SettingsLayout.jsx": {
+    "mtime": 1790989423235.4717,
+    "hash": "ed2c9941b8e2a372a1557ca734fab900"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/pages/settings/ShopSettings.jsx": {
+    "mtime": 1790989481597.047,
+    "hash": "c5c8cca136af59eb6ec88b75ffd57729"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/pages/settings/kit.jsx": {
+    "mtime": 1790990418469.4902,
+    "hash": "9a67f7120ec8fc70f192059a506bdc87"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/store/useApp.js": {
+    "mtime": 1790989259453.3877,
+    "hash": "13ac951db264ddc11b1bad144d0d9e42"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/store/useSettings.js": {
+    "mtime": 1790989180815.0503,
+    "hash": "b21d30e9e197556cbf397f22e27c51da"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/src/store/useShop.js": {
+    "mtime": 1790989243242.1665,
+    "hash": "75e37f08620fdf6d9f748c3690e7fcf7"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/vite.config.js": {
+    "mtime": 1790989167316.7847,
+    "hash": "d4109e88fd76c189b678378615f797ce"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/README.md": {
+    "mtime": 1790990874864.2483,
+    "hash": "8d62bc3a0766a16df11812a184c35573"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/index.html": {
+    "mtime": 1790983003784.889,
+    "hash": "4810500d0ca448f2aaa120cbbd813aba"
+  },
+  "C:/Users/MD JOBAID AZIM/torquedesk/public/favicon.svg": {
+    "mtime": 1790983003809.4453,
+    "hash": "89842302ef2e647e8718b49f782e22bc"
+  }
+}

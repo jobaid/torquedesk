@@ -228,10 +228,14 @@ export const useShop = create(
     }),
     {
       name: 'torque-shop',
-      version: 2,
-      // Only customers live in the browser; documents and settings come from the server.
-      partialize: (s) => ({ customers: s.customers }),
-      migrate: (old) => ({ customers: old?.customers || SEED_CUSTOMERS }),
+      version: 3,
+      // Nothing persists to localStorage anymore. Customers, documents and
+      // settings all come from the server scoped by company_id — persisting
+      // them locally was the bug that made it look like customer saves worked
+      // when the API actually rejected them (stale local copy masked the
+      // failure). Older localStorage snapshots are discarded by migrate below.
+      partialize: () => ({}),
+      migrate: () => ({}),
     },
   ),
 )

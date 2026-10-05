@@ -60,14 +60,26 @@ function CustomerForm({ customer, onClose, onSaved }) {
   }
   const e = (k) => sub && errs[k]
   const set = (k) => (ev) => setF({ ...f, [k]: k === 'phone' ? formatPhone(ev.target.value) : ev.target.value })
-  const save = (ev) => {
+  const save = async (ev) => {
     ev?.preventDefault()
     setSub(true)
     if (Object.values(errs).some(Boolean)) return
     const data = { ...f, name: f.name.trim(), email: f.email.trim(), preferredWriterId: f.preferredWriterId === '' ? null : Number(f.preferredWriterId) }
-    if (customer) { updateCustomer(customer.id, data); toast.success('Customer updated', data.name) }
-    else { const c = addCustomer(data); toast.success('Customer added', data.name); onSaved?.(c) }
-    onClose()
+    try {
+      if (customer) {
+        await updateCustomer(customer.id, data)
+        toast.success('Customer updated', data.name)
+      } else {
+        const c = await addCustomer(data)
+        toast.success('Customer added', data.name)
+        onSaved?.(c)
+      }
+      onClose()
+    } catch (err) {
+      // Addresses the bug where the previous sync version silently dropped
+      // server failures (401/403/500) while telling the user the save worked.
+      toast.error(customer ? 'Could not update customer' : 'Could not add customer', err.message)
+    }
   }
   return (
     <Modal open onClose={onClose} title={customer ? 'Edit customer' : 'Add customer'}

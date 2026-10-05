@@ -342,13 +342,16 @@ func (s *Server) insertFromBackup(ctx context.Context, tx pgx.Tx, d map[string]a
 	if err != nil {
 		return "", err
 	}
+	// Keep the backup's id so FK-like references in the audit log still match.
+	// If the id already exists we fall back to a fresh uuid to avoid a pkey clash.
 	var newID string
 	err = tx.QueryRow(ctx, `
 		INSERT INTO documents
 		SELECT (jsonb_populate_record(
 		          NULL::documents,
-		          ($1::jsonb) - 'id' || jsonb_build_object('company_id', $2::uuid)
+		          ($1::jsonb) || jsonb_build_object('company_id', $2::uuid)
 		       )).*
+		ON CONFLICT (id) DO UPDATE SET updated_at = EXCLUDED.updated_at
 		RETURNING id::text`, string(rawJSON), cid).Scan(&newID)
 	return newID, err
 }

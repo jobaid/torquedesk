@@ -304,7 +304,8 @@ func (s *Server) restoreBackup(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 		// Audit log stays append-only; we add a restore event, don't wipe.
-		if err := audit(r.Context(), tx, u, "backup", "restore", "restore", "Backup restored",
+		// settings_audit_log.action CHECK accepts only create|update|delete.
+		if err := audit(r.Context(), tx, u, "backup", "restore", "update", "Backup restored",
 			"", fmt.Sprintf("takenAt=%s docs=%d payments=%d", snap.TakenAt, len(snap.Documents), len(snap.Payments)), cid); err != nil {
 			return err
 		}

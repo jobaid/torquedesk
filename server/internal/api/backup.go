@@ -91,7 +91,7 @@ func (s *Server) buildBackup(ctx context.Context, cid string) (*backupSnapshot, 
 	snap.Documents = docs
 
 	// Payments
-	rows, err := s.db.Query(ctx, `SELECT `+paymentCols+` FROM payments WHERE company_id::text = $1 ORDER BY paid_at`, cid)
+	rows, err := s.db.Query(ctx, `SELECT `+paymentCols+` FROM payments p WHERE p.company_id::text = $1 ORDER BY p.paid_at`, cid)
 	if err != nil {
 		return nil, fmt.Errorf("payments: %w", err)
 	}

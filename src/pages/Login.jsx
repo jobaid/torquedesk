@@ -43,6 +43,8 @@ export default function Login() {
   const [submitted, setSubmitted] = useState(false)
   const [busy, setBusy] = useState(false)
   const [serverErr, setServerErr] = useState('')
+  const [mfaRequired, setMfaRequired] = useState(false)
+  const [mfaCode, setMfaCode] = useState('')
 
   const signIn = async (payload, extra = {}) => {
     setBusy(true)
@@ -65,11 +67,17 @@ export default function Login() {
     setBusy(true)
     setServerErr('')
     try {
-      const res = await api('/auth/company-login', { method: 'POST', body: { email: form.email.trim(), password: form.password } })
+      const res = await api('/auth/company-login', { method: 'POST', body: { email: form.email.trim(), password: form.password, mfaCode } })
       login({ ...res.user, token: res.token, permissions: res.permissions, since: Date.now() })
+      setMfaRequired(false); setMfaCode('')
       toast.success(`Welcome, ${res.user.name.split(' ')[0]}`, 'You are signed in.')
     } catch (e) {
-      setServerErr(e.message)
+      if (e.mfaRequired) {
+        setMfaRequired(true)
+        setServerErr(e.message)
+      } else {
+        setServerErr(e.message)
+      }
     } finally {
       setBusy(false)
     }
@@ -154,6 +162,13 @@ export default function Login() {
               <select id="l-role" className="select" value={form.role} onChange={set('role')}>
                 {Object.entries(ROLES).map(([k, r]) => <option key={k} value={k}>{r.label}</option>)}
               </select>
+            </Field>
+          )}
+          {mode === 'shop' && mfaRequired && (
+            <Field label="Authenticator code" required htmlFor="l-mfa" hint="6-digit code from your authenticator app.">
+              <input id="l-mfa" className="input" value={mfaCode} onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                maxLength={6} inputMode="numeric" placeholder="123456" autoFocus
+                style={{ letterSpacing: 4, textAlign: 'center', fontSize: 18 }} />
             </Field>
           )}
           {serverErr && <div className="callout callout-danger" role="alert"><LogIn size={18} /><div>{serverErr}</div></div>}

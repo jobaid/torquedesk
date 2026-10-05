@@ -206,6 +206,7 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 type companyLoginReq struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
+	MfaCode  string `json:"mfaCode"`
 }
 
 // companyLogin authenticates a shop user against company_owners.password_hash
@@ -225,14 +226,16 @@ func (s *Server) companyLogin(w http.ResponseWriter, r *http.Request) {
 	// Dummy hash kept to equalize response times when the user doesn't exist.
 	const dummy = "$argon2id$v=19$m=65536,t=3,p=2$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
 	var (
-		ownerID, companyID, firstName, lastName, hash, status, role, cStatus string
+		ownerID, companyID, firstName, lastName, hash, status, role, cStatus, mfaSecret string
+		mfaEnabled                                                                     bool
 	)
 	err := s.db.QueryRow(r.Context(), `
-		SELECT o.id::text, o.company_id::text, o.first_name, o.last_name, o.password_hash, o.status, o.role, c.status
+		SELECT o.id::text, o.company_id::text, o.first_name, o.last_name, o.password_hash, o.status, o.role, c.status,
+		       coalesce(o.mfa_secret, ''), coalesce(o.mfa_enabled, false)
 		FROM company_owners o
 		JOIN companies c ON c.id = o.company_id
 		WHERE o.email = $1`, req.Email).
-		Scan(&ownerID, &companyID, &firstName, &lastName, &hash, &status, &role, &cStatus)
+		Scan(&ownerID, &companyID, &firstName, &lastName, &hash, &status, &role, &cStatus, &mfaSecret, &mfaEnabled)
 	ok := err == nil && status == "active"
 	if !ok {
 		hash = dummy
@@ -255,6 +258,21 @@ func (s *Server) companyLogin(w http.ResponseWriter, r *http.Request) {
 			"companyStatus": cStatus,
 		})
 		return
+	}
+	// MFA gate for shop users (same TOTP flow as owners).
+	if mfaEnabled {
+		if req.MfaCode == "" {
+			writeJSON(w, 401, map[string]any{"error": "Enter your authenticator code.", "mfaRequired": true})
+			return
+		}
+		if !VerifyTOTP(mfaSecret, req.MfaCode) {
+			_, _ = s.db.Exec(r.Context(), `INSERT INTO settings_audit_log
+				(company_id, user_name, user_role, entity, entity_id, action, field, old_value, new_value)
+				VALUES ($1::uuid, $2, $3, 'login', $4, 'update', 'mfa_failed', '', $5)`,
+				companyID, req.Email, role, ownerID, clientIP(r))
+			writeJSON(w, 401, map[string]any{"error": "Incorrect authenticator code.", "mfaRequired": true})
+			return
+		}
 	}
 	_, _ = s.db.Exec(r.Context(), `UPDATE company_owners SET last_login_at = now() WHERE id::text = $1`, ownerID)
 	name := strings.TrimSpace(firstName + " " + lastName)
@@ -279,6 +297,105 @@ func (s *Server) me(w http.ResponseWriter, r *http.Request) {
 type changePasswordReq struct {
 	CurrentPassword string `json:"currentPassword"`
 	NewPassword     string `json:"newPassword"`
+}
+
+type mfaCodeReq struct {
+	Code string `json:"code"`
+}
+
+// shopMfaStatus returns whether the signed-in shop user has MFA enabled.
+func (s *Server) shopMfaStatus(w http.ResponseWriter, r *http.Request) {
+	u := userFrom(r.Context())
+	if u.CompanyID == "" {
+		writeJSON(w, 200, map[string]any{"enabled": false, "available": false})
+		return
+	}
+	var enabled bool
+	_ = s.db.QueryRow(r.Context(), `SELECT coalesce(mfa_enabled,false) FROM company_owners WHERE lower(email) = lower($1) AND company_id::text = $2`,
+		u.Email, u.CompanyID).Scan(&enabled)
+	writeJSON(w, 200, map[string]any{"enabled": enabled, "available": true})
+}
+
+func (s *Server) shopMfaSetup(w http.ResponseWriter, r *http.Request) {
+	u := userFrom(r.Context())
+	if u.CompanyID == "" {
+		writeErr(w, 400, "MFA is only available for shop accounts.")
+		return
+	}
+	secret := GenerateTOTPSecret()
+	if _, err := s.db.Exec(r.Context(), `UPDATE company_owners SET mfa_secret = $1, mfa_enabled = false
+		WHERE lower(email) = lower($2) AND company_id::text = $3`, secret, u.Email, u.CompanyID); err != nil {
+		handleErr(w, err)
+		return
+	}
+	url := TOTPURL("TorqueDesk ("+u.Name+")", u.Email, secret)
+	writeJSON(w, 200, map[string]any{"secret": secret, "otpauthUrl": url})
+}
+
+func (s *Server) shopMfaEnable(w http.ResponseWriter, r *http.Request) {
+	u := userFrom(r.Context())
+	if u.CompanyID == "" {
+		writeErr(w, 400, "MFA is only available for shop accounts.")
+		return
+	}
+	var req mfaCodeReq
+	if err := readJSON(r, &req); err != nil {
+		writeErr(w, 400, "Invalid request.")
+		return
+	}
+	var secret, ownerID string
+	err := s.db.QueryRow(r.Context(), `SELECT id::text, coalesce(mfa_secret,'') FROM company_owners
+		WHERE lower(email) = lower($1) AND company_id::text = $2`, u.Email, u.CompanyID).Scan(&ownerID, &secret)
+	if err != nil || secret == "" {
+		writeErr(w, 400, "Start MFA setup first.")
+		return
+	}
+	if !VerifyTOTP(secret, req.Code) {
+		writeErr(w, 400, "That code is incorrect. Check the time on your phone and try again.")
+		return
+	}
+	if _, err := s.db.Exec(r.Context(), `UPDATE company_owners SET mfa_enabled = true WHERE id::text = $1`, ownerID); err != nil {
+		handleErr(w, err)
+		return
+	}
+	_, _ = s.db.Exec(r.Context(), `INSERT INTO settings_audit_log
+		(company_id, user_name, user_role, entity, entity_id, action, field, old_value, new_value)
+		VALUES ($1::uuid, $2, $3, 'mfa', $4, 'update', 'enabled', 'false', 'true')`,
+		u.CompanyID, u.Name, u.Role, ownerID)
+	writeJSON(w, 200, map[string]any{"ok": true})
+}
+
+func (s *Server) shopMfaDisable(w http.ResponseWriter, r *http.Request) {
+	u := userFrom(r.Context())
+	if u.CompanyID == "" {
+		writeErr(w, 400, "MFA is only available for shop accounts.")
+		return
+	}
+	var req mfaCodeReq
+	if err := readJSON(r, &req); err != nil {
+		writeErr(w, 400, "Invalid request.")
+		return
+	}
+	var secret, ownerID string
+	err := s.db.QueryRow(r.Context(), `SELECT id::text, coalesce(mfa_secret,'') FROM company_owners
+		WHERE lower(email) = lower($1) AND company_id::text = $2`, u.Email, u.CompanyID).Scan(&ownerID, &secret)
+	if err != nil {
+		writeErr(w, 404, "Shop account not found.")
+		return
+	}
+	if !VerifyTOTP(secret, req.Code) {
+		writeErr(w, 400, "That code is incorrect.")
+		return
+	}
+	if _, err := s.db.Exec(r.Context(), `UPDATE company_owners SET mfa_enabled = false, mfa_secret = '' WHERE id::text = $1`, ownerID); err != nil {
+		handleErr(w, err)
+		return
+	}
+	_, _ = s.db.Exec(r.Context(), `INSERT INTO settings_audit_log
+		(company_id, user_name, user_role, entity, entity_id, action, field, old_value, new_value)
+		VALUES ($1::uuid, $2, $3, 'mfa', $4, 'update', 'enabled', 'true', 'false')`,
+		u.CompanyID, u.Name, u.Role, ownerID)
+	writeJSON(w, 200, map[string]any{"ok": true})
 }
 
 // changeOwnPassword lets a signed-in shop user rotate their own password. Only

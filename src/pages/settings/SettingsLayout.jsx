@@ -1,13 +1,14 @@
 import { NavLink, Navigate, Route, Routes } from 'react-router-dom'
 import {
   Palette, Store, BadgeCheck, UserCog, Wrench, DollarSign, Percent, TrendingUp, Receipt, Hash, Printer, ToggleRight,
-  PanelsTopLeft, CalendarClock, History, Database, KeyRound, Archive,
+  PanelsTopLeft, CalendarClock, History, Database, KeyRound, Archive, ShieldCheck,
 } from 'lucide-react'
 import { ShopDetails, Licenses, StaffPage } from './ShopSettings'
 import { LaborRates, TaxRates, Markups, ShopFees } from './FinancialSettings'
 import { Numbering, Printing, DocumentOptions, HeaderFooter, EstimateSettings } from './DocumentSettings'
 import { Appearance, DataSettings, AuditLog, ChangePassword } from './GeneralSettings'
 import { BackupSettings } from './BackupSettings'
+import { MfaSettings } from './MfaSettings'
 
 // Adding a settings page = one entry here + its component.
 export const SETTINGS_NAV = [
@@ -33,6 +34,7 @@ export const SETTINGS_NAV = [
   { group: 'General', items: [
     { path: 'general/appearance', label: 'Appearance', icon: Palette, el: <Appearance /> },
     { path: 'general/password', label: 'Change Password', icon: KeyRound, el: <ChangePassword /> },
+    { path: 'general/mfa', label: 'Two-factor (MFA)', icon: ShieldCheck, el: <MfaSettings /> },
     { path: 'general/backup', label: 'Backup & Restore', icon: Archive, el: <BackupSettings /> },
     { path: 'general/audit', label: 'Audit Log', icon: History, el: <AuditLog /> },
     { path: 'general/data', label: 'Local Data', icon: Database, el: <DataSettings /> },

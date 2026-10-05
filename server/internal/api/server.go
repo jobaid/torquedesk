@@ -48,6 +48,10 @@ func (s *Server) Handler(staticDir string) http.Handler {
 	mux.HandleFunc("POST /api/auth/company-login", loginLimit(s.companyLogin))
 	mux.HandleFunc("GET /api/me", s.auth("", s.me))
 	mux.HandleFunc("POST /api/me/change-password", s.auth("", s.changeOwnPassword))
+	mux.HandleFunc("GET /api/me/mfa/status", s.auth("", s.shopMfaStatus))
+	mux.HandleFunc("POST /api/me/mfa/setup", s.auth("", s.shopMfaSetup))
+	mux.HandleFunc("POST /api/me/mfa/enable", s.auth("", s.shopMfaEnable))
+	mux.HandleFunc("POST /api/me/mfa/disable", s.auth("", s.shopMfaDisable))
 	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, 200, map[string]string{"status": "ok"}) })
 
 	s.settingsRoutes(mux)

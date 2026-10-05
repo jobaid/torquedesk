@@ -35,7 +35,9 @@ export async function api(path, { method = 'GET', body, form } = {}) {
     // fresh sign-in appear to "fail silently" and bounce the user back to
     // Login with no explanation. Let the Boot/error UI show the real message
     // and offer an explicit sign-out button.
-    if (token && res.status === 401) {
+    // Don't wipe the session on an mfaRequired 401 — login is mid-flight and
+    // we want the UI to show the TOTP input.
+    if (token && res.status === 401 && !data?.mfaRequired) {
       useApp.getState().logout()
     }
     throw new ApiError(res.status, data?.error || `Request failed (${res.status})`, data?.fields, {
@@ -43,6 +45,7 @@ export async function api(path, { method = 'GET', body, form } = {}) {
       missingPerm: data?.missingPerm,
       role: data?.role,
       companyStatus: data?.companyStatus,
+      mfaRequired: !!data?.mfaRequired,
     })
   }
   return data

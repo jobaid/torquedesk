@@ -124,23 +124,52 @@ func (s *Server) buildBackup(ctx context.Context, cid string) (*backupSnapshot, 
 	return snap, nil
 }
 
-// allDocsForBackup returns documents + their lines/taxes/fees as a slice of
-// maps ready to be marshaled. Uses scanDoc to reuse the existing shape.
+// allDocsForBackup returns raw document rows as JSON — one object per column —
+// so restore can round-trip them via jsonb_populate_record without having to
+// enumerate every field. We also pull the API-shape JSON (via scanDoc) so a
+// human reading the backup file sees meaningful content, but restore uses the
+// _row key which carries the exact column values.
 func (s *Server) allDocsForBackup(ctx context.Context, cid string) ([]map[string]any, error) {
+	// 1) API-shape rows (nice to read)
 	rows, err := s.db.Query(ctx, `SELECT `+docCols+` FROM documents WHERE company_id::text = $1 ORDER BY created_at`, cid)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	out := []map[string]any{}
+	api := []map[string]any{}
+	ids := []string{}
 	for rows.Next() {
 		d, err := scanDoc(rows)
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, d)
+		api = append(api, d)
+		ids = append(ids, fmt.Sprint(d["id"]))
 	}
-	return out, nil
+	// 2) Raw row JSON per document for restore
+	if len(ids) == 0 {
+		return api, nil
+	}
+	rr, err := s.db.Query(ctx, `SELECT id::text, to_jsonb(d) FROM documents d WHERE company_id::text = $1`, cid)
+	if err != nil {
+		return nil, err
+	}
+	defer rr.Close()
+	raw := map[string]any{}
+	for rr.Next() {
+		var id string
+		var j any
+		if err := rr.Scan(&id, &j); err != nil {
+			return nil, err
+		}
+		raw[id] = j
+	}
+	for _, d := range api {
+		if r, ok := raw[fmt.Sprint(d["id"])]; ok {
+			d["_row"] = r
+		}
+	}
+	return api, nil
 }
 
 // ---------- HTTP handlers ----------
@@ -296,21 +325,27 @@ func (s *Server) restoreBackup(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{"ok": true, "restored": map[string]int{"documents": len(snap.Documents), "payments": len(snap.Payments)}})
 }
 
-// insertFromBackup is a minimal re-insert for a document from a backup. It
-// preserves the display_number so references in printed statements still match.
+// insertFromBackup re-inserts a document by expanding its _row JSON (which was
+// built from to_jsonb(documents.*)) back into a row via jsonb_populate_record.
+// This preserves every column — including company_id — without the handler
+// having to know the schema. Safety: we rewrite company_id to the current
+// tenant so a tampered backup can't inject rows into another company.
 func (s *Server) insertFromBackup(ctx context.Context, tx pgx.Tx, d map[string]any, cid string) (string, error) {
-	bodyJSON, _ := json.Marshal(d)
+	rawAny, ok := d["_row"]
+	if !ok {
+		return "", fmt.Errorf("backup document missing _row")
+	}
+	rawJSON, err := json.Marshal(rawAny)
+	if err != nil {
+		return "", err
+	}
 	var newID string
-	err := tx.QueryRow(ctx, `INSERT INTO documents (company_id, display_number, number_type, number, type, status, body, created_at, updated_at)
-		SELECT $1::uuid,
-		       coalesce(($2::jsonb->>'displayNumber'), ''),
-		       coalesce(($2::jsonb->>'type'), 'estimate'),
-		       coalesce(nullif($2::jsonb->>'number','')::int, 0),
-		       coalesce(($2::jsonb->>'type'), 'estimate'),
-		       coalesce(($2::jsonb->>'status'), 'draft'),
-		       $2::jsonb,
-		       now(), now()
-		RETURNING id::text`, cid, string(bodyJSON)).Scan(&newID)
+	err = tx.QueryRow(ctx, `
+		WITH src AS (
+		  SELECT jsonb_populate_record(NULL::documents, ($1::jsonb) || jsonb_build_object('company_id', $2::uuid)) AS r
+		)
+		INSERT INTO documents SELECT (r).* FROM src
+		RETURNING id::text`, string(rawJSON), cid).Scan(&newID)
 	return newID, err
 }
 

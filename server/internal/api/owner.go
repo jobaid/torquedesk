@@ -43,7 +43,7 @@ var (
 const saasOwnerRole = "saas_owner"
 
 func (s *Server) ownerRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("POST /api/owner/auth/login", s.ownerLogin)
+	mux.HandleFunc("POST /api/owner/auth/login", loginLimit(s.ownerLogin))
 	mux.HandleFunc("GET /api/owner/me", s.ownerAuth(s.ownerMe))
 	mux.HandleFunc("POST /api/owner/me/change-password", s.ownerAuth(s.ownerChangePassword))
 	mux.HandleFunc("GET /api/owner/dashboard", s.ownerAuth(s.ownerDashboard))

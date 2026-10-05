@@ -37,14 +37,15 @@ func New(ctx context.Context, pool *pgxpool.Pool) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
+	startLoginLimiterGC()
 	return s, nil
 }
 
 // Handler wires all routes. staticDir, when it exists, is served as the SPA.
 func (s *Server) Handler(staticDir string) http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc("POST /api/auth/login", s.login)
-	mux.HandleFunc("POST /api/auth/company-login", s.companyLogin)
+	mux.HandleFunc("POST /api/auth/login", loginLimit(s.login))
+	mux.HandleFunc("POST /api/auth/company-login", loginLimit(s.companyLogin))
 	mux.HandleFunc("GET /api/me", s.auth("", s.me))
 	mux.HandleFunc("POST /api/me/change-password", s.auth("", s.changeOwnPassword))
 	mux.HandleFunc("GET /api/health", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, 200, map[string]string{"status": "ok"}) })
@@ -70,7 +71,7 @@ func (s *Server) Handler(staticDir string) http.Handler {
 			fsrv.ServeHTTP(w, r)
 		})
 	}
-	return logRequests(mux)
+	return securityHeaders(logRequests(mux))
 }
 
 func logRequests(next http.Handler) http.Handler {

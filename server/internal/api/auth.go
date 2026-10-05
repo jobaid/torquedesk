@@ -71,26 +71,44 @@ type ctxKey struct{}
 
 func userFrom(ctx context.Context) User { u, _ := ctx.Value(ctxKey{}).(User); return u }
 
+// jwtHeader is the RFC 7515 JOSE header for HS256 JWTs we issue.
+var jwtHeader = base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"HS256","typ":"JWT"}`))
+
+// sign issues a standards-compliant JWT (RFC 7519) with HS256.
+// Token shape: base64url(header) . base64url(payload) . base64url(hmac-sha256).
+// Any standard JWT library can decode and verify these tokens.
 func (s *Server) sign(u User) string {
 	body, _ := json.Marshal(u)
-	p := base64.RawURLEncoding.EncodeToString(body)
+	payload := base64.RawURLEncoding.EncodeToString(body)
+	signing := jwtHeader + "." + payload
 	mac := hmac.New(sha256.New, s.secret)
-	mac.Write([]byte(p))
-	return p + "." + base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+	mac.Write([]byte(signing))
+	return signing + "." + base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
 }
 
+// verify accepts standard 3-part JWT. Validates header alg=HS256, HMAC
+// signature in constant time, and exp. Rejects anything else.
 func (s *Server) verify(tok string) (User, bool) {
-	p, sig, ok := strings.Cut(tok, ".")
-	if !ok {
+	parts := strings.Split(tok, ".")
+	if len(parts) != 3 {
 		return User{}, false
 	}
+	hdrB, err := base64.RawURLEncoding.DecodeString(parts[0])
+	if err != nil {
+		return User{}, false
+	}
+	var hdr struct{ Alg, Typ string }
+	if json.Unmarshal(hdrB, &hdr) != nil || hdr.Alg != "HS256" {
+		return User{}, false
+	}
+	signing := parts[0] + "." + parts[1]
 	mac := hmac.New(sha256.New, s.secret)
-	mac.Write([]byte(p))
+	mac.Write([]byte(signing))
 	want := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
-	if !hmac.Equal([]byte(sig), []byte(want)) {
+	if !hmac.Equal([]byte(parts[2]), []byte(want)) {
 		return User{}, false
 	}
-	body, err := base64.RawURLEncoding.DecodeString(p)
+	body, err := base64.RawURLEncoding.DecodeString(parts[1])
 	if err != nil {
 		return User{}, false
 	}
@@ -181,7 +199,7 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) {
 		handleErr(w, err)
 		return
 	}
-	u := User{Name: req.Name, Email: req.Email, Role: req.Role, Exp: time.Now().Add(30 * 24 * time.Hour).Unix(), CompanyID: cid}
+	u := User{Name: req.Name, Email: req.Email, Role: req.Role, Exp: time.Now().Add(7 * 24 * time.Hour).Unix(), CompanyID: cid}
 	writeJSON(w, 200, map[string]any{"token": s.sign(u), "user": u, "permissions": u.Perms()})
 }
 
@@ -235,7 +253,7 @@ func (s *Server) companyLogin(w http.ResponseWriter, r *http.Request) {
 	if name == "" {
 		name = req.Email
 	}
-	u := User{Name: name, Email: req.Email, Role: role, Exp: time.Now().Add(30 * 24 * time.Hour).Unix(), CompanyID: companyID}
+	u := User{Name: name, Email: req.Email, Role: role, Exp: time.Now().Add(7 * 24 * time.Hour).Unix(), CompanyID: companyID}
 	writeJSON(w, 200, map[string]any{"token": s.sign(u), "user": u, "permissions": u.Perms()})
 }
 

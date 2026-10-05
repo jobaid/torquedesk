@@ -31,7 +31,13 @@ const D8 = (l, hp) => ({ id: `${l}-d8-${hp}`, label: `${l}L Diesel V8`, detail: 
 const EV = (kw, hp) => ({ id: `ev-${kw}-${hp}`, label: `${kw} kWh Electric`, detail: `${kw} kWh Battery Electric ${hp}hp`, cyl: 0 })
 
 // Shortcuts for very common year ranges used across many models.
-const Y = { Legacy: [2015, 2026], Mid2016: [2016, 2026], Mid2017: [2017, 2026], Mid2018: [2018, 2026], Mid2019: [2019, 2026], Mid2020: [2020, 2026], Mid2021: [2021, 2026], Mid2022: [2022, 2026], Mid2023: [2023, 2026], Mid2024: [2024, 2026], New2025: [2025, 2026], New2026: [2026, 2026] }
+const Y = {
+  Legacy: [2015, 2026],
+  Mid2016: [2016, 2026], Mid2017: [2017, 2026], Mid2018: [2018, 2026], Mid2019: [2019, 2026],
+  Mid2020: [2020, 2026], Mid2021: [2021, 2026], Mid2022: [2022, 2026], Mid2023: [2023, 2026],
+  Mid2024: [2024, 2026], Mid2025: [2025, 2026], Mid2026: [2026, 2026],
+  New2025: [2025, 2026], New2026: [2026, 2026],
+}
 
 export const CATALOG = {
   // ---------- Japanese ----------

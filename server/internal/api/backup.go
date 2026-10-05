@@ -311,14 +311,16 @@ func (s *Server) restoreBackup(w http.ResponseWriter, r *http.Request) {
 		// NOTE: we restore the raw document rows via a lightweight insert using
 		// scanDoc's shape. For brevity this implementation re-POSTs each doc
 		// through insertDocumentTx so numbering/validation stay consistent.
-		for _, d := range snap.Documents {
+		for i, d := range snap.Documents {
 			if _, err := s.insertFromBackup(r.Context(), tx, d, cid); err != nil {
-				return fmt.Errorf("restore doc: %w", err)
+				log.Printf("restore: doc %d failed: %v", i, err)
+				return fmt.Errorf("restore doc %d: %w", i, err)
 			}
 		}
 		return nil
 	})
 	if err != nil {
+		log.Printf("restore full error: %v", err)
 		handleErr(w, err)
 		return
 	}
@@ -341,10 +343,11 @@ func (s *Server) insertFromBackup(ctx context.Context, tx pgx.Tx, d map[string]a
 	}
 	var newID string
 	err = tx.QueryRow(ctx, `
-		WITH src AS (
-		  SELECT jsonb_populate_record(NULL::documents, ($1::jsonb) || jsonb_build_object('company_id', $2::uuid)) AS r
-		)
-		INSERT INTO documents SELECT (r).* FROM src
+		INSERT INTO documents
+		SELECT (jsonb_populate_record(
+		          NULL::documents,
+		          ($1::jsonb) - 'id' || jsonb_build_object('company_id', $2::uuid)
+		       )).*
 		RETURNING id::text`, string(rawJSON), cid).Scan(&newID)
 	return newID, err
 }

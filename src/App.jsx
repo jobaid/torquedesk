@@ -59,6 +59,7 @@ function PageFallback() {
 }
 
 const ResetPassword = lazy(() => import('./pages/ResetPassword'))
+const PayReturn = lazy(() => import('./pages/PayReturn'))
 
 export default function App() {
   useThemeSync()
@@ -68,6 +69,15 @@ export default function App() {
     return (
       <Suspense fallback={null}>
         <ResetPassword />
+      </Suspense>
+    )
+  }
+  // Stripe Checkout return pages — public, no auth. The customer's browser
+  // lands here after they pay (or cancel) on Stripe-hosted pages.
+  if (typeof window !== 'undefined' && (window.location.pathname === '/pay/success' || window.location.pathname === '/pay/cancel')) {
+    return (
+      <Suspense fallback={null}>
+        <PayReturn outcome={window.location.pathname === '/pay/success' ? 'success' : 'cancel'} />
       </Suspense>
     )
   }

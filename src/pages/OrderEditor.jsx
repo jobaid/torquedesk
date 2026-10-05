@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   ArrowLeft, Mail, Printer, MoreHorizontal, Copy, Trash2, Car, Phone, User, Wrench, Package, Receipt, StickyNote, Percent,
   ChevronUp, ChevronDown, X, Plus, BookOpen, ShieldCheck, ShieldX, Wallet, History, ShieldAlert, ChevronRight, Check, Info, CalendarClock, Pencil, ExternalLink,
-  RefreshCw, Archive, Lock,
+  RefreshCw, Archive, Lock, CreditCard, Link as LinkIcon, MessageSquare, Loader2,
 } from 'lucide-react'
+import { api } from '../lib/api'
 import { useShop, DOC_TYPES, flushSaves, applyMarkup } from '../store/useShop'
 import { useApp, toast } from '../store/useApp'
 import { useSettings, activeStaff, PAYMENT_METHODS } from '../store/useSettings'
@@ -353,8 +354,9 @@ function Editor({ doc }) {
                   <div className="t-row strong"><span>Balance due</span><span className="num" style={{ color: totals.balance > 0 ? 'var(--danger)' : 'var(--success)' }}>{money(totals.balance)}</span></div>
                 </div>
               )}
-              <div style={{ padding: 12 }}>
+              <div style={{ padding: 12 }} className="stack gap-8">
                 <button className="btn btn-block deposit-btn" onClick={guard(() => setModal('pay'))} disabled={totals.balance <= 0 && !readOnly}><Wallet size={16} />{doc.type === 'invoice' ? 'Record payment' : 'Add deposit'}</button>
+                <button className="btn btn-block btn-secondary" onClick={guard(() => setModal('paylink'))} disabled={totals.balance <= 0 && !readOnly} title="Create a Stripe Checkout link your customer can pay from any device"><CreditCard size={16} />Send online payment link</button>
               </div>
             </div>
 
@@ -388,6 +390,15 @@ function Editor({ doc }) {
         if (doc.type === 'invoice' && totals.balance - p.amount <= 0.004) updateDocument(doc.id, { status: 'paid' })
         toast.success(doc.type === 'invoice' ? 'Payment recorded' : 'Deposit added', `${money(p.amount)} · ${p.method}`)
       }} />}
+      {modal === 'paylink' && (
+        <PaymentLinkModal
+          doc={doc}
+          balance={totals.balance}
+          customer={customer}
+          onClose={() => setModal(null)}
+          onPaid={() => { useShop.getState().loadDocuments?.(); toast.success('Payment received', 'The customer completed Stripe Checkout.') }}
+        />
+      )}
       {modal === 'invoice' && <InvoiceModal doc={doc} unit={unit} onClose={() => setModal(null)} onConfirm={(mileageOut) => convert('invoice', { mileageOut })} />}
       {modal === 'cust' && <CustomerModal doc={doc} customers={customers} onClose={() => setModal(null)} onSave={(p, custPatch) => {
         const c = customers.find((x) => x.id === p.customerId)
@@ -720,6 +731,103 @@ function CustomerModal({ doc, customers, onClose, onSave }) {
         )}
         <Link to="/customers" className="small" onClick={onClose}><Car size={13} style={{ verticalAlign: -2 }} /> Manage customers & vehicles ›</Link>
       </div>
+    </Modal>
+  )
+}
+
+function PaymentLinkModal({ doc, balance, customer, onClose, onPaid }) {
+  const [email, setEmail] = useState(customer?.email || '')
+  const [amount, setAmount] = useState(balance.toFixed(2))
+  const [creating, setCreating] = useState(false)
+  const [intent, setIntent] = useState(null) // { url, intentId, amount, provider }
+  const [err, setErr] = useState('')
+  const [polling, setPolling] = useState(false)
+  const [status, setStatus] = useState('pending')
+
+  const create = async () => {
+    setCreating(true); setErr('')
+    try {
+      const res = await api(`/documents/${doc.id}/payment-link`, {
+        method: 'POST',
+        body: { provider: 'stripe', amount, customerEmail: email.trim() },
+      })
+      setIntent(res); setStatus('pending'); setPolling(true)
+    } catch (e) {
+      setErr(e.message)
+    } finally { setCreating(false) }
+  }
+
+  // Poll the server every 3s after a link is created, so the shop sees the
+  // moment the customer completes Stripe Checkout. Stops when success/cancel/error.
+  useMemo(() => undefined, [])
+  useEffect(() => {
+    if (!polling || !intent?.intentId) return
+    let alive = true
+    const tick = async () => {
+      try {
+        const r = await api(`/payment-intents/${intent.intentId}`)
+        if (!alive) return
+        setStatus(r.status)
+        if (r.status === 'succeeded') { setPolling(false); onPaid?.() }
+        else if (r.status === 'failed' || r.status === 'cancelled') setPolling(false)
+      } catch {/* keep polling */}
+    }
+    const id = setInterval(tick, 3000); tick()
+    return () => { alive = false; clearInterval(id) }
+  }, [polling, intent?.intentId])
+
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(intent.url); toast.success('Link copied') }
+    catch { toast.error('Copy failed', 'Select the link and copy manually.') }
+  }
+
+  const emailBody = intent ? `Hi${customer?.name ? ' ' + customer.name.split(' ')[0] : ''},\n\nYou can pay ${money(Number(intent.amount))} for ${DOC_TYPES[doc.type]?.label || 'your service'} #${doc.number} securely online here:\n\n${intent.url}\n\nThanks!` : ''
+  const smsBody = intent ? `Pay ${money(Number(intent.amount))} for #${doc.number}: ${intent.url}` : ''
+
+  return (
+    <Modal open onClose={onClose} title="Send online payment link" description="The customer pays through Stripe Checkout. Their card never touches TorqueDesk.">
+      {!intent && (
+        <div className="stack gap-12">
+          <Field label="Amount to charge" hint={`Balance due is ${money(balance)}.`}>
+            <input className="input" value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="decimal" />
+          </Field>
+          <Field label="Customer email (optional)" hint="Prefills Stripe Checkout so the customer gets a receipt.">
+            <input className="input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="customer@example.com" />
+          </Field>
+          {err && <div className="callout callout-danger" role="alert">{err}</div>}
+          <div className="row gap-8" style={{ justifyContent: 'flex-end' }}>
+            <button className="btn btn-ghost" onClick={onClose} disabled={creating}>Cancel</button>
+            <button className="btn btn-primary" onClick={create} disabled={creating}>
+              {creating ? <><Loader2 size={14} className="spin" />Creating…</> : <><LinkIcon size={14} />Create link</>}
+            </button>
+          </div>
+        </div>
+      )}
+      {intent && (
+        <div className="stack gap-12">
+          <div className="callout" style={{ background: status === 'succeeded' ? 'rgba(34,197,94,0.08)' : 'rgba(37,99,235,0.08)', border: status === 'succeeded' ? '1px solid rgba(34,197,94,0.3)' : '1px solid rgba(37,99,235,0.3)' }}>
+            {status === 'succeeded'
+              ? <><Check size={16} /> Payment received — this document's balance has been updated.</>
+              : status === 'failed' || status === 'cancelled'
+                ? <><X size={16} /> Payment was {status}. You can create another link.</>
+                : <><Loader2 size={14} className="spin" /> Waiting for the customer to pay…</>}
+          </div>
+          <Field label="Payment link" hint="Anyone with this link can pay. Expires after 24 hours.">
+            <div className="input-wrap">
+              <input className="input" value={intent.url} readOnly onFocus={(e) => e.target.select()} style={{ paddingRight: 44 }} />
+              <button type="button" className="icon-btn sm" style={{ position: 'absolute', right: 4 }} onClick={copy} aria-label="Copy link"><Copy size={14} /></button>
+            </div>
+          </Field>
+          <div className="row gap-8 wrap">
+            <a className="btn btn-secondary" href={`mailto:${encodeURIComponent(email || '')}?subject=${encodeURIComponent('Payment link — ' + (DOC_TYPES[doc.type]?.label || 'document') + ' #' + doc.number)}&body=${encodeURIComponent(emailBody)}`}><Mail size={14} />Email customer</a>
+            <a className="btn btn-secondary" href={`sms:?&body=${encodeURIComponent(smsBody)}`}><MessageSquare size={14} />Text message</a>
+            <a className="btn btn-secondary" href={intent.url} target="_blank" rel="noreferrer"><ExternalLink size={14} />Open in new tab</a>
+          </div>
+          <div className="row gap-8" style={{ justifyContent: 'flex-end', marginTop: 4 }}>
+            <button className="btn btn-ghost" onClick={onClose}>Done</button>
+          </div>
+        </div>
+      )}
     </Modal>
   )
 }

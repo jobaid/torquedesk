@@ -6,6 +6,8 @@ dist
 server/.data/
 server/torquedesk-server.exe
 server/torquedesk-server
+# Per-tenant backups generated at runtime (contain real customer data)
+server/backups/
 # Claude Code / MCP tool scratch databases (not part of the project)
 .claude/data/
 *.sqlite

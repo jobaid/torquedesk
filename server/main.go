@@ -85,6 +85,7 @@ func main() {
 			log.Printf("seed demo documents: %v", err)
 		}
 	}
+	srv.StartAutoBackup(ctx)
 
 	httpSrv := &http.Server{Addr: *addr, Handler: srv.Handler(*static), ReadHeaderTimeout: 10 * time.Second}
 	go func() {

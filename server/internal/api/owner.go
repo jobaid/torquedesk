@@ -46,6 +46,10 @@ func (s *Server) ownerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/owner/auth/login", loginLimit(s.ownerLogin))
 	mux.HandleFunc("GET /api/owner/me", s.ownerAuth(s.ownerMe))
 	mux.HandleFunc("POST /api/owner/me/change-password", s.ownerAuth(s.ownerChangePassword))
+	mux.HandleFunc("GET /api/owner/mfa/status", s.ownerAuth(s.ownerMfaStatus))
+	mux.HandleFunc("POST /api/owner/mfa/setup", s.ownerAuth(s.ownerMfaSetup))
+	mux.HandleFunc("POST /api/owner/mfa/enable", s.ownerAuth(s.ownerMfaEnable))
+	mux.HandleFunc("POST /api/owner/mfa/disable", s.ownerAuth(s.ownerMfaDisable))
 	mux.HandleFunc("GET /api/owner/dashboard", s.ownerAuth(s.ownerDashboard))
 	mux.HandleFunc("GET /api/owner/companies", s.ownerAuth(s.listCompanies))
 	mux.HandleFunc("POST /api/owner/companies", s.ownerAuth(s.createCompany))
@@ -77,6 +81,7 @@ func (s *Server) ownerAuth(h http.HandlerFunc) http.HandlerFunc {
 type ownerLoginReq struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
+	MfaCode  string `json:"mfaCode"`
 }
 
 func (s *Server) ownerLogin(w http.ResponseWriter, r *http.Request) {
@@ -91,28 +96,116 @@ func (s *Server) ownerLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var (
-		id, name, hash string
-		active         bool
+		id, name, hash, mfaSecret string
+		active, mfaEnabled        bool
 	)
-	err := s.db.QueryRow(r.Context(), `SELECT id::text, name, password_hash, active FROM saas_admin_users WHERE email = $1`, req.Email).
-		Scan(&id, &name, &hash, &active)
-	// Constant-time: always verify a hash even when the user doesn't exist, to
-	// avoid leaking account existence via response time.
+	err := s.db.QueryRow(r.Context(), `SELECT id::text, name, password_hash, active, coalesce(mfa_secret,''), mfa_enabled FROM saas_admin_users WHERE email = $1`, req.Email).
+		Scan(&id, &name, &hash, &active, &mfaSecret, &mfaEnabled)
 	okUser := err == nil && active
 	if !okUser {
 		hash = "$argon2id$v=19$m=65536,t=3,p=2$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
 	}
 	okPass := VerifyPassword(req.Password, hash)
 	if !okUser || !okPass {
-		// Record failed attempt
 		_ = s.recordSaasAudit(r.Context(), nil, req.Email, "login_failed", "saas_admin", req.Email, nil, map[string]any{"email": req.Email}, clientIP(r))
 		writeErr(w, 401, "Invalid email or password.")
 		return
 	}
+	// MFA gate: if the account has MFA enabled, require a valid TOTP code too.
+	if mfaEnabled {
+		if req.MfaCode == "" {
+			writeJSON(w, 401, map[string]any{"error": "Enter your authenticator code.", "mfaRequired": true})
+			return
+		}
+		if !VerifyTOTP(mfaSecret, req.MfaCode) {
+			_ = s.recordSaasAudit(r.Context(), &id, name, "login_mfa_failed", "saas_admin", id, nil, nil, clientIP(r))
+			writeJSON(w, 401, map[string]any{"error": "Incorrect authenticator code.", "mfaRequired": true})
+			return
+		}
+	}
 	_, _ = s.db.Exec(r.Context(), `UPDATE saas_admin_users SET last_login_at = now() WHERE id::text = $1`, id)
 	u := User{Name: name, Email: req.Email, Role: saasOwnerRole, Exp: time.Now().Add(12 * time.Hour).Unix()}
-	_ = s.recordSaasAudit(r.Context(), &id, name, "login", "saas_admin", id, nil, nil, clientIP(r))
+	_ = s.recordSaasAudit(r.Context(), &id, name, "login", "saas_admin", id, nil, map[string]any{"mfa": mfaEnabled}, clientIP(r))
 	writeJSON(w, 200, map[string]any{"token": s.sign(u), "user": u})
+}
+
+// ---------- MFA setup / enable / disable ----------
+
+type mfaEnableReq struct {
+	Code string `json:"code"`
+}
+
+func (s *Server) ownerMfaStatus(w http.ResponseWriter, r *http.Request) {
+	u := userFrom(r.Context())
+	var enabled bool
+	_ = s.db.QueryRow(r.Context(), `SELECT mfa_enabled FROM saas_admin_users WHERE lower(email) = $1`, strings.ToLower(u.Email)).Scan(&enabled)
+	writeJSON(w, 200, map[string]any{"enabled": enabled})
+}
+
+// Generates a new TOTP secret and returns it + the otpauth:// URL for a QR
+// code. Secret is persisted but mfa_enabled stays false until the user proves
+// they scanned it by calling /enable with a working code.
+func (s *Server) ownerMfaSetup(w http.ResponseWriter, r *http.Request) {
+	u := userFrom(r.Context())
+	secret := GenerateTOTPSecret()
+	if _, err := s.db.Exec(r.Context(), `UPDATE saas_admin_users SET mfa_secret = $1, mfa_enabled = false WHERE lower(email) = $2`, secret, strings.ToLower(u.Email)); err != nil {
+		handleErr(w, err)
+		return
+	}
+	url := TOTPURL("CuraNex Owner", u.Email, secret)
+	writeJSON(w, 200, map[string]any{"secret": secret, "otpauthUrl": url})
+}
+
+func (s *Server) ownerMfaEnable(w http.ResponseWriter, r *http.Request) {
+	u := userFrom(r.Context())
+	var req mfaEnableReq
+	if err := readJSON(r, &req); err != nil {
+		writeErr(w, 400, "Invalid request.")
+		return
+	}
+	var secret string
+	if err := s.db.QueryRow(r.Context(), `SELECT coalesce(mfa_secret,'') FROM saas_admin_users WHERE lower(email) = $1`, strings.ToLower(u.Email)).Scan(&secret); err != nil {
+		handleErr(w, err)
+		return
+	}
+	if secret == "" {
+		writeErr(w, 400, "Start MFA setup first.")
+		return
+	}
+	if !VerifyTOTP(secret, req.Code) {
+		writeErr(w, 400, "That code is incorrect. Check the time on your phone and try again.")
+		return
+	}
+	if _, err := s.db.Exec(r.Context(), `UPDATE saas_admin_users SET mfa_enabled = true WHERE lower(email) = $1`, strings.ToLower(u.Email)); err != nil {
+		handleErr(w, err)
+		return
+	}
+	_ = s.recordSaasAudit(r.Context(), nil, u.Name, "mfa_enabled", "saas_admin", u.Email, nil, nil, clientIP(r))
+	writeJSON(w, 200, map[string]any{"ok": true})
+}
+
+func (s *Server) ownerMfaDisable(w http.ResponseWriter, r *http.Request) {
+	u := userFrom(r.Context())
+	var req mfaEnableReq
+	if err := readJSON(r, &req); err != nil {
+		writeErr(w, 400, "Invalid request.")
+		return
+	}
+	var secret string
+	if err := s.db.QueryRow(r.Context(), `SELECT coalesce(mfa_secret,'') FROM saas_admin_users WHERE lower(email) = $1`, strings.ToLower(u.Email)).Scan(&secret); err != nil {
+		handleErr(w, err)
+		return
+	}
+	if !VerifyTOTP(secret, req.Code) {
+		writeErr(w, 400, "That code is incorrect.")
+		return
+	}
+	if _, err := s.db.Exec(r.Context(), `UPDATE saas_admin_users SET mfa_enabled = false, mfa_secret = '' WHERE lower(email) = $1`, strings.ToLower(u.Email)); err != nil {
+		handleErr(w, err)
+		return
+	}
+	_ = s.recordSaasAudit(r.Context(), nil, u.Name, "mfa_disabled", "saas_admin", u.Email, nil, nil, clientIP(r))
+	writeJSON(w, 200, map[string]any{"ok": true})
 }
 
 func (s *Server) ownerMe(w http.ResponseWriter, r *http.Request) {

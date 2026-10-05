@@ -238,6 +238,14 @@ func (s *Server) companyLogin(w http.ResponseWriter, r *http.Request) {
 		hash = dummy
 	}
 	if !VerifyPassword(req.Password, hash) || !ok {
+		// Audit the failure under the matched company (if any) so a shop owner
+		// can see suspicious attempts on their tenant.
+		if companyID != "" {
+			_, _ = s.db.Exec(r.Context(), `INSERT INTO settings_audit_log
+				(company_id, user_name, user_role, entity, entity_id, action, field, old_value, new_value)
+				VALUES ($1::uuid, $2, 'auth', 'login', $2, 'update', 'failed', '', $3)`,
+				companyID, req.Email, clientIP(r))
+		}
 		writeErr(w, 401, "Invalid email or password.")
 		return
 	}
@@ -253,6 +261,12 @@ func (s *Server) companyLogin(w http.ResponseWriter, r *http.Request) {
 	if name == "" {
 		name = req.Email
 	}
+	// Audit the successful sign-in into settings_audit_log so Settings → Audit
+	// Log shows every session, with the client IP in new_value.
+	_, _ = s.db.Exec(r.Context(), `INSERT INTO settings_audit_log
+		(company_id, user_name, user_role, entity, entity_id, action, field, old_value, new_value)
+		VALUES ($1::uuid, $2, $3, 'login', $4, 'update', 'ip', '', $5)`,
+		companyID, name, role, ownerID, clientIP(r))
 	u := User{Name: name, Email: req.Email, Role: role, Exp: time.Now().Add(7 * 24 * time.Hour).Unix(), CompanyID: companyID}
 	writeJSON(w, 200, map[string]any{"token": s.sign(u), "user": u, "permissions": u.Perms()})
 }
@@ -309,5 +323,10 @@ func (s *Server) changeOwnPassword(w http.ResponseWriter, r *http.Request) {
 		handleErr(w, err)
 		return
 	}
+	// Audit the password change (never log the password itself).
+	_, _ = s.db.Exec(r.Context(), `INSERT INTO settings_audit_log
+		(company_id, user_name, user_role, entity, entity_id, action, field, old_value, new_value)
+		VALUES ($1::uuid, $2, $3, 'password', $4, 'update', 'password', '', $5)`,
+		u.CompanyID, u.Name, u.Role, ownerID, clientIP(r))
 	writeJSON(w, 200, map[string]any{"ok": true})
 }

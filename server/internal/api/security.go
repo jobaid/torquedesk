@@ -29,6 +29,20 @@ func securityHeaders(next http.Handler) http.Handler {
 		h.Set("Referrer-Policy", "strict-origin-when-cross-origin")
 		h.Set("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
 		h.Set("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+		// CSP: allow self + inline styles (the SPA uses many inline styles).
+		// Scripts are self-only. Fetches/XHR to self. Images self + data:
+		// (favicons, uploaded logos served via /api). frame-ancestors 'none'
+		// repeats X-Frame-Options for CSP-only browsers.
+		h.Set("Content-Security-Policy",
+			"default-src 'self'; "+
+				"script-src 'self'; "+
+				"style-src 'self' 'unsafe-inline'; "+
+				"img-src 'self' data: blob:; "+
+				"font-src 'self' data:; "+
+				"connect-src 'self'; "+
+				"frame-ancestors 'none'; "+
+				"base-uri 'self'; "+
+				"form-action 'self'")
 		next.ServeHTTP(w, r)
 	})
 }

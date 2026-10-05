@@ -6,8 +6,11 @@ import { useOwner, ownerApi } from '../../store/useOwner'
 export default function OwnerLogin() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [mfaCode, setMfaCode] = useState('')
+  const [mfaRequired, setMfaRequired] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [resetSent, setResetSent] = useState(false)
   const login = useOwner((s) => s.login)
   const navigate = useNavigate()
 
@@ -16,14 +19,32 @@ export default function OwnerLogin() {
     setLoading(true)
     setError(null)
     try {
-      const res = await ownerApi('/auth/login', { method: 'POST', body: { email, password } })
+      const res = await ownerApi('/auth/login', { method: 'POST', body: { email, password, mfaCode } })
       login({ token: res.token, user: res.user })
       navigate('/owner', { replace: true })
     } catch (err) {
-      setError(err.message)
+      // Server signals MFA needed via a flag in the response body.
+      if (err.mfaRequired) {
+        setMfaRequired(true)
+        setError(err.message)
+      } else {
+        setError(err.message)
+      }
     } finally {
       setLoading(false)
     }
+  }
+
+  const forgot = async () => {
+    setError(null); setResetSent(false)
+    if (!email) { setError('Enter your email first, then click "Forgot password?".'); return }
+    try {
+      await fetch('/api/password-reset/request', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, kind: 'owner' }),
+      })
+      setResetSent(true)
+    } catch { setError('Could not request password reset.') }
   }
 
   return (
@@ -51,13 +72,29 @@ export default function OwnerLogin() {
           style={inputStyle}
         />
 
+        {mfaRequired && (
+          <>
+            <label style={{ display: 'block', fontSize: 12, margin: '14px 0 4px', color: '#8da2bf' }}>Authenticator code</label>
+            <input
+              value={mfaCode} onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              maxLength={6} inputMode="numeric" placeholder="123456" autoFocus
+              style={{ ...inputStyle, letterSpacing: 4, textAlign: 'center', fontSize: 18 }}
+            />
+          </>
+        )}
+
         {error && <div style={{ marginTop: 14, padding: '8px 10px', borderRadius: 8, background: '#3a0d12', color: '#ffb3b8', fontSize: 13 }}>{error}</div>}
+        {resetSent && <div style={{ marginTop: 10, padding: '8px 10px', borderRadius: 8, background: '#0d3a15', color: '#95eab0', fontSize: 13 }}>If that email exists, a reset link has been sent.</div>}
 
         <button type="submit" disabled={loading} style={{ marginTop: 20, width: '100%', padding: '11px 14px', borderRadius: 10, border: 'none', background: 'linear-gradient(90deg,#2a6cf0,#5b8def)', color: '#fff', fontWeight: 600, fontSize: 14, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1 }}>
           {loading ? 'Signing in…' : <><Lock size={14} style={{ verticalAlign: 'middle', marginRight: 6 }} />Sign in</>}
         </button>
 
-        <div style={{ marginTop: 16, fontSize: 11, color: '#5c6c86', textAlign: 'center' }}>
+        <div style={{ marginTop: 12, textAlign: 'center' }}>
+          <button type="button" onClick={forgot} style={{ background: 'none', border: 'none', color: '#8da2bf', fontSize: 12, cursor: 'pointer', textDecoration: 'underline' }}>Forgot password?</button>
+        </div>
+
+        <div style={{ marginTop: 10, fontSize: 11, color: '#5c6c86', textAlign: 'center' }}>
           Not a CuraNex administrator? <a href="/" style={{ color: '#8da2bf' }}>Go to the main app</a>.
         </div>
       </form>

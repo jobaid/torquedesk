@@ -57,8 +57,19 @@ function PageFallback() {
   )
 }
 
+const ResetPassword = lazy(() => import('./pages/ResetPassword'))
+
 export default function App() {
   useThemeSync()
+  // Password-reset lands outside normal auth gates — the link in the email
+  // works whether or not the user has an active session.
+  if (typeof window !== 'undefined' && (window.location.pathname === '/reset-password' || window.location.pathname === '/owner-reset-password')) {
+    return (
+      <Suspense fallback={null}>
+        <ResetPassword />
+      </Suspense>
+    )
+  }
   // The owner-portal routes own their own auth and chrome; keep them separate
   // from the customer app's gating so a company user can never land in /owner
   // and vice-versa.

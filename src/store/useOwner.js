@@ -16,10 +16,11 @@ export const useOwner = create(
 )
 
 export class OwnerApiError extends Error {
-  constructor(status, message, fields) {
+  constructor(status, message, fields, extra) {
     super(message)
     this.status = status
     this.fields = fields || {}
+    if (extra) Object.assign(this, extra)
   }
 }
 
@@ -40,8 +41,11 @@ export async function ownerApi(path, { method = 'GET', body } = {}) {
     throw new OwnerApiError(0, 'Cannot reach the CuraNex Owner Portal API server.')
   }
   if (!res.ok) {
-    if (res.status === 401 && token) useOwner.getState().logout()
-    throw new OwnerApiError(res.status, data?.error || `Request failed (${res.status})`, data?.fields)
+    // Only clear the session for true "session gone" 401s. A 401 with mfaRequired
+    // means credentials were accepted but the TOTP code is still needed — don't
+    // wipe anything, we'll surface the mfaRequired flag to the caller.
+    if (res.status === 401 && token && !data?.mfaRequired) useOwner.getState().logout()
+    throw new OwnerApiError(res.status, data?.error || `Request failed (${res.status})`, data?.fields, { mfaRequired: !!data?.mfaRequired })
   }
   return data
 }

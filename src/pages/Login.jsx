@@ -7,6 +7,33 @@ import Logo from '../components/layout/Logo'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 
+function ForgotPasswordLink({ email }) {
+  const [sent, setSent] = useState(false)
+  const [err, setErr] = useState('')
+  const [busy, setBusy] = useState(false)
+  const send = async () => {
+    setErr('')
+    if (!EMAIL_RE.test(email || '')) { setErr('Enter your email above first.'); return }
+    setBusy(true)
+    try {
+      await fetch('/api/password-reset/request', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.trim(), kind: 'shop' }),
+      })
+      setSent(true)
+    } catch { setErr('Could not send reset email.') } finally { setBusy(false) }
+  }
+  if (sent) return <div className="xs" style={{ color: 'var(--text-3)', textAlign: 'center' }}>If that email exists, a reset link has been sent.</div>
+  return (
+    <div style={{ textAlign: 'center' }}>
+      <button type="button" onClick={send} disabled={busy} className="btn btn-link xs" style={{ color: 'var(--text-3)' }}>
+        {busy ? 'Sending…' : 'Forgot password?'}
+      </button>
+      {err && <div className="xs" style={{ color: 'var(--danger)' }}>{err}</div>}
+    </div>
+  )
+}
+
 export default function Login() {
   const login = useApp((s) => s.login)
   const [mode, setMode] = useState('shop') // 'shop' = real company_owners login; 'demo' = legacy demo-tenant login
@@ -131,6 +158,9 @@ export default function Login() {
           )}
           {serverErr && <div className="callout callout-danger" role="alert"><LogIn size={18} /><div>{serverErr}</div></div>}
           <button className="btn btn-primary btn-lg btn-block" type="submit" disabled={busy}><LogIn size={18} />{busy ? 'Signing in…' : 'Sign in'}</button>
+          {mode === 'shop' && (
+            <ForgotPasswordLink email={form.email} />
+          )}
           {mode === 'demo' && (
             <>
               <div className="row gap-12" style={{ color: 'var(--text-3)' }}><div className="divider grow" /><span className="xs">or</span><div className="divider grow" /></div>

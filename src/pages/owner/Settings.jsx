@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { KeyRound } from 'lucide-react'
 import { Card, PageHeader } from './primitives'
 import { ownerApi } from '../../store/useOwner'
+import MfaCard from './MfaCard'
 
 export default function OwnerSettings() {
   const [current, setCurrent] = useState('')
@@ -34,6 +35,7 @@ export default function OwnerSettings() {
     <div>
       <PageHeader title="Settings" />
       <div style={{ display: 'grid', gap: 16, maxWidth: 520 }}>
+        <MfaCard />
         <Card>
           <div style={{ fontSize: 15, fontWeight: 600, color: '#e5edf5', marginBottom: 4 }}>Change password</div>
           <div style={{ fontSize: 12, color: '#8da2bf', marginBottom: 16 }}>

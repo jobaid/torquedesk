@@ -46,13 +46,15 @@ func backupDir() string {
 }
 
 type backupSnapshot struct {
-	Version    int             `json:"version"`
-	TakenAt    string          `json:"takenAt"`
-	Company    map[string]any  `json:"company"`
-	Settings   map[string]any  `json:"settings"`
-	Documents  []map[string]any `json:"documents"`
-	Payments   []map[string]any `json:"payments"`
-	AuditLog   []map[string]any `json:"auditLog"`
+	Version   int              `json:"version"`
+	TakenAt   string           `json:"takenAt"`
+	Company   map[string]any   `json:"company"`
+	Settings  map[string]any   `json:"settings"`
+	Customers []map[string]any `json:"customers"`
+	Users     []map[string]any `json:"users"` // company_owners, password hashes redacted
+	Documents []map[string]any `json:"documents"`
+	Payments  []map[string]any `json:"payments"`
+	AuditLog  []map[string]any `json:"auditLog"`
 }
 
 func (s *Server) buildBackup(ctx context.Context, cid string) (*backupSnapshot, error) {
@@ -81,6 +83,40 @@ func (s *Server) buildBackup(ctx context.Context, cid string) (*backupSnapshot, 
 	})
 	if err != nil {
 		return nil, fmt.Errorf("settings: %w", err)
+	}
+
+	// Customers (per-tenant table)
+	cust, err := s.customersForBackup(ctx, cid)
+	if err != nil {
+		return nil, fmt.Errorf("customers: %w", err)
+	}
+	snap.Customers = cust
+
+	// Users (company_owners). NEVER include password_hash or MFA secret.
+	urows, err := s.db.Query(ctx, `SELECT id::text, first_name, last_name, email, phone, username, role, status, coalesce(mfa_enabled,false), last_login_at, created_at
+		FROM company_owners WHERE company_id::text = $1 ORDER BY created_at`, cid)
+	if err != nil {
+		return nil, fmt.Errorf("users: %w", err)
+	}
+	defer urows.Close()
+	for urows.Next() {
+		var id, fn, ln, email, phone, un, role, status string
+		var mfa bool
+		var last *time.Time
+		var created time.Time
+		if err := urows.Scan(&id, &fn, &ln, &email, &phone, &un, &role, &status, &mfa, &last, &created); err != nil {
+			return nil, err
+		}
+		var lastMS any
+		if last != nil {
+			lastMS = last.UnixMilli()
+		}
+		snap.Users = append(snap.Users, map[string]any{
+			"id": id, "firstName": fn, "lastName": ln, "email": email, "phone": phone,
+			"username": un, "role": role, "status": status, "mfaEnabled": mfa,
+			"lastLoginAt": lastMS, "createdAt": created.UnixMilli(),
+			// password_hash and mfa_secret deliberately omitted
+		})
 	}
 
 	// Documents (as JSON blobs via docCols scanner)
@@ -186,6 +222,25 @@ func (s *Server) backupRoutes(mux *http.ServeMux) {
 
 func (s *Server) downloadBackup(w http.ResponseWriter, r *http.Request) {
 	cid := companyFrom(r.Context())
+	s.streamBackup(w, r, cid)
+}
+
+// ownerDownloadBackup lets a SaaS owner download any company's backup. Audited
+// in saas_audit_log so every data release is traceable.
+func (s *Server) ownerDownloadBackup(w http.ResponseWriter, r *http.Request) {
+	u := userFrom(r.Context())
+	cid := r.PathValue("id")
+	// Confirm the company exists before we build a snapshot (clearer error).
+	var exists bool
+	if err := s.db.QueryRow(r.Context(), `SELECT EXISTS (SELECT 1 FROM companies WHERE id::text = $1)`, cid).Scan(&exists); err != nil || !exists {
+		writeErr(w, 404, "Company not found.")
+		return
+	}
+	_ = s.recordSaasAudit(r.Context(), nil, u.Name, "company_exported", "company", cid, &cid, nil, clientIP(r))
+	s.streamBackup(w, r, cid)
+}
+
+func (s *Server) streamBackup(w http.ResponseWriter, r *http.Request, cid string) {
 	snap, err := s.buildBackup(r.Context(), cid)
 	if err != nil {
 		handleErr(w, err)
@@ -302,6 +357,26 @@ func (s *Server) restoreBackup(w http.ResponseWriter, r *http.Request) {
 		}
 		if _, err := tx.Exec(r.Context(), `DELETE FROM documents WHERE company_id::text = $1`, cid); err != nil {
 			return err
+		}
+		if _, err := tx.Exec(r.Context(), `DELETE FROM customers WHERE company_id::text = $1`, cid); err != nil {
+			return err
+		}
+		// Restore customers using the same round-trip pattern as documents.
+		for i, c := range snap.Customers {
+			raw, ok := c["_row"]
+			if !ok {
+				continue // old backup without raw row — skip
+			}
+			rawJSON, _ := json.Marshal(raw)
+			if _, err := tx.Exec(r.Context(), `
+				INSERT INTO customers
+				SELECT (jsonb_populate_record(
+				          NULL::customers,
+				          ($1::jsonb) || jsonb_build_object('company_id', $2::uuid)
+				       )).*
+				ON CONFLICT (id) DO NOTHING`, string(rawJSON), cid); err != nil {
+				return fmt.Errorf("restore customer %d: %w", i, err)
+			}
 		}
 		// Audit log stays append-only; we add a restore event, don't wipe.
 		// settings_audit_log.action CHECK accepts only create|update|delete.

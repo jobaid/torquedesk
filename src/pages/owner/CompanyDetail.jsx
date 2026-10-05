@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, PauseCircle, PlayCircle, XCircle, Copy, ExternalLink, CalendarPlus } from 'lucide-react'
-import { ownerApi } from '../../store/useOwner'
+import { ArrowLeft, PauseCircle, PlayCircle, XCircle, Copy, ExternalLink, CalendarPlus, Download } from 'lucide-react'
+import { ownerApi, useOwner } from '../../store/useOwner'
 import { Card, PageHeader, Btn, StatusPill, Th, Td, money } from './primitives'
 
 export default function CompanyDetail() {
@@ -20,6 +20,31 @@ export default function CompanyDetail() {
     try {
       await ownerApi(`/companies/${id}/status`, { method: 'PATCH', body: { status, reason } })
       await load()
+    } catch (e) {
+      alert(e.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // Download this company's full data snapshot: customers, documents (ROs,
+  // estimates, invoices), payments, settings, users (passwords redacted),
+  // audit log. Audited server-side in saas_audit_log.
+  const downloadBackup = async () => {
+    setBusy(true)
+    try {
+      const token = useOwner.getState().owner?.token
+      const res = await fetch(`/api/owner/companies/${id}/backup`, { headers: { Authorization: `Bearer ${token}` } })
+      if (!res.ok) throw new Error(`Download failed (${res.status})`)
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      const cd = res.headers.get('Content-Disposition') || ''
+      const m = cd.match(/filename="([^"]+)"/)
+      a.download = m ? m[1] : `torquedesk-backup-${c.slug}-${Date.now()}.json`
+      a.click()
+      setTimeout(() => URL.revokeObjectURL(url), 60_000)
     } catch (e) {
       alert(e.message)
     } finally {
@@ -51,7 +76,10 @@ export default function CompanyDetail() {
       <PageHeader
         title={c.name}
         subtitle={<span style={{ display: 'inline-flex', gap: 10, alignItems: 'center' }}><code style={{ color: '#8da2bf', fontSize: 12 }}>{c.companyCode}</code> · <StatusPill status={c.status} /></span>}
-        actions={<Btn variant="secondary" onClick={() => navigate(-1)}><ArrowLeft size={14} />Back</Btn>}
+        actions={<div style={{ display: 'flex', gap: 8 }}>
+          <Btn variant="secondary" onClick={downloadBackup} disabled={busy}><Download size={14} />Download data</Btn>
+          <Btn variant="secondary" onClick={() => navigate(-1)}><ArrowLeft size={14} />Back</Btn>
+        </div>}
       />
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 14, alignItems: 'start' }}>

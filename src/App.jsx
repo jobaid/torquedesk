@@ -106,11 +106,13 @@ function Boot() {
   const { data, error, errorStatus, load } = useSettings()
   const logout = useApp((s) => s.logout)
   const loadDocuments = useShop((s) => s.loadDocuments)
+  const loadCustomers = useShop((s) => s.loadCustomers)
   const docsLoaded = useShop((s) => s.docsLoaded)
   useEffect(() => {
     load().catch(() => {})
     loadDocuments()
-  }, [load, loadDocuments])
+    loadCustomers()
+  }, [load, loadDocuments, loadCustomers])
 
   if (error && !data) {
     // 401 is handled by the API client (auto-logout). 403 here means the token

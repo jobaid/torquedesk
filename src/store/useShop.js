@@ -70,26 +70,61 @@ export const useShop = create(
   persist(
     (set, get) => ({
       customers: [],
+      customersLoaded: false,
       documents: [],
       docsLoaded: false,
       docsError: null,
       saving: {},
 
-      // ---------- customers (stored in this browser) ----------
-      addCustomer: (c) => {
-        const customer = { id: uid('c'), createdAt: Date.now(), vehicles: [], notes: '', ...c }
-        set((s) => ({ customers: [customer, ...s.customers] }))
-        return customer
+      // ---------- customers (PostgreSQL via the Go API, per tenant) ----------
+      // On first load after this upgrade, any customers still in localStorage
+      // from the old per-browser code are uploaded once via /customers/import
+      // so the user keeps their data; subsequent writes always go through the API.
+      loadCustomers: async () => {
+        try {
+          // One-time migration: if we have local customers that haven't been synced
+          // (i.e. no "customersLoaded" flag yet), POST them to the server before load.
+          const existing = get().customers
+          if (!get().customersLoaded && existing.length > 0) {
+            try { await api('/customers/import', { method: 'POST', body: existing }) } catch { /* ignore import failure */ }
+          }
+          const customers = await api('/customers')
+          set({ customers, customersLoaded: true })
+        } catch (e) {
+          set({ customersLoaded: true })
+          toast.error('Could not load customers', e.message)
+        }
       },
-      updateCustomer: (id, patch) => set((s) => ({ customers: s.customers.map((c) => (c.id === id ? { ...c, ...patch } : c)) })),
-      deleteCustomer: (id) => set((s) => ({ customers: s.customers.filter((c) => c.id !== id) })),
-      addCustomerVehicle: (customerId, v) => {
+      addCustomer: async (c) => {
+        const created = await api('/customers', { method: 'POST', body: { name: c.name || '', phone: c.phone || '', email: c.email || '', address: c.address || '', notes: c.notes || '', vehicles: c.vehicles || [] } })
+        set((s) => ({ customers: [created, ...s.customers] }))
+        return created
+      },
+      updateCustomer: async (id, patch) => {
+        const curr = get().customers.find((x) => x.id === id)
+        const merged = { ...curr, ...patch }
+        const updated = await api(`/customers/${id}`, { method: 'PUT', body: { name: merged.name, phone: merged.phone, email: merged.email, address: merged.address, notes: merged.notes, vehicles: merged.vehicles || [] } })
+        set((s) => ({ customers: s.customers.map((c) => (c.id === id ? updated : c)) }))
+        return updated
+      },
+      deleteCustomer: async (id) => {
+        await api(`/customers/${id}`, { method: 'DELETE' })
+        set((s) => ({ customers: s.customers.filter((c) => c.id !== id) }))
+      },
+      addCustomerVehicle: async (customerId, v) => {
+        const curr = get().customers.find((x) => x.id === customerId)
+        if (!curr) return null
         const vehicle = { id: uid('cv'), ...v }
-        set((s) => ({ customers: s.customers.map((c) => (c.id === customerId ? { ...c, vehicles: [...c.vehicles, vehicle] } : c)) }))
+        const vehicles = [...(curr.vehicles || []), vehicle]
+        await get().updateCustomer(customerId, { vehicles })
         return vehicle
       },
-      removeCustomerVehicle: (customerId, vid) => set((s) => ({ customers: s.customers.map((c) => (c.id === customerId ? { ...c, vehicles: c.vehicles.filter((v) => v.id !== vid) } : c)) })),
-      resetDemoCustomers: () => set({ customers: SEED_CUSTOMERS }),
+      removeCustomerVehicle: async (customerId, vid) => {
+        const curr = get().customers.find((x) => x.id === customerId)
+        if (!curr) return
+        await get().updateCustomer(customerId, { vehicles: (curr.vehicles || []).filter((v) => v.id !== vid) })
+      },
+      resetDemoCustomers: () => set({ customers: SEED_CUSTOMERS, customersLoaded: false }),
 
       // ---------- documents (PostgreSQL via the Go API) ----------
       loadDocuments: async () => {

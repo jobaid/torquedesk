@@ -59,6 +59,7 @@ func (s *Server) ownerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/owner/subscriptions", s.ownerAuth(s.listSubscriptions))
 	mux.HandleFunc("PATCH /api/owner/subscriptions/{id}", s.ownerAuth(s.updateSubscription))
 	mux.HandleFunc("GET /api/owner/audit", s.ownerAuth(s.listSaasAudit))
+	mux.HandleFunc("GET /api/owner/companies/{id}/backup", s.ownerAuth(s.ownerDownloadBackup))
 }
 
 // ownerAuth protects owner endpoints: valid HMAC token AND role=saas_owner.

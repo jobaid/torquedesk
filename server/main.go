@@ -58,6 +58,13 @@ func main() {
 		url = "postgres://torquedesk:torquedesk@localhost:" + itoa(*pgPort) + "/torquedesk?sslmode=disable"
 	}
 
+	// Payment-gateway secrets are AES-GCM encrypted at rest; in production the
+	// server will refuse to boot without a stable key so a prod rotation never
+	// silently drops ciphertext we can no longer open.
+	if err := api.RequireProductionSecret(); err != nil {
+		log.Fatal(err)
+	}
+
 	pool, err := db.Open(ctx, url)
 	if err != nil {
 		log.Fatal(err)

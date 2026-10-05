@@ -1,7 +1,7 @@
 import { NavLink, Navigate, Route, Routes } from 'react-router-dom'
 import {
   Palette, Store, BadgeCheck, UserCog, Wrench, DollarSign, Percent, TrendingUp, Receipt, Hash, Printer, ToggleRight,
-  PanelsTopLeft, CalendarClock, History, Database, KeyRound, Archive, ShieldCheck,
+  PanelsTopLeft, CalendarClock, History, Database, KeyRound, Archive, ShieldCheck, CreditCard,
 } from 'lucide-react'
 import { ShopDetails, Licenses, StaffPage } from './ShopSettings'
 import { LaborRates, TaxRates, Markups, ShopFees } from './FinancialSettings'
@@ -9,6 +9,7 @@ import { Numbering, Printing, DocumentOptions, HeaderFooter, EstimateSettings } 
 import { Appearance, DataSettings, AuditLog, ChangePassword } from './GeneralSettings'
 import { BackupSettings } from './BackupSettings'
 import { MfaSettings } from './MfaSettings'
+import { PaymentGateways } from './PaymentGateways'
 
 // Adding a settings page = one entry here + its component.
 export const SETTINGS_NAV = [
@@ -23,6 +24,7 @@ export const SETTINGS_NAV = [
     { path: 'financial/taxes', label: 'Tax Rates', icon: Percent, el: <TaxRates /> },
     { path: 'financial/markups', label: 'Markups & Display', icon: TrendingUp, el: <Markups /> },
     { path: 'financial/fees', label: 'Shop Fees', icon: Receipt, el: <ShopFees /> },
+    { path: 'financial/payment-gateways', label: 'Payment Gateways', icon: CreditCard, el: <PaymentGateways /> },
   ] },
   { group: 'Documents', items: [
     { path: 'documents/numbering', label: 'Numbering & Units', icon: Hash, el: <Numbering /> },

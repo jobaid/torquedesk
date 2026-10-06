@@ -20,23 +20,37 @@ export default function ShareView() {
   const [auth, setAuth] = useState(undefined) // undefined = loading, null = none, object = exists
   const [tab, setTab] = useState('auth')      // 'auth' | 'chat'
 
+  // Poll both the document and the authorization every 5 seconds so when
+  // the shop adds a line, revises the authorization, or sends a message the
+  // customer sees it without reloading. Chat polling runs on its own cycle
+  // (2 s) inside ChatThread; the two together give the customer a live view.
   useEffect(() => {
     if (!token) { setErr('Invalid link.'); setLoading(false); return }
-    (async () => {
+    let cancelled = false
+    const loadDoc = async () => {
       try {
         const res = await fetch(`/api/public/share/${encodeURIComponent(token)}`)
-        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'This link is no longer available.')
-        setData(await res.json())
-      } catch (e) { setErr(e.message) }
-      finally { setLoading(false) }
-    })()
-  }, [token])
-
-  useEffect(() => {
-    if (!token) return
-    fetch(`/api/public/share/${encodeURIComponent(token)}/authorization`)
-      .then((r) => r.ok ? r.json() : null).then(setAuth).catch(() => setAuth(null))
-  }, [token])
+        if (!res.ok) {
+          if (!cancelled && !data) setErr((await res.json().catch(() => ({}))).error || 'This link is no longer available.')
+          return
+        }
+        if (!cancelled) setData(await res.json())
+      } catch (e) {
+        if (!cancelled && !data) setErr(e.message)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    const loadAuth = () => {
+      fetch(`/api/public/share/${encodeURIComponent(token)}/authorization`)
+        .then((r) => r.ok ? r.json() : null)
+        .then((v) => { if (!cancelled) setAuth(v) })
+        .catch(() => { if (!cancelled) setAuth(null) })
+    }
+    loadDoc(); loadAuth()
+    const t = setInterval(() => { loadDoc(); loadAuth() }, 5000)
+    return () => { cancelled = true; clearInterval(t) }
+  }, [token]) // eslint-disable-line
 
   if (loading) return <PublicShell><div className="muted" style={{ textAlign: 'center' }}>Loading…</div></PublicShell>
   if (err || !data) return <PublicShell><div style={{ textAlign: 'center' }}><X size={28} color="#dc2626" /><h2 style={{ marginTop: 8 }}>Link unavailable</h2><p className="muted">{err || 'This link has been revoked or does not exist.'}</p></div></PublicShell>

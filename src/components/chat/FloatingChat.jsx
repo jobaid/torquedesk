@@ -209,29 +209,58 @@ export function ChatThread({ docId, isPublic, publicToken, onThreadRead }) {
 
   useEffect(() => { reloadAll() /* eslint-disable-next-line */ }, [docId, publicToken])
 
-  // SSE subscription with auto-reconnect.
+  // Real-time strategy: try SSE first for instant delivery; if the stream
+  // can't be opened (any proxy that buffers, old nginx config, offline),
+  // fall back to polling every 2 s. Polling is correct and plenty fast
+  // for chat; it's not the primary mode because of load, but it's a safe
+  // net the deployment can rely on without any proxy tweaks.
   useEffect(() => {
-    let es
     let cancelled = false
-    let retry = 1000
-    const connect = () => {
-      const url = isPublic
-        ? `/api/public/share/${encodeURIComponent(publicToken)}/messages/stream`
-        : `/api/documents/${docId}/messages/stream`
-      // EventSource doesn't let you set headers, so for the shop side we pass
-      // the token as a query param (handled by the auth middleware fallback
-      // or by SSE-aware routing). But our auth middleware reads only the
-      // Authorization header. Trade-off: shop app runs same-origin so cookies
-      // would work; token-in-query is cheaper. We'll use fetch-based stream
-      // instead to attach the Authorization header.
-      const headers = {}
-      if (!isPublic && token) headers.Authorization = `Bearer ${token}`
-      const ac = new AbortController()
-      es = { close: () => ac.abort() }
-      setConnState('connecting')
-      fetch(url, { headers, signal: ac.signal }).then(async (r) => {
+    let abort
+    let pollTimer
+
+    const startPoll = () => {
+      setConnState('open') // polling IS working — don't scare the user
+      const tick = async () => {
+        if (cancelled) return
+        try {
+          let next
+          if (isPublic) {
+            const r = await fetch(base); if (!r.ok) throw new Error()
+            next = await r.json()
+          } else {
+            next = await api(`/documents/${docId}/messages`)
+          }
+          setMessages((prev) => {
+            const nm = next.messages || []
+            // Only replace if the array differs — avoid spurious re-renders.
+            if (prev.length === nm.length && prev.every((m, i) => m.id === nm[i].id)) return prev
+            return nm
+          })
+          onThreadRead?.()
+        } catch { /* keep polling */ }
+      }
+      tick()
+      pollTimer = setInterval(tick, 2000)
+    }
+
+    const stream = async () => {
+      try {
+        const url = isPublic
+          ? `/api/public/share/${encodeURIComponent(publicToken)}/messages/stream`
+          : `/api/documents/${docId}/messages/stream`
+        const headers = {}
+        if (!isPublic && token) headers.Authorization = `Bearer ${token}`
+        abort = new AbortController()
+        setConnState('connecting')
+        // 5 s to receive the first byte; if proxies strip SSE this times out
+        // and we fall back to polling instead of showing "Reconnecting…"
+        // forever.
+        const to = setTimeout(() => abort && abort.abort(), 5000)
+        const r = await fetch(url, { headers, signal: abort.signal })
+        clearTimeout(to)
         if (!r.ok || !r.body) throw new Error('stream unavailable')
-        setConnState('open'); retry = 1000
+        setConnState('open')
         const reader = r.body.getReader()
         const dec = new TextDecoder()
         let buf = ''
@@ -239,7 +268,6 @@ export function ChatThread({ docId, isPublic, publicToken, onThreadRead }) {
           const { value, done } = await reader.read()
           if (done) break
           buf += dec.decode(value, { stream: true })
-          // Parse SSE: lines are 'event: X' and 'data: Y', separated by blank line.
           let idx
           while ((idx = buf.indexOf('\n\n')) !== -1) {
             const chunk = buf.slice(0, idx); buf = buf.slice(idx + 2)
@@ -255,18 +283,22 @@ export function ChatThread({ docId, isPublic, publicToken, onThreadRead }) {
                   setMessages((prev) => prev.some((m) => m.id === parsed.message.id) ? prev : [...prev, parsed.message])
                   onThreadRead?.()
                 }
-              } catch {/* ignore malformed */}
+              } catch { /* ignore malformed */ }
             }
           }
         }
-      }).catch(() => {
-        if (cancelled) return
-        setConnState('reconnecting')
-        setTimeout(() => { if (!cancelled) connect() }, Math.min(retry *= 1.5, 15000))
-      })
+        // Stream ended cleanly — fall back to polling so the UI stays alive.
+        if (!cancelled) startPoll()
+      } catch {
+        if (!cancelled) startPoll()
+      }
     }
-    connect()
-    return () => { cancelled = true; es && es.close() }
+    stream()
+    return () => {
+      cancelled = true
+      try { abort && abort.abort() } catch { /* ignore */ }
+      if (pollTimer) clearInterval(pollTimer)
+    }
   }, [docId, publicToken, isPublic, token]) // eslint-disable-line
 
   // Scroll on new messages.

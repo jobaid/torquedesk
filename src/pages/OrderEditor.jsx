@@ -357,6 +357,7 @@ function Editor({ doc }) {
               <div style={{ padding: 12 }} className="stack gap-8">
                 <button className="btn btn-block deposit-btn" onClick={guard(() => setModal('pay'))} disabled={totals.balance <= 0 && !readOnly}><Wallet size={16} />{doc.type === 'invoice' ? 'Record payment' : 'Add deposit'}</button>
                 <button className="btn btn-block btn-secondary" onClick={guard(() => setModal('paylink'))} disabled={totals.balance <= 0 && !readOnly} title="Create a Stripe Checkout link your customer can pay from any device"><CreditCard size={16} />Send online payment link</button>
+                <button className="btn btn-block btn-secondary" onClick={guard(() => setModal('share'))} title="Share a read-only link with the customer"><LinkIcon size={16} />Share with customer</button>
               </div>
             </div>
 
@@ -397,6 +398,14 @@ function Editor({ doc }) {
           customer={customer}
           onClose={() => setModal(null)}
           onPaid={() => { useShop.getState().loadDocuments?.(); toast.success('Payment received', 'The customer completed Stripe Checkout.') }}
+        />
+      )}
+      {modal === 'share' && (
+        <ShareLinkModal
+          doc={doc}
+          customer={customer}
+          onClose={() => setModal(null)}
+          onInspectionToggle={(v) => patch({ includeInspection: v })}
         />
       )}
       {modal === 'invoice' && <InvoiceModal doc={doc} unit={unit} onClose={() => setModal(null)} onConfirm={(mileageOut) => convert('invoice', { mileageOut })} />}
@@ -828,6 +837,92 @@ function PaymentLinkModal({ doc, balance, customer, onClose, onPaid }) {
           </div>
         </div>
       )}
+    </Modal>
+  )
+}
+
+function ShareLinkModal({ doc, customer, onClose, onInspectionToggle }) {
+  const [link, setLink] = useState(null) // { url, token, viewCount, lastViewedAt }
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const [include, setInclude] = useState(doc.includeInspection) // true | false | null (= inherit)
+
+  useEffect(() => {
+    (async () => {
+      try { setLink(await api(`/documents/${doc.id}/share-link`)) }
+      catch (e) { setErr(e.message) }
+      finally { setLoading(false) }
+    })()
+  }, [doc.id])
+
+  const create = async () => {
+    setBusy(true); setErr('')
+    try { setLink(await api(`/documents/${doc.id}/share-link`, { method: 'POST' })) }
+    catch (e) { setErr(e.message) }
+    finally { setBusy(false) }
+  }
+  const revoke = async () => {
+    if (!confirm('Revoke this link? Anyone with the old URL will no longer be able to view this document.')) return
+    setBusy(true); setErr('')
+    try {
+      await api(`/documents/${doc.id}/share-link`, { method: 'DELETE' })
+      setLink(null); toast.success('Share link revoked')
+    } catch (e) { setErr(e.message) }
+    finally { setBusy(false) }
+  }
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(link.url); toast.success('Link copied') }
+    catch { toast.error('Copy failed', 'Select the link and copy manually.') }
+  }
+
+  const updateInclude = (v) => { setInclude(v); onInspectionToggle(v) }
+
+  const docLabel = (DOC_TYPES[doc.type]?.label || 'document') + ' #' + doc.number
+  const emailBody = link ? `Hi${customer?.name ? ' ' + customer.name.split(' ')[0] : ''},\n\nHere is your ${docLabel.toLowerCase()}:\n\n${link.url}\n\nThanks!` : ''
+  const smsBody = link ? `Your ${docLabel.toLowerCase()}: ${link.url}` : ''
+
+  return (
+    <Modal open onClose={onClose} title="Share with customer" description="Creates a read-only link your customer can open from any device. No login needed. You can revoke it any time.">
+      <div className="stack gap-12">
+        <div className="callout" style={{ background: 'rgba(37,99,235,0.08)', border: '1px solid rgba(37,99,235,0.3)' }}>
+          <strong>Include Vehicle Inspection Report</strong>
+          <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>Shown on the customer link when a completed inspection exists for this vehicle. Overrides the shop default for this {DOC_TYPES[doc.type]?.label?.toLowerCase() || 'document'} only.</div>
+          <div className="row gap-6 mt-8">
+            <button type="button" className="btn btn-sm" style={{ background: include === null ? '#dbeafe' : 'transparent', color: include === null ? '#1e40af' : 'var(--text-2)', border: '1px solid var(--border, #e5e7eb)' }} onClick={() => updateInclude(null)}>Use shop default</button>
+            <button type="button" className="btn btn-sm" style={{ background: include === true ? '#d1fae5' : 'transparent', color: include === true ? '#065f46' : 'var(--text-2)', border: '1px solid var(--border, #e5e7eb)' }} onClick={() => updateInclude(true)}>Include</button>
+            <button type="button" className="btn btn-sm" style={{ background: include === false ? '#fee2e2' : 'transparent', color: include === false ? '#991b1b' : 'var(--text-2)', border: '1px solid var(--border, #e5e7eb)' }} onClick={() => updateInclude(false)}>Don't include</button>
+          </div>
+        </div>
+
+        {loading ? <div className="muted">Loading…</div>
+         : link ? (
+          <>
+            <Field label="Public link" hint={`Views: ${link.viewCount}${link.lastViewedAt ? ' · Last viewed ' + new Date(link.lastViewedAt).toLocaleString() : ''}`}>
+              <div className="input-wrap">
+                <input className="input" value={link.url} readOnly onFocus={(e) => e.target.select()} style={{ paddingRight: 44 }} />
+                <button type="button" className="icon-btn sm" style={{ position: 'absolute', right: 4 }} onClick={copy} aria-label="Copy link"><Copy size={14} /></button>
+              </div>
+            </Field>
+            <div className="row gap-8 wrap">
+              <a className="btn btn-secondary" href={`mailto:${encodeURIComponent(customer?.email || '')}?subject=${encodeURIComponent(docLabel)}&body=${encodeURIComponent(emailBody)}`}><Mail size={14} />Email customer</a>
+              <a className="btn btn-secondary" href={`sms:?&body=${encodeURIComponent(smsBody)}`}><MessageSquare size={14} />Text message</a>
+              <a className="btn btn-secondary" href={link.url} target="_blank" rel="noreferrer"><ExternalLink size={14} />Preview</a>
+            </div>
+          </>
+         ) : (
+          <div className="muted">No active link yet.</div>
+         )}
+
+        {err && <div className="callout callout-danger" role="alert">{err}</div>}
+
+        <div className="row gap-8" style={{ justifyContent: 'flex-end' }}>
+          {link
+            ? <button className="btn btn-ghost" onClick={revoke} disabled={busy}><Trash2 size={14} />Revoke link</button>
+            : <button className="btn btn-primary" onClick={create} disabled={busy}><LinkIcon size={14} />{busy ? 'Creating…' : 'Create link'}</button>}
+          <button className="btn btn-ghost" onClick={onClose}>Done</button>
+        </div>
+      </div>
     </Modal>
   )
 }

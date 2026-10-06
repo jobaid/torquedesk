@@ -150,7 +150,10 @@ var (
 	}
 	prefsRes = &Resource{
 		Path: "document-preferences", Entity: "document_preferences", Table: "document_preferences", Perm: "document_settings.edit", Singleton: true,
-		Fields: []Field{{JSON: "defaultOdometerUnit", Col: "default_odometer_unit", Kind: KEnum, Label: "Default odometer unit", Enum: []string{"mi", "km"}}},
+		Fields: []Field{
+			{JSON: "defaultOdometerUnit", Col: "default_odometer_unit", Kind: KEnum, Label: "Default odometer unit", Enum: []string{"mi", "km"}},
+			{JSON: "includeInspectionDefault", Col: "include_inspection_default", Kind: KBool, Label: "Include Vehicle Inspection Report with documents by default"},
+		},
 	}
 	printingRes = &Resource{
 		Path: "printing", Entity: "printing", Table: "printing_settings", Perm: "document_settings.edit", Singleton: true,

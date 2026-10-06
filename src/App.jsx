@@ -61,6 +61,7 @@ function PageFallback() {
 
 const ResetPassword = lazy(() => import('./pages/ResetPassword'))
 const PayReturn = lazy(() => import('./pages/PayReturn'))
+const ShareView = lazy(() => import('./pages/ShareView'))
 
 export default function App() {
   useThemeSync()
@@ -79,6 +80,14 @@ export default function App() {
     return (
       <Suspense fallback={null}>
         <PayReturn outcome={window.location.pathname === '/pay/success' ? 'success' : 'cancel'} />
+      </Suspense>
+    )
+  }
+  // Customer-facing document share link — public, no auth, token in URL.
+  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/share/doc/')) {
+    return (
+      <Suspense fallback={null}>
+        <ShareView />
       </Suspense>
     )
   }

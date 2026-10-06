@@ -99,7 +99,7 @@ func defaultTaxIDs(snap map[string]any) []int64 {
 
 const docCols = `id::text, display_number, number, number_type, type, status, customer_id, customer_snapshot, vehicle_id, vehicle_snapshot,
 	writer_id, writer_name, technician_id, technician_name, promised_at, mileage_in, mileage_out, odometer_unit, tag, shop_note,
-	save_parts, payment_methods, to_char(estimate_date, 'YYYY-MM-DD'), to_char(expires_at, 'YYYY-MM-DD'), authorization_info,
+	save_parts, include_inspection, payment_methods, to_char(estimate_date, 'YYYY-MM-DD'), to_char(expires_at, 'YYYY-MM-DD'), authorization_info,
 	items, tax_ids, fees_off, settings_snapshot, created_at, updated_at, created_by, updated_by, invoiced_at,
 	labor_total::text, parts_total::text, other_total::text, shop_fees_total::text, discount_total::text, subtotal::text,
 	tax_total::text, total::text, paid_total::text, balance::text, payment_status`
@@ -111,6 +111,7 @@ func scanDoc(row pgx.Row) (map[string]any, error) {
 		custSnap, vehSnap, auth, items, snap                                                                 []byte
 		writerID, techID                                                                                    *int64
 		saveParts                                                                                           bool
+		includeInsp                                                                                         *bool
 		payMeth                                                                                             []string
 		estDate, expires                                                                                    *string
 		taxIDs, feesOff                                                                                     []int64
@@ -121,7 +122,7 @@ func scanDoc(row pgx.Row) (map[string]any, error) {
 	)
 	err := row.Scan(&id, &display, &number, &numType, &typ, &status, &custID, &custSnap, &vehID, &vehSnap,
 		&writerID, &writerName, &techID, &techName, &promised, &mi, &mo, &unit, &tag, &note,
-		&saveParts, &payMeth, &estDate, &expires, &auth, &items, &taxIDs, &feesOff, &snap,
+		&saveParts, &includeInsp, &payMeth, &estDate, &expires, &auth, &items, &taxIDs, &feesOff, &snap,
 		&created, &updated, &createdBy, &updatedBy, &invoiced,
 		&tl, &tp, &to, &tf, &td, &ts, &tt, &tot, &tpaid, &tbal, &pstatus)
 	if err != nil {
@@ -151,7 +152,7 @@ func scanDoc(row pgx.Row) (map[string]any, error) {
 		"customerId": custID, "customerSnapshot": raw(custSnap), "vehicleId": vehID, "vehicleSnapshot": raw(vehSnap),
 		"writerId": writerID, "writer": writerName, "technicianId": techID, "technician": techName,
 		"promised": promised, "mileageIn": mi, "mileageOut": mo, "odometerUnit": unit, "tag": tag, "shopNote": note,
-		"saveParts": saveParts, "paymentMethods": payMeth, "estimateDate": estDate, "expiresAt": expires,
+		"saveParts": saveParts, "includeInspection": includeInsp, "paymentMethods": payMeth, "estimateDate": estDate, "expiresAt": expires,
 		"authorization": raw(auth), "items": raw(items), "payments": []map[string]any{}, "taxIds": taxIDs, "feesOff": feesOff,
 		"snapshot": raw(snap), "createdAt": created.UnixMilli(), "updatedAt": updated.UnixMilli(), "invoicedAt": invoicedAt,
 		"createdBy": createdBy, "updatedBy": updatedBy,
@@ -588,6 +589,20 @@ func (s *Server) updateDocument(w http.ResponseWriter, r *http.Request) {
 				ve["saveParts"] = "Invalid value."
 			} else {
 				set("save_parts", b)
+			}
+		}
+		// Per-document "Include Inspection Report" override. Three-valued:
+		// null = inherit the shop default, true/false = explicit override.
+		if raw, ok := body["includeInspection"]; ok {
+			if string(raw) == "null" {
+				set("include_inspection", nil)
+			} else {
+				var b bool
+				if json.Unmarshal(raw, &b) != nil {
+					ve["includeInspection"] = "Invalid value."
+				} else {
+					set("include_inspection", b)
+				}
 			}
 		}
 		if raw, ok := body["paymentMethods"]; ok {

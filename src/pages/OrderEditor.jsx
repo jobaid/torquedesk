@@ -960,6 +960,22 @@ function ShareLinkModal({ doc, customer, onClose, onInspectionToggle }) {
                   {auth.responseReason && <div style={{ marginTop: 4, color: '#374151' }}>“{auth.responseReason}”</div>}
                 </div>
               )}
+              {Array.isArray(auth.items) && auth.items.length > 0 && (
+                <details style={{ marginTop: 8 }} open>
+                  <summary style={{ cursor: 'pointer', fontSize: 12 }}>Line items ({auth.items.filter((i) => i.status === 'approved').length} approved · {auth.items.filter((i) => i.status === 'denied').length} denied · {auth.items.filter((i) => i.status === 'pending').length} pending)</summary>
+                  <ul style={{ margin: '6px 0 0 18px', padding: 0, fontSize: 12, listStyle: 'none' }}>
+                    {auth.items.map((it) => (
+                      <li key={it.id} style={{ padding: '3px 0' }}>
+                        <span className="badge" style={{ marginRight: 6, textTransform: 'capitalize',
+                          background: it.status === 'approved' ? '#d1fae5' : it.status === 'denied' ? '#fee2e2' : '#f3f4f6',
+                          color:      it.status === 'approved' ? '#065f46' : it.status === 'denied' ? '#991b1b' : '#4b5563' }}>{it.status}</span>
+                        {it.label}
+                        {it.amount > 0 && <span className="muted" style={{ marginLeft: 6 }}>${it.amount.toFixed(2)}</span>}
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
               {auth.events?.length > 0 && (
                 <details style={{ marginTop: 8 }}>
                   <summary style={{ cursor: 'pointer', fontSize: 12 }}>Audit history ({auth.events.length})</summary>

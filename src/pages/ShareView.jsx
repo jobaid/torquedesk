@@ -244,6 +244,31 @@ function AuthorizationPanel({ token, auth, onChanged, docLabel }) {
   const [reason, setReason] = useState('')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
+  const [itemSel, setItemSel] = useState({}) // key -> 'approved' | 'denied' | 'pending'
+  const [itemBusy, setItemBusy] = useState(false)
+
+  useEffect(() => {
+    if (!auth?.items) return
+    const next = {}
+    for (const it of auth.items) next[it.key] = it.status
+    setItemSel(next)
+  }, [auth?.id, auth?.respondedAt])
+
+  const saveItems = async () => {
+    if (!name.trim()) { setErr('Enter your name below before saving line-item choices.'); return }
+    setItemBusy(true); setErr('')
+    try {
+      const res = await fetch(`/api/public/share/${encodeURIComponent(token)}/authorization/items`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim(), items: (auth.items || []).map((it) => ({ key: it.key, status: itemSel[it.key] || 'pending', note: '' })) }),
+      })
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Request failed')
+      const next = await fetch(`/api/public/share/${encodeURIComponent(token)}/authorization`).then((r) => r.ok ? r.json() : null)
+      onChanged(next)
+    } catch (e) { setErr(e.message) }
+    finally { setItemBusy(false) }
+  }
 
   const submit = async () => {
     setBusy(true); setErr('')
@@ -291,13 +316,52 @@ function AuthorizationPanel({ token, auth, onChanged, docLabel }) {
         </div>
       )}
 
+      {Array.isArray(auth.items) && auth.items.length > 0 && (
+        <div className="no-print" style={{ marginTop: 12, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, padding: 14 }}>
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>Approve or deny individual items</div>
+          <div className="muted" style={{ fontSize: 12, marginBottom: 10 }}>Optional. Set each line, then either click Save selections below, or finish with the overall Approve / Deny / Request changes.</div>
+          <div style={{ display: 'grid', gap: 6 }}>
+            {auth.items.map((it) => {
+              const sel = itemSel[it.key] || it.status
+              const dis = terminal
+              return (
+                <div key={it.key} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '6px 8px', borderTop: '1px solid #f3f4f6' }}>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13 }}>{it.label}</div>
+                    {it.amount > 0 && <div className="muted" style={{ fontSize: 11 }}>{money(it.amount)}</div>}
+                  </div>
+                  {['pending', 'approved', 'denied'].map((s) => (
+                    <button key={s} type="button" onClick={() => !dis && setItemSel({ ...itemSel, [it.key]: s })} disabled={dis}
+                      style={{
+                        padding: '4px 10px', borderRadius: 999, border: '1px solid',
+                        fontSize: 11, fontWeight: 600, cursor: dis ? 'not-allowed' : 'pointer',
+                        ...(sel === s
+                          ? (s === 'approved' ? { background: '#d1fae5', borderColor: '#86efac', color: '#065f46' } :
+                             s === 'denied'   ? { background: '#fee2e2', borderColor: '#fecaca', color: '#991b1b' } :
+                                                { background: '#f3f4f6', borderColor: '#e5e7eb', color: '#4b5563' })
+                          : { background: 'transparent', borderColor: '#e5e7eb', color: '#9ca3af' }),
+                      }}>{s === 'pending' ? 'Pending' : (s === 'approved' ? 'Approve' : 'Deny')}</button>
+                  ))}
+                </div>
+              )
+            })}
+          </div>
+          {!terminal && (
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              <input className="input" placeholder="Your name" value={name} onChange={(e) => setName(e.target.value)} style={{ flex: '1 1 180px', minWidth: 160, maxWidth: 260 }} />
+              <button className="btn btn-secondary btn-sm" onClick={saveItems} disabled={itemBusy || !name.trim()}>{itemBusy ? 'Saving…' : 'Save line-item choices'}</button>
+            </div>
+          )}
+        </div>
+      )}
+
       {!terminal && (
         <>
           {!open && (
             <div className="row gap-8 no-print" style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button className="btn" style={{ background: '#16a34a', color: '#fff' }} onClick={() => setOpen('approve')}><ThumbsUp size={14} /> Approve</button>
+              <button className="btn" style={{ background: '#16a34a', color: '#fff' }} onClick={() => setOpen('approve')}><ThumbsUp size={14} /> Approve all</button>
               <button className="btn" style={{ background: '#f59e0b', color: '#fff' }} onClick={() => setOpen('changes')}><MessageCircle size={14} /> Request changes</button>
-              <button className="btn" style={{ background: '#dc2626', color: '#fff' }} onClick={() => setOpen('deny')}><ThumbsDown size={14} /> Deny</button>
+              <button className="btn" style={{ background: '#dc2626', color: '#fff' }} onClick={() => setOpen('deny')}><ThumbsDown size={14} /> Deny all</button>
             </div>
           )}
           {open && (

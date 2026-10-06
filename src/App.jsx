@@ -34,6 +34,7 @@ const PaymentsReport = lazy(() => import('./pages/reports/Payments'))
 const TaxReport = lazy(() => import('./pages/reports/Tax'))
 const Profile = lazy(() => import('./pages/Profile'))
 const NotFound = lazy(() => import('./pages/NotFound'))
+const Inspections = lazy(() => import('./pages/Inspections'))
 
 // Toraquedesk SaaS Owner Portal — its own self-contained route tree. It does NOT
 // render inside AppShell and does NOT touch the main app's auth state.
@@ -203,6 +204,8 @@ function Boot() {
           <Route path="orders/:id" element={<S><OrderEditor /></S>} />
           <Route path="customers" element={<S><Customers /></S>} />
           <Route path="customers/:id" element={<S><Customers /></S>} />
+          <Route path="inspections" element={<S><Inspections /></S>} />
+          <Route path="inspections/:id" element={<S><Inspections /></S>} />
           <Route path="settings/*" element={<S><SettingsLayout /></S>} />
           <Route path="reports" element={<S><ReportsLayout /></S>}>
             <Route index element={<Navigate to="sales/dashboard" replace />} />

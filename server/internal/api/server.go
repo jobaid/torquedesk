@@ -60,6 +60,7 @@ func (s *Server) Handler(staticDir string) http.Handler {
 	s.reportRoutes(mux)
 	s.gatewayRoutes(mux)
 	s.checkoutRoutes(mux)
+	s.inspectionRoutes(mux)
 	s.ownerRoutes(mux)
 	s.backupRoutes(mux)
 	s.resetRoutes(mux)

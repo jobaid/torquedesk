@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, Car, Search, Wrench, Stethoscope, ScanLine, Zap, CalendarCheck, ClipboardList,
-  Megaphone, Cpu, Star, History, FileText, Users, Settings, UserRound, BarChart3,
+  Megaphone, Cpu, Star, History, FileText, Users, Settings, UserRound, BarChart3, ClipboardCheck,
 } from 'lucide-react'
 
 export const NAV = [
@@ -30,6 +30,7 @@ export const NAV = [
     items: [
       { to: '/orders', label: 'Repair Orders', icon: FileText, countKey: 'openOrders' },
       { to: '/customers', label: 'Customers', icon: Users },
+      { to: '/inspections', label: 'Inspections', icon: ClipboardCheck },
       { to: '/reports', label: 'Reports', icon: BarChart3 },
     ],
   },
@@ -62,6 +63,7 @@ export const PAGE_META = {
   components: { title: 'Components', crumb: 'Repair Info' },
   orders: { title: 'Repair Orders', crumb: 'Shop' },
   customers: { title: 'Customers', crumb: 'Shop' },
+  inspections: { title: 'Vehicle Inspections', crumb: 'Shop' },
   favorites: { title: 'Favorites', crumb: 'Library' },
   history: { title: 'Search History', crumb: 'Library' },
   reports: { title: 'Reports', crumb: 'Shop' },

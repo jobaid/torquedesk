@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Printer, Phone, Mail, Globe, CheckCircle2, AlertTriangle, X, MinusCircle, ClipboardCheck, FileText, ThumbsUp, ThumbsDown, MessageCircle, ShieldCheck } from 'lucide-react'
+import { ChatThread } from '../components/chat/FloatingChat'
 
 // Public, no-auth customer-facing share view. Reads /api/public/share/{token}.
 // Never shows any field the shop didn't choose to show; display only — no
@@ -44,9 +45,36 @@ export default function ShareView() {
   const typeLabel = { invoice: 'Invoice', repair_order: 'Repair Order', estimate: 'Estimate', statement: 'Statement' }[doc.type] || 'Document'
   const customer = doc.customerSnapshot || {}
   const vehicle = doc.vehicleSnapshot || {}
+  // Tabbed layout — Authorization (default) or Chat (full-screen on mobile).
+  const [tab, setTab] = useState('auth')
+
+  if (tab === 'chat') {
+    return (
+      <CustomerChatView
+        token={token}
+        shopName={shop?.name}
+        docLabel={`${typeLabel} #${doc.number}`}
+        onBack={() => setTab('auth')}
+      />
+    )
+  }
 
   return (
     <PublicShell>
+      {/* Tab bar — sits inside the regular Shell on screen; hidden in print. */}
+      <div className="no-print" style={{ display: 'flex', gap: 6, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 999, padding: 4, marginBottom: 10, maxWidth: 320 }}>
+        <button onClick={() => setTab('auth')}
+          style={{ flex: 1, padding: '8px 14px', borderRadius: 999, border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 13,
+                   background: tab === 'auth' ? 'linear-gradient(135deg,#2563eb,#1d4ed8)' : 'transparent',
+                   color: tab === 'auth' ? '#fff' : '#374151' }}>
+          <ShieldCheck size={14} style={{ verticalAlign: -2 }} /> Authorization
+        </button>
+        <button onClick={() => setTab('chat')}
+          style={{ flex: 1, padding: '8px 14px', borderRadius: 999, border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 13,
+                   background: 'transparent', color: '#374151' }}>
+          <MessageCircle size={14} style={{ verticalAlign: -2 }} /> Chat
+        </button>
+      </div>
       {/* On-screen action bar (hidden in print) */}
       <div className="no-print" style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
         <button className="btn btn-primary" onClick={() => window.print()}><Printer size={14} />Print / Save as PDF</button>
@@ -55,7 +83,6 @@ export default function ShareView() {
       {auth !== undefined && auth && (
         <AuthorizationPanel token={token} auth={auth} onChanged={setAuth} docLabel={doc && ({ invoice: 'invoice', repair_order: 'repair order', estimate: 'estimate' }[doc.type] || 'document')} />
       )}
-      <ChatPanel token={token} customerName={(doc.customerSnapshot || {}).name} />
 
       {/* Shop + document header (acts as the cover block on page 1) */}
       <header className="share-section cover-divider" style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap', justifyContent: 'space-between' }}>
@@ -240,7 +267,30 @@ export default function ShareView() {
   )
 }
 
-// ---------- chat panel ----------
+// ---------- customer chat view (full screen on mobile) ----------
+
+function CustomerChatView({ token, shopName, docLabel, onBack }) {
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, background: '#fff', zIndex: 10,
+      display: 'flex', flexDirection: 'column',
+      fontFamily: 'Inter, system-ui, sans-serif',
+    }}>
+      <header style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', background: 'linear-gradient(90deg,#1e40af,#2563eb)', color: '#fff' }}>
+        <button onClick={onBack} aria-label="Back" style={{ width: 32, height: 32, borderRadius: 6, border: 'none', background: 'rgba(255,255,255,0.15)', color: '#fff', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+          <X size={18} />
+        </button>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 600, fontSize: 15 }}>Chat with {shopName || 'the shop'}</div>
+          <div style={{ fontSize: 11, opacity: 0.85 }}>{docLabel}</div>
+        </div>
+      </header>
+      <ChatThread isPublic publicToken={token} />
+    </div>
+  )
+}
+
+// ---------- chat panel (legacy; unused once tab layout is active) ----------
 
 function ChatPanel({ token, customerName }) {
   const [data, setData] = useState({ messages: [], unread: 0 })

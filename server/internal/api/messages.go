@@ -29,12 +29,14 @@ func (s *Server) messageRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/documents/{id}/messages", s.auth("", s.listShopMessages))
 	mux.HandleFunc("POST /api/documents/{id}/messages", s.auth("documents.edit", s.postShopMessage))
 	mux.HandleFunc("POST /api/documents/{id}/messages/read", s.auth("", s.markShopRead))
-	// Unread-count rollup across all docs for the top-of-nav badge later.
+	mux.HandleFunc("GET /api/documents/{id}/messages/stream", s.auth("", s.sseShopMessages))
+	// Unread-count rollup across all docs for the floating-messenger badge.
 	mux.HandleFunc("GET /api/messages/unread", s.auth("", s.listUnread))
 
 	// Public (share token)
 	mux.HandleFunc("GET /api/public/share/{token}/messages", s.listPublicMessages)
 	mux.HandleFunc("POST /api/public/share/{token}/messages", s.postPublicMessage)
+	mux.HandleFunc("GET /api/public/share/{token}/messages/stream", s.ssePublicMessages)
 }
 
 type messageDTO struct {
@@ -97,11 +99,12 @@ func (s *Server) postShopMessage(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 404, "Document not found.")
 		return
 	}
+	var newID string
 	err := s.tx(r.Context(), func(tx pgx.Tx) error {
-		if _, err := tx.Exec(r.Context(), `INSERT INTO document_messages
+		if err := tx.QueryRow(r.Context(), `INSERT INTO document_messages
 			(company_id, document_id, sender_role, sender_name, body, ip)
-			VALUES ($1::uuid, $2::uuid, 'shop', $3, $4, $5)`,
-			cid, docID, u.Name, body, clientIP(r)); err != nil {
+			VALUES ($1::uuid, $2::uuid, 'shop', $3, $4, $5) RETURNING id::text`,
+			cid, docID, u.Name, body, clientIP(r)).Scan(&newID); err != nil {
 			return err
 		}
 		_, err := tx.Exec(r.Context(), `UPDATE documents SET shop_messages_read_at = now() WHERE id::text = $1`, docID)
@@ -111,6 +114,7 @@ func (s *Server) postShopMessage(w http.ResponseWriter, r *http.Request) {
 		handleErr(w, err)
 		return
 	}
+	publishMessageEvent(docID, messageDTO{ID: newID, SenderRole: "shop", SenderName: u.Name, Body: body, At: time.Now().UnixMilli()})
 	s.listShopMessages(w, r)
 }
 
@@ -214,15 +218,17 @@ func (s *Server) postPublicMessage(w http.ResponseWriter, r *http.Request) {
 	if name == "" {
 		name = "Customer"
 	}
-	if _, err := s.db.Exec(r.Context(), `INSERT INTO document_messages
+	var newID string
+	if err := s.db.QueryRow(r.Context(), `INSERT INTO document_messages
 		(company_id, document_id, sender_role, sender_name, body, ip)
-		VALUES ($1::uuid, $2::uuid, 'customer', $3, $4, $5)`,
-		cid, docID, name, body, clientIP(r)); err != nil {
+		VALUES ($1::uuid, $2::uuid, 'customer', $3, $4, $5) RETURNING id::text`,
+		cid, docID, name, body, clientIP(r)).Scan(&newID); err != nil {
 		handleErr(w, err)
 		return
 	}
 	// Mark customer-side read (they just saw the thread by posting).
 	_, _ = s.db.Exec(r.Context(), `UPDATE documents SET customer_messages_read_at = now() WHERE id::text = $1`, docID)
+	publishMessageEvent(docID, messageDTO{ID: newID, SenderRole: "customer", SenderName: name, Body: body, At: time.Now().UnixMilli()})
 	s.listPublicMessages(w, r)
 }
 

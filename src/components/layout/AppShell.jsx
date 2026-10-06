@@ -4,6 +4,7 @@ import Sidebar from './Sidebar'
 import Header from './Header'
 import CommandPalette from '../search/CommandPalette'
 import VehiclePickerModal from '../vehicle/VehiclePickerModal'
+import FloatingChat from '../chat/FloatingChat'
 import { ToastRegion } from '../ui'
 import { useApp, useUI } from '../../store/useApp'
 
@@ -43,6 +44,7 @@ export default function AppShell() {
       </div>
       <CommandPalette />
       <VehiclePickerModal />
+      <FloatingChat />
       <ToastRegion />
     </div>
   )

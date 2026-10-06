@@ -10,6 +10,7 @@ import { Appearance, DataSettings, AuditLog, ChangePassword } from './GeneralSet
 import { BackupSettings } from './BackupSettings'
 import { MfaSettings } from './MfaSettings'
 import { PaymentGateways } from './PaymentGateways'
+import { NotificationSettings } from './Notifications'
 
 // Adding a settings page = one entry here + its component.
 export const SETTINGS_NAV = [
@@ -35,6 +36,7 @@ export const SETTINGS_NAV = [
   ] },
   { group: 'General', items: [
     { path: 'general/appearance', label: 'Appearance', icon: Palette, el: <Appearance /> },
+    { path: 'general/notifications', label: 'Notifications', icon: KeyRound, el: <NotificationSettings /> },
     { path: 'general/password', label: 'Change Password', icon: KeyRound, el: <ChangePassword /> },
     { path: 'general/mfa', label: 'Two-factor (MFA)', icon: ShieldCheck, el: <MfaSettings /> },
     { path: 'general/backup', label: 'Backup & Restore', icon: Archive, el: <BackupSettings /> },

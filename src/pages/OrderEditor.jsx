@@ -1006,8 +1006,6 @@ function ShareLinkModal({ doc, customer, onClose, onInspectionToggle }) {
           )}
         </div>
 
-        <ShopChatPanel docId={doc.id} />
-
         <div className="row gap-8" style={{ justifyContent: 'flex-end' }}>
           {link
             ? <button className="btn btn-ghost" onClick={revoke} disabled={busy}><Trash2 size={14} />Revoke link</button>

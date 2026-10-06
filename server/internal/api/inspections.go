@@ -134,13 +134,23 @@ type inspectionDTO struct {
 }
 
 type inspectionItem struct {
+	ID          string            `json:"id"`
+	Category    string            `json:"category"`
+	Label       string            `json:"label"`
+	Status      string            `json:"status"`
+	Severity    string            `json:"severity"`
+	Note        string            `json:"note"`
+	Measurement string            `json:"measurement"`
+	Position    int               `json:"position"`
+	Photos      []inspectionPhoto `json:"photos,omitempty"`
+}
+
+type inspectionPhoto struct {
 	ID          string `json:"id"`
-	Category    string `json:"category"`
-	Label       string `json:"label"`
-	Status      string `json:"status"`
-	Severity    string `json:"severity"`
-	Note        string `json:"note"`
-	Measurement string `json:"measurement"`
+	URL         string `json:"url"`
+	ContentType string `json:"contentType"`
+	Width       int    `json:"width"`
+	Height      int    `json:"height"`
 	Position    int    `json:"position"`
 }
 
@@ -249,6 +259,33 @@ func (s *Server) loadInspectionItems(ctx context.Context, inspectionID string) (
 			return nil, err
 		}
 		out = append(out, it)
+	}
+	// Attach photos in one additional query (keeps the main scan simple).
+	photos, err := s.loadInspectionPhotosForInspection(ctx, inspectionID)
+	if err == nil && len(photos) > 0 {
+		for i := range out {
+			out[i].Photos = photos[out[i].ID]
+		}
+	}
+	return out, nil
+}
+
+func (s *Server) loadInspectionPhotosForInspection(ctx context.Context, inspectionID string) (map[string][]inspectionPhoto, error) {
+	rows, err := s.db.Query(ctx, `SELECT id::text, item_id::text, content_type, width, height, position
+		FROM inspection_item_photos WHERE inspection_id::text = $1 ORDER BY position, created_at`, inspectionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string][]inspectionPhoto{}
+	for rows.Next() {
+		var p inspectionPhoto
+		var itemID string
+		if err := rows.Scan(&p.ID, &itemID, &p.ContentType, &p.Width, &p.Height, &p.Position); err != nil {
+			return nil, err
+		}
+		p.URL = "/api/inspections/" + inspectionID + "/photos/" + p.ID
+		out[itemID] = append(out[itemID], p)
 	}
 	return out, nil
 }

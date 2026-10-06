@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { Stethoscope, Plus, Car, Check, AlertTriangle, X, MinusCircle, ArrowLeft, Save, CheckCircle2, Trash2 } from 'lucide-react'
+import { Stethoscope, Plus, Car, Check, AlertTriangle, X, MinusCircle, ArrowLeft, Save, CheckCircle2, Trash2, Camera } from 'lucide-react'
 import { api } from '../lib/api'
+import { useApp as _useAppForToken } from '../store/useApp'
 import { useShop } from '../store/useShop'
 import { useApp, toast } from '../store/useApp'
 import { EmptyState, Field } from '../components/ui'
@@ -303,7 +304,7 @@ function InspectionEditor({ id }) {
           <h2 style={{ margin: 0, fontSize: 15, textTransform: 'uppercase', letterSpacing: '.04em', color: 'var(--text-2)' }}>{g.category}</h2>
           <div className="stack gap-8 mt-12">
             {g.items.map((it) => (
-              <ItemRow key={it.id} item={it} saving={savingItem === it.id} onChange={(patch) => updateItem(it.id, patch)} />
+              <ItemRow key={it.id} item={it} saving={savingItem === it.id} inspectionId={id} onChange={(patch) => updateItem(it.id, patch)} onPhotosChanged={load} />
             ))}
           </div>
         </div>
@@ -324,9 +325,10 @@ function InspectionEditor({ id }) {
   )
 }
 
-function ItemRow({ item, saving, onChange }) {
+function ItemRow({ item, saving, inspectionId, onChange, onPhotosChanged }) {
   const [note, setNote] = useState(item.note || '')
   const [measurement, setMeasurement] = useState(item.measurement || '')
+  const [uploading, setUploading] = useState(false)
   useEffect(() => { setNote(item.note || ''); setMeasurement(item.measurement || '') }, [item.id, item.note, item.measurement])
 
   const setStatus = (s) => onChange({ status: s })
@@ -336,23 +338,72 @@ function ItemRow({ item, saving, onChange }) {
     }
   }
 
+  const uploadFiles = async (files) => {
+    if (!files || !files.length) return
+    setUploading(true)
+    try {
+      const token = _useAppForToken.getState().user?.token
+      for (const f of files) {
+        const fd = new FormData()
+        fd.append('photo', f)
+        const res = await fetch(`/api/inspections/${inspectionId}/items/${item.id}/photos`, {
+          method: 'POST',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          body: fd,
+        })
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}))
+          toast.error('Upload failed', data.error || `Request failed (${res.status})`)
+          continue
+        }
+      }
+      onPhotosChanged?.()
+    } finally { setUploading(false) }
+  }
+
+  const removePhoto = async (photoId) => {
+    if (!confirm('Delete this photo?')) return
+    try {
+      await api(`/inspections/${inspectionId}/items/${item.id}/photos/${photoId}`, { method: 'DELETE' })
+      onPhotosChanged?.()
+    } catch (e) { toast.error('Could not delete', e.message) }
+  }
+
+  const photos = item.photos || []
+
   return (
-    <div className="row gap-12 wrap" style={{ alignItems: 'flex-start', padding: '8px 0', borderTop: '1px solid var(--border, #e5e7eb)' }}>
-      <div style={{ minWidth: 220, flex: '1 1 220px' }}>
-        <div style={{ fontWeight: 500 }}>{item.label}</div>
-        <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>
-          {item.status !== 'na' && <>Last set: <span style={{ textTransform: 'capitalize' }}>{item.status}</span></>}
-          {saving && ' · saving…'}
+    <div style={{ padding: '8px 0', borderTop: '1px solid var(--border, #e5e7eb)' }}>
+      <div className="row gap-12 wrap" style={{ alignItems: 'flex-start' }}>
+        <div style={{ minWidth: 220, flex: '1 1 220px' }}>
+          <div style={{ fontWeight: 500 }}>{item.label}</div>
+          <div className="muted" style={{ fontSize: 11, marginTop: 4 }}>
+            {item.status !== 'na' && <>Last set: <span style={{ textTransform: 'capitalize' }}>{item.status}</span></>}
+            {saving && ' · saving…'}
+          </div>
         </div>
+        <div className="row gap-4">
+          <StatusBtn label="Pass"      active={item.status === 'pass'}       bg="#d1fae5" fg="#065f46" icon={Check}         onClick={() => setStatus('pass')} />
+          <StatusBtn label="Attention" active={item.status === 'attention'}  bg="#fef3c7" fg="#92400e" icon={AlertTriangle} onClick={() => setStatus('attention')} />
+          <StatusBtn label="Fail"      active={item.status === 'fail'}       bg="#fee2e2" fg="#991b1b" icon={X}             onClick={() => setStatus('fail')} />
+          <StatusBtn label="N/A"       active={item.status === 'na'}         bg="#f3f4f6" fg="#4b5563" icon={MinusCircle}   onClick={() => setStatus('na')} />
+        </div>
+        <input className="input" placeholder="Measurement (e.g. 7/32 in, 11.6 V)" value={measurement} onChange={(e) => setMeasurement(e.target.value)} onBlur={commit} style={{ minWidth: 180, flex: '0 1 220px' }} />
+        <input className="input" placeholder="Note" value={note} onChange={(e) => setNote(e.target.value)} onBlur={commit} style={{ minWidth: 220, flex: '2 1 300px' }} />
+        <label className="btn btn-ghost btn-sm" style={{ cursor: 'pointer' }} title="Add photo">
+          <Camera size={14} />{uploading ? 'Uploading…' : 'Photo'}
+          <input type="file" accept="image/*" capture="environment" multiple style={{ display: 'none' }} onChange={(e) => { uploadFiles([...e.target.files]); e.target.value = '' }} />
+        </label>
       </div>
-      <div className="row gap-4">
-        <StatusBtn label="Pass"      active={item.status === 'pass'}       bg="#d1fae5" fg="#065f46" icon={Check}         onClick={() => setStatus('pass')} />
-        <StatusBtn label="Attention" active={item.status === 'attention'}  bg="#fef3c7" fg="#92400e" icon={AlertTriangle} onClick={() => setStatus('attention')} />
-        <StatusBtn label="Fail"      active={item.status === 'fail'}       bg="#fee2e2" fg="#991b1b" icon={X}             onClick={() => setStatus('fail')} />
-        <StatusBtn label="N/A"       active={item.status === 'na'}         bg="#f3f4f6" fg="#4b5563" icon={MinusCircle}   onClick={() => setStatus('na')} />
-      </div>
-      <input className="input" placeholder="Measurement (e.g. 7/32 in, 11.6 V)" value={measurement} onChange={(e) => setMeasurement(e.target.value)} onBlur={commit} style={{ minWidth: 180, flex: '0 1 220px' }} />
-      <input className="input" placeholder="Note" value={note} onChange={(e) => setNote(e.target.value)} onBlur={commit} style={{ minWidth: 220, flex: '2 1 300px' }} />
+      {photos.length > 0 && (
+        <div className="row gap-8 wrap" style={{ marginTop: 8 }}>
+          {photos.map((p) => (
+            <div key={p.id} style={{ position: 'relative' }}>
+              <img src={p.url} alt="" style={{ width: 96, height: 96, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--border, #e5e7eb)' }} />
+              <button type="button" onClick={() => removePhoto(p.id)} className="icon-btn sm" style={{ position: 'absolute', top: -6, right: -6, background: '#fff', border: '1px solid var(--border, #e5e7eb)', borderRadius: '50%' }} aria-label="Delete photo"><X size={12} /></button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

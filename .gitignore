@@ -8,6 +8,9 @@ server/torquedesk-server.exe
 server/torquedesk-server
 # Per-tenant backups generated at runtime (contain real customer data)
 server/backups/
+# Inspection photo uploads (per-tenant customer data)
+server/uploads/
+uploads/
 # Claude Code / MCP tool scratch databases (not part of the project)
 .claude/data/
 *.sqlite

@@ -257,27 +257,70 @@ func (s *Server) loadPublicInspection(ctx context.Context, cid, docID string, d 
 	if !ok {
 		return nil, nil
 	}
-	// Load items — never include database ids the customer doesn't need, keep
-	// only what matters to render the report.
-	rows, err := s.db.Query(ctx, `SELECT category, label, status, severity, note, measurement, position
+	// Load items + photos. Items need their own id so the frontend can match
+	// photos to items; the id is scoped to this inspection and so still safe.
+	rows, err := s.db.Query(ctx, `SELECT id::text, category, label, status, severity, note, measurement, position
 		FROM inspection_items WHERE inspection_id::text = $1 ORDER BY position, created_at`, inspID)
 	if err != nil {
 		return dto, nil
 	}
 	defer rows.Close()
 	items := []map[string]any{}
+	itemIDs := []string{}
 	for rows.Next() {
-		var cat, label, status, severity, note, meas string
+		var id, cat, label, status, severity, note, meas string
 		var pos int
-		if err := rows.Scan(&cat, &label, &status, &severity, &note, &meas, &pos); err != nil {
+		if err := rows.Scan(&id, &cat, &label, &status, &severity, &note, &meas, &pos); err != nil {
 			continue
 		}
 		items = append(items, map[string]any{
-			"category": cat, "label": label, "status": status, "severity": severity,
-			"note": note, "measurement": meas, "position": pos,
+			"id": id, "category": cat, "label": label, "status": status, "severity": severity,
+			"note": note, "measurement": meas, "position": pos, "photos": []any{},
 		})
+		itemIDs = append(itemIDs, id)
+	}
+	// Attach photos via the public URL that uses the share token (no auth).
+	// Pull the current token from the request context? We don't carry it here;
+	// instead expose via a public URL built from the token in the handler.
+	// Pass-through: look up the token from the first row — we were called from
+	// publicShareView which already validated the token. Grab it from the
+	// request-stored token value via a helper on the caller side.
+	// Simpler: re-derive the token from the latest unrevoked one for the doc.
+	tok := s.latestShareToken(ctx, docID)
+	if tok != "" && len(items) > 0 {
+		photoRows, err := s.db.Query(ctx, `SELECT id::text, item_id::text, content_type, width, height, position
+			FROM inspection_item_photos WHERE inspection_id::text = $1 ORDER BY position, created_at`, inspID)
+		if err == nil {
+			defer photoRows.Close()
+			byItem := map[string][]map[string]any{}
+			for photoRows.Next() {
+				var pid, iid, ct string
+				var w, h, pos int
+				if err := photoRows.Scan(&pid, &iid, &ct, &w, &h, &pos); err != nil {
+					continue
+				}
+				byItem[iid] = append(byItem[iid], map[string]any{
+					"id": pid, "contentType": ct, "width": w, "height": h, "position": pos,
+					"url": "/api/public/share/" + tok + "/photos/" + pid,
+				})
+			}
+			for i := range items {
+				if ps, ok := byItem[items[i]["id"].(string)]; ok {
+					items[i]["photos"] = ps
+				}
+			}
+		}
 	}
 	return dto, items
+}
+
+// latestShareToken returns the current unrevoked share token for the given
+// document, or "" if none. Only used to build public photo URLs that re-use
+// the same token the customer already has in their browser.
+func (s *Server) latestShareToken(ctx context.Context, docID string) string {
+	var tok string
+	_ = s.db.QueryRow(ctx, `SELECT token FROM document_share_tokens WHERE document_id::text = $1 AND revoked_at IS NULL ORDER BY created_at DESC LIMIT 1`, docID).Scan(&tok)
+	return tok
 }
 
 // publicShopFor returns only the shop fields the customer should see on the

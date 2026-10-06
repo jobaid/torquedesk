@@ -174,18 +174,29 @@ export default function ShareView() {
               <div key={g.category} className="share-section" style={{ marginBottom: 16 }}>
                 <h3 style={{ margin: '0 0 6px', fontSize: 14, textTransform: 'uppercase', letterSpacing: '.04em', color: '#374151' }}>{g.category}</h3>
                 {g.items.map((it, i) => (
-                  <div key={i} className="insp-item" style={{ display: 'flex', gap: 12, padding: '6px 0', borderTop: '1px solid #e5e7eb', alignItems: 'baseline' }}>
-                    <span style={{ ...statusChip(it.status), minWidth: 86, textAlign: 'center' }}>{statusLabel(it.status)}</span>
-                    <div style={{ flex: 1 }}>
-                      <div>{it.label}</div>
-                      {(it.measurement || it.note) && (
-                        <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
-                          {it.measurement && <strong>{it.measurement}</strong>}
-                          {it.measurement && it.note && ' · '}
-                          {it.note}
-                        </div>
-                      )}
+                  <div key={i} className="insp-item" style={{ padding: '6px 0', borderTop: '1px solid #e5e7eb' }}>
+                    <div style={{ display: 'flex', gap: 12, alignItems: 'baseline' }}>
+                      <span style={{ ...statusChip(it.status), minWidth: 86, textAlign: 'center' }}>{statusLabel(it.status)}</span>
+                      <div style={{ flex: 1 }}>
+                        <div>{it.label}</div>
+                        {(it.measurement || it.note) && (
+                          <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
+                            {it.measurement && <strong>{it.measurement}</strong>}
+                            {it.measurement && it.note && ' · '}
+                            {it.note}
+                          </div>
+                        )}
+                      </div>
                     </div>
+                    {Array.isArray(it.photos) && it.photos.length > 0 && (
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8, marginLeft: 98 }}>
+                        {it.photos.map((p) => (
+                          <a key={p.id} href={p.url} target="_blank" rel="noreferrer" style={{ display: 'inline-block' }}>
+                            <img src={p.url} alt={it.label} loading="lazy" style={{ width: 120, height: 120, objectFit: 'cover', borderRadius: 6, border: '1px solid #e5e7eb' }} />
+                          </a>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

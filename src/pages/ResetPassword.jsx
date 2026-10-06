@@ -31,7 +31,7 @@ export default function ResetPassword() {
     } catch (err) { setError(err.message) } finally { setBusy(false) }
   }
 
-  const dark = window.location.pathname.startsWith('/owner-reset-password')
+  const dark = window.location.pathname.startsWith('/owner-reset-password') || window.location.pathname.startsWith('/p/admin/reset-password')
   const bg = dark ? '#0b1220' : 'var(--surface, #fff)'
   const panel = dark ? '#111a2b' : 'var(--surface-raised, #fff)'
   const fg = dark ? '#e5edf5' : 'var(--text, #111)'
@@ -50,7 +50,7 @@ export default function ResetPassword() {
 
         {done ? (
           <div style={{ padding: 12, borderRadius: 8, background: dark ? '#0d3a15' : '#e8f8ee', color: dark ? '#95eab0' : '#116632', fontSize: 13 }}>
-            Password updated. You can now sign in at <a href={dark ? '/owner-login' : '/'} style={{ color: 'inherit', textDecoration: 'underline' }}>the sign-in page</a>.
+            Password updated. You can now sign in at <a href={dark ? '/p/admin/login' : '/'} style={{ color: 'inherit', textDecoration: 'underline' }}>the sign-in page</a>.
           </div>
         ) : (
           <>

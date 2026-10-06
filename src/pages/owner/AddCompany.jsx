@@ -46,7 +46,7 @@ export default function AddCompany() {
         },
       }
       const created = await ownerApi('/companies', { method: 'POST', body })
-      navigate(`/owner/companies/${created.id}`)
+      navigate(`${window.location.pathname.startsWith('/owner') ? '/owner' : '/p/admin'}/companies/${created.id}`)
     } catch (err) {
       setGeneralError(err.message)
       setErrors(err.fields || {})

@@ -26,7 +26,7 @@ export default function Companies() {
       <PageHeader
         title="Companies"
         subtitle="Every automobile store on CuraNex."
-        actions={<Btn onClick={() => navigate('/owner/companies/new')}><Plus size={14} />Add company</Btn>}
+        actions={<Btn onClick={() => navigate(`${window.location.pathname.startsWith('/owner') ? '/owner' : '/p/admin'}/companies/new`)}><Plus size={14} />Add company</Btn>}
       />
 
       <Card style={{ marginBottom: 14, padding: 14 }}>
@@ -57,7 +57,7 @@ export default function Companies() {
               </tr></thead>
               <tbody>
                 {rows.map((c) => (
-                  <tr key={c.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/owner/companies/${c.id}`)}>
+                  <tr key={c.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`${window.location.pathname.startsWith('/owner') ? '/owner' : '/p/admin'}/companies/${c.id}`)}>
                     <Td>
                       <div style={{ fontWeight: 600 }}>{c.name}</div>
                       <div style={{ fontSize: 11, color: '#8da2bf' }}>{c.email || c.slug}</div>

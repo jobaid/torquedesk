@@ -54,7 +54,7 @@ export default function Subscriptions() {
               <tbody>
                 {rows.map((s) => (
                   <tr key={s.id}>
-                    <Td><Link to={`/owner/companies/${s.companyId}`} style={{ color: '#e5edf5', fontWeight: 600, textDecoration: 'none' }}>{s.companyName}</Link></Td>
+                    <Td><Link to={`${window.location.pathname.startsWith('/owner') ? '/owner' : '/p/admin'}/companies/${s.companyId}`} style={{ color: '#e5edf5', fontWeight: 600, textDecoration: 'none' }}>{s.companyName}</Link></Td>
                     <Td style={{ textTransform: 'capitalize' }}>{s.plan}</Td>
                     <Td><StatusPill status={s.status} /></Td>
                     <Td style={{ textTransform: 'capitalize' }}>{s.billingCycle}</Td>

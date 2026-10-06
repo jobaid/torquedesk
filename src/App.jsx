@@ -65,7 +65,7 @@ export default function App() {
   useThemeSync()
   // Password-reset lands outside normal auth gates — the link in the email
   // works whether or not the user has an active session.
-  if (typeof window !== 'undefined' && (window.location.pathname === '/reset-password' || window.location.pathname === '/owner-reset-password')) {
+  if (typeof window !== 'undefined' && (window.location.pathname === '/reset-password' || window.location.pathname === '/p/admin/reset-password' || window.location.pathname === '/owner-reset-password')) {
     return (
       <Suspense fallback={null}>
         <ResetPassword />
@@ -82,13 +82,33 @@ export default function App() {
     )
   }
   // The owner-portal routes own their own auth and chrome; keep them separate
-  // from the customer app's gating so a company user can never land in /owner
-  // and vice-versa.
-  if (typeof window !== 'undefined' && (window.location.pathname === '/owner-login' || window.location.pathname.startsWith('/owner'))) {
+  // from the customer app's gating so a company user can never land in /p/admin
+  // and vice-versa. Legacy /owner paths still redirect in so bookmarks keep working.
+  if (typeof window !== 'undefined' && (
+    window.location.pathname === '/p/admin/login' ||
+    window.location.pathname.startsWith('/p/admin') ||
+    window.location.pathname === '/owner-login' ||
+    window.location.pathname.startsWith('/owner')
+  )) {
     return (
       <Suspense fallback={null}>
         <Routes>
+          <Route path="/p/admin/login" element={<OwnerLogin />} />
           <Route path="/owner-login" element={<OwnerLogin />} />
+          <Route path="/p/admin" element={<OwnerLayout />}>
+            <Route index element={<OwnerDashboard />} />
+            <Route path="companies" element={<OwnerCompanies />} />
+            <Route path="companies/new" element={<OwnerAddCompany />} />
+            <Route path="companies/:id" element={<OwnerCompanyDetail />} />
+            <Route path="subscriptions" element={<OwnerSubscriptions />} />
+            <Route path="audit" element={<OwnerAuditLog />} />
+            <Route path="users" element={<OwnerPlaceholder title="Users" body="Phase 1 scope: company owners are managed from each company's detail page." />} />
+            <Route path="access" element={<OwnerPlaceholder title="Access Management" body="Access is controlled by changing a company's status from its detail page." />} />
+            <Route path="urls" element={<OwnerPlaceholder title="Application URLs" body="Each company has an application URL on its detail page." />} />
+            <Route path="billing" element={<OwnerBilling />} />
+            <Route path="security" element={<OwnerPlaceholder title="Security" body="MFA is on the login page; broader security settings arrive later." />} />
+            <Route path="settings" element={<OwnerSettings />} />
+          </Route>
           <Route path="/owner" element={<OwnerLayout />}>
             <Route index element={<OwnerDashboard />} />
             <Route path="companies" element={<OwnerCompanies />} />

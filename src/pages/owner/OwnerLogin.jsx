@@ -21,7 +21,7 @@ export default function OwnerLogin() {
     try {
       const res = await ownerApi('/auth/login', { method: 'POST', body: { email, password, mfaCode } })
       login({ token: res.token, user: res.user })
-      navigate('/owner', { replace: true })
+      navigate(window.location.pathname === '/owner-login' ? '/owner' : '/p/admin', { replace: true })
     } catch (err) {
       // Server signals MFA needed via a flag in the response body.
       if (err.mfaRequired) {

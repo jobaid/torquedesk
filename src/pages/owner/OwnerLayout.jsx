@@ -5,24 +5,29 @@ import {
 } from 'lucide-react'
 import { useOwner } from '../../store/useOwner'
 
+// Base path auto-detects so the same UI renders at /p/admin (production) and
+// legacy /owner (bookmarked links from pre-rename).
+const BASE = typeof window !== 'undefined' && window.location.pathname.startsWith('/owner') ? '/owner' : '/p/admin'
+const LOGIN_PATH = BASE === '/owner' ? '/owner-login' : '/p/admin/login'
+
 const NAV = [
-  { to: '/owner', end: true, label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/owner/companies', label: 'Companies', icon: Building2 },
-  { to: '/owner/subscriptions', label: 'Subscriptions', icon: CreditCard },
-  { to: '/owner/users', label: 'Users', icon: Users },
-  { to: '/owner/access', label: 'Access Management', icon: KeyRound },
-  { to: '/owner/urls', label: 'Application URLs', icon: Globe },
-  { to: '/owner/billing', label: 'Billing', icon: Receipt },
-  { to: '/owner/audit', label: 'Audit Logs', icon: ScrollText },
-  { to: '/owner/security', label: 'Security', icon: Lock },
-  { to: '/owner/settings', label: 'Settings', icon: Settings },
+  { to: `${BASE}`, end: true, label: 'Dashboard', icon: LayoutDashboard },
+  { to: `${BASE}/companies`, label: 'Companies', icon: Building2 },
+  { to: `${BASE}/subscriptions`, label: 'Subscriptions', icon: CreditCard },
+  { to: `${BASE}/users`, label: 'Users', icon: Users },
+  { to: `${BASE}/access`, label: 'Access Management', icon: KeyRound },
+  { to: `${BASE}/urls`, label: 'Application URLs', icon: Globe },
+  { to: `${BASE}/billing`, label: 'Billing', icon: Receipt },
+  { to: `${BASE}/audit`, label: 'Audit Logs', icon: ScrollText },
+  { to: `${BASE}/security`, label: 'Security', icon: Lock },
+  { to: `${BASE}/settings`, label: 'Settings', icon: Settings },
 ]
 
 export default function OwnerLayout() {
   const owner = useOwner((s) => s.owner)
   const logout = useOwner((s) => s.logout)
   const navigate = useNavigate()
-  if (!owner?.token) return <Navigate to="/owner-login" replace />
+  if (!owner?.token) return <Navigate to={LOGIN_PATH} replace />
   return (
     <div style={shellStyle}>
       <aside style={asideStyle}>
@@ -64,7 +69,7 @@ export default function OwnerLayout() {
             </div>
           </div>
           <button
-            onClick={() => { logout(); navigate('/owner-login', { replace: true }) }}
+            onClick={() => { logout(); navigate(LOGIN_PATH, { replace: true }) }}
             style={{ width: '100%', background: 'transparent', border: '1px solid #1e2a44', color: '#8da2bf', padding: '8px', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 13 }}
           >
             <LogOut size={14} /> Log out

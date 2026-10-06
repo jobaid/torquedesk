@@ -940,71 +940,15 @@ function ShareLinkModal({ doc, customer, onClose, onInspectionToggle }) {
         {err && <div className="callout callout-danger" role="alert">{err}</div>}
 
         {/* ---------- Authorization request ---------- */}
-        <div className="callout" style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.3)' }}>
-          <strong>Customer authorization</strong>
-          <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
-            Ask the customer to approve, deny or request changes to this {DOC_TYPES[doc.type]?.label?.toLowerCase() || 'document'} on the share link.
-          </div>
-          {auth === undefined ? (
-            <div className="muted" style={{ fontSize: 12, marginTop: 8 }}>Loading…</div>
-          ) : auth === null ? (
-            <div className="row gap-8" style={{ marginTop: 10, justifyContent: 'flex-end' }}>
-              <button className="btn btn-primary btn-sm" onClick={requestAuth} disabled={authBusy || !link}>{authBusy ? 'Requesting…' : 'Request authorization'}</button>
-            </div>
-          ) : (
-            <div style={{ marginTop: 10 }}>
-              <AuthStatusBadge auth={auth} />
-              {auth.respondedAt && (
-                <div style={{ fontSize: 12, marginTop: 6 }}>
-                  Signed by <strong>{auth.respondedName}</strong> on {new Date(auth.respondedAt).toLocaleString()}
-                  {auth.responseReason && <div style={{ marginTop: 4, color: '#374151' }}>“{auth.responseReason}”</div>}
-                </div>
-              )}
-              {Array.isArray(auth.items) && auth.items.length > 0 && (
-                <details style={{ marginTop: 8 }} open>
-                  <summary style={{ cursor: 'pointer', fontSize: 12 }}>Line items ({auth.items.filter((i) => i.status === 'approved').length} approved · {auth.items.filter((i) => i.status === 'denied').length} denied · {auth.items.filter((i) => i.status === 'pending').length} pending)</summary>
-                  <ul style={{ margin: '6px 0 0 18px', padding: 0, fontSize: 12, listStyle: 'none' }}>
-                    {auth.items.map((it) => (
-                      <li key={it.id} style={{ padding: '3px 0' }}>
-                        <span className="badge" style={{ marginRight: 6, textTransform: 'capitalize',
-                          background: it.status === 'approved' ? '#d1fae5' : it.status === 'denied' ? '#fee2e2' : '#f3f4f6',
-                          color:      it.status === 'approved' ? '#065f46' : it.status === 'denied' ? '#991b1b' : '#4b5563' }}>{it.status}</span>
-                        {it.label}
-                        {it.amount > 0 && <span className="muted" style={{ marginLeft: 6 }}>${it.amount.toFixed(2)}</span>}
-                      </li>
-                    ))}
-                  </ul>
-                </details>
-              )}
-              {auth.events?.length > 0 && (
-                <details style={{ marginTop: 8 }}>
-                  <summary style={{ cursor: 'pointer', fontSize: 12 }}>Audit history ({auth.events.length})</summary>
-                  <ul style={{ margin: '6px 0 0 18px', padding: 0, fontSize: 12 }}>
-                    {auth.events.map((e, i) => (
-                      <li key={i}>
-                        <strong style={{ textTransform: 'capitalize' }}>{e.kind.replace('_', ' ')}</strong>
-                        {' '}by {e.actor || e.actorRole}
-                        {' '}· {new Date(e.at).toLocaleString()}
-                        {e.note && <> — {e.note}</>}
-                      </li>
-                    ))}
-                  </ul>
-                </details>
-              )}
-              {['pending', 'viewed'].includes(auth.status) && (
-                <div className="row gap-8" style={{ marginTop: 10, justifyContent: 'flex-end' }}>
-                  <button className="btn btn-ghost btn-sm" onClick={cancelAuth} disabled={authBusy}>Cancel request</button>
-                  <button className="btn btn-secondary btn-sm" onClick={resendAuth} disabled={authBusy}>Resend</button>
-                </div>
-              )}
-              {['approved', 'denied', 'changes_requested', 'cancelled', 'expired', 'revised_required'].includes(auth.status) && (
-                <div className="row gap-8" style={{ marginTop: 10, justifyContent: 'flex-end' }}>
-                  <button className="btn btn-primary btn-sm" onClick={requestAuth} disabled={authBusy}>Request again</button>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+        <AuthorizationBlock
+          doc={doc}
+          auth={auth}
+          authBusy={authBusy}
+          hasLink={!!link}
+          onRequest={requestAuth}
+          onCancel={cancelAuth}
+          onResend={resendAuth}
+        />
 
         <div className="row gap-8" style={{ justifyContent: 'flex-end' }}>
           {link
@@ -1071,6 +1015,187 @@ function ShopChatPanel({ docId }) {
       </form>
       {err && <div style={{ color: '#dc2626', fontSize: 12, marginTop: 6 }}>{err}</div>}
     </div>
+  )
+}
+
+function AuthorizationBlock({ doc, auth, authBusy, hasLink, onRequest, onCancel, onResend }) {
+  const docLabel = DOC_TYPES[doc.type]?.label?.toLowerCase() || 'document'
+
+  const statusMeta = {
+    pending:           { bg: '#eff6ff', fg: '#1e40af', border: '#bfdbfe', dot: '#2563eb', label: 'Waiting for customer' },
+    viewed:            { bg: '#eff6ff', fg: '#1e40af', border: '#bfdbfe', dot: '#2563eb', label: 'Viewed by customer' },
+    approved:          { bg: '#f0fdf4', fg: '#166534', border: '#bbf7d0', dot: '#16a34a', label: 'Approved' },
+    denied:            { bg: '#fef2f2', fg: '#991b1b', border: '#fecaca', dot: '#dc2626', label: 'Denied' },
+    changes_requested: { bg: '#fff7ed', fg: '#9a3412', border: '#fed7aa', dot: '#ea580c', label: 'Changes requested' },
+    cancelled:         { bg: '#f3f4f6', fg: '#4b5563', border: '#e5e7eb', dot: '#6b7280', label: 'Cancelled' },
+    expired:           { bg: '#f3f4f6', fg: '#4b5563', border: '#e5e7eb', dot: '#6b7280', label: 'Expired' },
+    revised_required:  { bg: '#fff7ed', fg: '#9a3412', border: '#fed7aa', dot: '#ea580c', label: 'Revision required' },
+  }
+  const sm = (auth && statusMeta[auth.status]) || statusMeta.pending
+
+  const sectionCard = {
+    background: '#fff',
+    border: '1px solid #e5e7eb',
+    borderRadius: 12,
+    overflow: 'hidden',
+    boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+  }
+
+  return (
+    <div style={sectionCard}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', borderBottom: '1px solid #e5e7eb', background: '#fafafa' }}>
+        <span style={{ width: 34, height: 34, borderRadius: 8, display: 'grid', placeItems: 'center', background: 'linear-gradient(135deg,#10b981,#059669)', color: '#fff' }}>
+          <ShieldCheck size={17} />
+        </span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 600, fontSize: 14 }}>Customer authorization</div>
+          <div className="muted" style={{ fontSize: 12 }}>Ask the customer to approve, deny or request changes to this {docLabel}.</div>
+        </div>
+      </div>
+
+      <div style={{ padding: 16 }}>
+        {auth === undefined && <div className="muted" style={{ fontSize: 12 }}>Loading…</div>}
+
+        {auth === null && (
+          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+            <button className="btn btn-primary btn-sm" onClick={onRequest} disabled={authBusy || !hasLink}>
+              {authBusy ? 'Requesting…' : 'Request authorization'}
+            </button>
+          </div>
+        )}
+
+        {auth && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {/* Status banner */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: sm.bg, color: sm.fg, border: `1px solid ${sm.border}`, borderRadius: 8 }}>
+              <span style={{ width: 8, height: 8, borderRadius: '50%', background: sm.dot, flexShrink: 0 }} />
+              <div style={{ flex: 1, fontWeight: 600, fontSize: 13 }}>{sm.label}</div>
+              {auth.respondedAt && (
+                <div style={{ fontSize: 11, opacity: 0.8 }}>{new Date(auth.respondedAt).toLocaleString()}</div>
+              )}
+            </div>
+
+            {/* Signed-by + reason */}
+            {auth.respondedAt && (
+              <div style={{ fontSize: 12 }}>
+                Signed by <strong>{auth.respondedName}</strong>
+                {auth.responseReason && (
+                  <blockquote style={{ margin: '6px 0 0', padding: '8px 12px', borderLeft: '3px solid #e5e7eb', color: '#374151', background: '#fafafa', borderRadius: '0 6px 6px 0', fontStyle: 'italic', fontSize: 13 }}>
+                    "{auth.responseReason}"
+                  </blockquote>
+                )}
+              </div>
+            )}
+
+            {/* Line-item summary + list */}
+            {Array.isArray(auth.items) && auth.items.length > 0 && (
+              <ItemBreakdown items={auth.items} />
+            )}
+
+            {/* Audit history */}
+            {auth.events?.length > 0 && (
+              <AuditTimeline events={auth.events} />
+            )}
+
+            {/* Actions */}
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              {['pending', 'viewed'].includes(auth.status) && (
+                <>
+                  <button className="btn btn-ghost btn-sm" onClick={onCancel} disabled={authBusy}>Cancel request</button>
+                  <button className="btn btn-secondary btn-sm" onClick={onResend} disabled={authBusy}>Resend</button>
+                </>
+              )}
+              {['approved', 'denied', 'changes_requested', 'cancelled', 'expired', 'revised_required'].includes(auth.status) && (
+                <button className="btn btn-primary btn-sm" onClick={onRequest} disabled={authBusy}>Request again</button>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function ItemBreakdown({ items }) {
+  const approved = items.filter((i) => i.status === 'approved').length
+  const denied = items.filter((i) => i.status === 'denied').length
+  const pending = items.filter((i) => i.status === 'pending').length
+  const tile = (color, bg, label, n) => (
+    <div style={{ flex: 1, padding: '10px 12px', borderRadius: 8, background: bg, color, textAlign: 'center' }}>
+      <div style={{ fontSize: 20, fontWeight: 700, lineHeight: 1 }}>{n}</div>
+      <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.08em', marginTop: 4, fontWeight: 600 }}>{label}</div>
+    </div>
+  )
+  return (
+    <div>
+      <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', color: '#6b7280', fontWeight: 600, marginBottom: 8 }}>Line items</div>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+        {tile('#065f46', '#f0fdf4', 'Approved', approved)}
+        {tile('#991b1b', '#fef2f2', 'Denied', denied)}
+        {tile('#4b5563', '#f3f4f6', 'Pending', pending)}
+      </div>
+      <div style={{ border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden' }}>
+        {items.map((it, i) => {
+          const chip = {
+            approved: { bg: '#dcfce7', fg: '#166534', dot: '#16a34a' },
+            denied:   { bg: '#fee2e2', fg: '#991b1b', dot: '#dc2626' },
+            pending:  { bg: '#f3f4f6', fg: '#4b5563', dot: '#9ca3af' },
+          }[it.status]
+          return (
+            <div key={it.id} style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '10px 12px',
+              borderTop: i === 0 ? 'none' : '1px solid #f3f4f6',
+              background: '#fff', fontSize: 13,
+            }}>
+              <span style={{
+                display: 'inline-flex', alignItems: 'center', gap: 5,
+                padding: '2px 8px', borderRadius: 999,
+                background: chip.bg, color: chip.fg,
+                fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em',
+                minWidth: 76, justifyContent: 'center',
+              }}>
+                <span style={{ width: 5, height: 5, borderRadius: '50%', background: chip.dot }} />
+                {it.status}
+              </span>
+              <div style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.label}</div>
+              {it.amount > 0 && (
+                <div style={{ fontVariantNumeric: 'tabular-nums', color: '#111', fontWeight: 500, fontSize: 13 }}>
+                  ${it.amount.toFixed(2)}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function AuditTimeline({ events }) {
+  return (
+    <details>
+      <summary style={{ cursor: 'pointer', fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', color: '#6b7280', fontWeight: 600, listStyle: 'none' }}>
+        Audit history ({events.length}) ▾
+      </summary>
+      <ol style={{ margin: '10px 0 0', padding: '0 0 0 16px', borderLeft: '2px solid #e5e7eb', listStyle: 'none', fontSize: 12 }}>
+        {events.map((e, i) => (
+          <li key={i} style={{ position: 'relative', paddingLeft: 10, paddingBottom: 10 }}>
+            <span style={{
+              position: 'absolute', left: -22, top: 4,
+              width: 10, height: 10, borderRadius: '50%',
+              background: '#fff', border: '2px solid #9ca3af',
+            }} />
+            <div style={{ fontWeight: 600, textTransform: 'capitalize' }}>{e.kind.replace('_', ' ')}</div>
+            <div style={{ color: '#6b7280', fontSize: 11 }}>
+              by {e.actor || e.actorRole} · {new Date(e.at).toLocaleString()}
+            </div>
+            {e.note && <div style={{ color: '#374151', fontSize: 12, marginTop: 2 }}>{e.note}</div>}
+          </li>
+        ))}
+      </ol>
+    </details>
   )
 }
 

@@ -38,7 +38,13 @@ export default function ShareView() {
 
   return (
     <PublicShell>
-      <div className="row between wrap" style={{ gap: 20, alignItems: 'flex-start' }}>
+      {/* On-screen action bar (hidden in print) */}
+      <div className="no-print" style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
+        <button className="btn btn-primary" onClick={() => window.print()}><Printer size={14} />Print / Save as PDF</button>
+      </div>
+
+      {/* Shop + document header (acts as the cover block on page 1) */}
+      <header className="share-section cover-divider" style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap', justifyContent: 'space-between' }}>
         <div>
           <h1 style={{ margin: 0, fontSize: 24 }}>{shop?.name || 'Our Shop'}</h1>
           {shop?.address && <div className="muted" style={{ fontSize: 13, whiteSpace: 'pre-line', marginTop: 4 }}>{shop.address}</div>}
@@ -50,13 +56,17 @@ export default function ShareView() {
         </div>
         <div style={{ textAlign: 'right' }}>
           <div style={{ textTransform: 'uppercase', letterSpacing: '.08em', fontSize: 12, color: '#6b7280' }}>{typeLabel}</div>
-          <div style={{ fontSize: 22, fontWeight: 600 }}>#{doc.number}</div>
-          <div className="muted" style={{ fontSize: 12 }}>{new Date(doc.updatedAt).toLocaleDateString()}</div>
-          <button className="btn btn-secondary btn-sm" style={{ marginTop: 8 }} onClick={() => window.print()}><Printer size={13} />Print / Save PDF</button>
+          <div style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.01em' }}>#{doc.number}</div>
+          <div className="muted" style={{ fontSize: 12 }}>Dated {new Date(doc.updatedAt).toLocaleDateString()}</div>
+          {Number(t.total) > 0 && (
+            <div style={{ marginTop: 6, padding: '6px 10px', background: '#111', color: '#fff', borderRadius: 6, display: 'inline-block', fontSize: 13 }}>
+              {Number(t.balance) > 0.004 ? `Balance due: ${money(t.balance)}` : `Total: ${money(t.total)}`}
+            </div>
+          )}
         </div>
-      </div>
+      </header>
 
-      <section style={cardStyle}>
+      <section className="share-section share-card" style={cardStyle}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
           <div>
             <div style={labelStyle}>Customer</div>
@@ -75,7 +85,7 @@ export default function ShareView() {
         </div>
       </section>
 
-      <section style={cardStyle}>
+      <section className="share-section share-card" style={cardStyle}>
         <table style={tableStyle}>
           <thead>
             <tr>
@@ -113,62 +123,92 @@ export default function ShareView() {
       </section>
 
       {includeInspection && inspection && (
-        <section style={{ ...cardStyle, breakBefore: 'page', pageBreakBefore: 'always' }}>
-          <div style={{ borderBottom: '2px solid #111', paddingBottom: 10, marginBottom: 14 }}>
-            <div style={{ textTransform: 'uppercase', letterSpacing: '.1em', fontSize: 11, color: '#6b7280' }}><ClipboardCheck size={12} style={{ verticalAlign: -2 }} /> Vehicle Inspection Report</div>
-            <h2 style={{ margin: '4px 0 0', fontSize: 20 }}>{[vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ') || 'Vehicle'}</h2>
-            <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
-              {inspection.performedAt && <>Inspected {new Date(inspection.performedAt).toLocaleDateString()}</>}
-              {inspection.performedBy && <> · by {inspection.performedBy}</>}
-              {inspection.mileage > 0 && <> · {inspection.mileage.toLocaleString()} mi</>}
+        <>
+          {/* Print-only divider page so the inspection starts fresh on its own sheet */}
+          <div className="insp-divider-page">
+            <ClipboardCheck size={56} color="#111" />
+            <div style={{ marginTop: 20, textTransform: 'uppercase', letterSpacing: '.2em', fontSize: 11, color: '#6b7280' }}>Attached report</div>
+            <h2 style={{ margin: '6pt 0 0', fontSize: '28pt', fontWeight: 700 }}>Vehicle Inspection Report</h2>
+            <div style={{ marginTop: 10, color: '#374151' }}>
+              {[vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ') || 'Vehicle'}
             </div>
+            <div className="muted" style={{ fontSize: 11, marginTop: 20 }}>Prepared by {shop?.name || 'the shop'}</div>
           </div>
 
-          <div className="row gap-8 wrap" style={{ marginBottom: 14 }}>
-            {inspection.passCount > 0 && <span style={pillStyle('#d1fae5', '#065f46')}><CheckCircle2 size={11} /> {inspection.passCount} pass</span>}
-            {inspection.attentionCount > 0 && <span style={pillStyle('#fef3c7', '#92400e')}><AlertTriangle size={11} /> {inspection.attentionCount} needs attention</span>}
-            {inspection.failCount > 0 && <span style={pillStyle('#fee2e2', '#991b1b')}><X size={11} /> {inspection.failCount} fail</span>}
-            {inspection.naCount > 0 && <span style={pillStyle('#f3f4f6', '#4b5563')}><MinusCircle size={11} /> {inspection.naCount} N/A</span>}
-          </div>
+          <section className="insp-section share-section share-card" style={{ ...cardStyle, marginTop: 32 }}>
+            <div style={{ borderBottom: '2px solid #111', paddingBottom: 10, marginBottom: 14 }}>
+              <div style={{ textTransform: 'uppercase', letterSpacing: '.1em', fontSize: 11, color: '#6b7280' }}><ClipboardCheck size={12} style={{ verticalAlign: -2 }} /> Vehicle Inspection Report</div>
+              <h2 style={{ margin: '4px 0 0', fontSize: 20 }}>{[vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ') || 'Vehicle'}</h2>
+              <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+                {inspection.performedAt && <>Inspected {new Date(inspection.performedAt).toLocaleDateString()}</>}
+                {inspection.performedBy && <> · by {inspection.performedBy}</>}
+                {inspection.mileage > 0 && <> · {inspection.mileage.toLocaleString()} mi</>}
+              </div>
+            </div>
 
-          {groupedItems(inspectionItems || []).map((g) => (
-            <div key={g.category} style={{ marginBottom: 16 }}>
-              <h3 style={{ margin: '0 0 6px', fontSize: 14, textTransform: 'uppercase', letterSpacing: '.04em', color: '#374151' }}>{g.category}</h3>
-              {g.items.map((it, i) => (
-                <div key={i} style={{ display: 'flex', gap: 12, padding: '6px 0', borderTop: '1px solid #e5e7eb', alignItems: 'baseline' }}>
-                  <span style={{ ...statusChip(it.status), minWidth: 86, textAlign: 'center' }}>{statusLabel(it.status)}</span>
-                  <div style={{ flex: 1 }}>
-                    <div>{it.label}</div>
-                    {(it.measurement || it.note) && (
-                      <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
-                        {it.measurement && <strong>{it.measurement}</strong>}
-                        {it.measurement && it.note && ' · '}
-                        {it.note}
-                      </div>
-                    )}
+            <div className="row gap-8 wrap" style={{ marginBottom: 14, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {inspection.passCount > 0 && <span style={pillStyle('#d1fae5', '#065f46')}><CheckCircle2 size={11} /> {inspection.passCount} pass</span>}
+              {inspection.attentionCount > 0 && <span style={pillStyle('#fef3c7', '#92400e')}><AlertTriangle size={11} /> {inspection.attentionCount} needs attention</span>}
+              {inspection.failCount > 0 && <span style={pillStyle('#fee2e2', '#991b1b')}><X size={11} /> {inspection.failCount} fail</span>}
+              {inspection.naCount > 0 && <span style={pillStyle('#f3f4f6', '#4b5563')}><MinusCircle size={11} /> {inspection.naCount} N/A</span>}
+            </div>
+
+            {/* Priority block: show failed + attention items first so a customer scanning the PDF sees the real recommendations immediately. */}
+            {(inspection.failCount + inspection.attentionCount > 0) && (
+              <div className="share-section" style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 8, padding: 12, marginBottom: 16 }}>
+                <div style={{ textTransform: 'uppercase', letterSpacing: '.08em', fontSize: 10, color: '#9a3412', fontWeight: 700 }}>Recommended attention</div>
+                <ul style={{ margin: '6px 0 0 18px', padding: 0, fontSize: 13, color: '#1f2937' }}>
+                  {(inspectionItems || []).filter((it) => it.status === 'fail' || it.status === 'attention').map((it, i) => (
+                    <li key={i} style={{ marginTop: 3 }}>
+                      <strong style={{ color: it.status === 'fail' ? '#991b1b' : '#92400e' }}>{statusLabel(it.status)}:</strong>{' '}
+                      {it.label}
+                      {it.measurement && <> — <em>{it.measurement}</em></>}
+                      {it.note && <> — {it.note}</>}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {groupedItems(inspectionItems || []).map((g) => (
+              <div key={g.category} className="share-section" style={{ marginBottom: 16 }}>
+                <h3 style={{ margin: '0 0 6px', fontSize: 14, textTransform: 'uppercase', letterSpacing: '.04em', color: '#374151' }}>{g.category}</h3>
+                {g.items.map((it, i) => (
+                  <div key={i} className="insp-item" style={{ display: 'flex', gap: 12, padding: '6px 0', borderTop: '1px solid #e5e7eb', alignItems: 'baseline' }}>
+                    <span style={{ ...statusChip(it.status), minWidth: 86, textAlign: 'center' }}>{statusLabel(it.status)}</span>
+                    <div style={{ flex: 1 }}>
+                      <div>{it.label}</div>
+                      {(it.measurement || it.note) && (
+                        <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
+                          {it.measurement && <strong>{it.measurement}</strong>}
+                          {it.measurement && it.note && ' · '}
+                          {it.note}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          ))}
+                ))}
+              </div>
+            ))}
 
-          {inspection.notes && (
-            <div style={{ marginTop: 16, padding: 10, background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 6 }}>
-              <div style={labelStyle}>Technician notes</div>
-              <div style={{ whiteSpace: 'pre-wrap' }}>{inspection.notes}</div>
-            </div>
-          )}
-        </section>
+            {inspection.notes && (
+              <div className="share-section" style={{ marginTop: 16, padding: 10, background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 6 }}>
+                <div style={labelStyle}>Technician notes</div>
+                <div style={{ whiteSpace: 'pre-wrap' }}>{inspection.notes}</div>
+              </div>
+            )}
+          </section>
+        </>
       )}
 
       {includeInspection && !inspection && (
-        <section style={{ ...cardStyle, color: '#6b7280', textAlign: 'center' }}>
+        <section className="share-section share-card no-print" style={{ ...cardStyle, color: '#6b7280', textAlign: 'center' }}>
           <ClipboardCheck size={20} />
           <div style={{ marginTop: 4, fontSize: 13 }}>No completed inspection report is attached to this {typeLabel.toLowerCase()} yet.</div>
         </section>
       )}
 
-      <footer style={{ marginTop: 24, textAlign: 'center', color: '#9ca3af', fontSize: 11 }}>
+      <footer className="share-section" style={{ marginTop: 24, textAlign: 'center', color: '#9ca3af', fontSize: 11 }}>
         <FileText size={11} style={{ verticalAlign: -1 }} /> This is a read-only copy. Contact the shop if anything looks wrong.
       </footer>
     </PublicShell>
@@ -181,14 +221,41 @@ function PublicShell({ children }) {
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc', fontFamily: 'Inter, system-ui, sans-serif', color: '#111' }}>
       <style>{`
+        @page {
+          size: Letter;
+          margin: 0.6in 0.55in 0.75in 0.55in;
+          @bottom-center {
+            content: "Page " counter(page) " of " counter(pages);
+            color: #6b7280;
+            font-size: 9pt;
+          }
+        }
         @media print {
-          body, html { background: #fff !important; }
-          .no-print { display: none !important; }
-          section { break-inside: avoid; page-break-inside: avoid; }
+          html, body { background: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          .no-print, .no-print * { display: none !important; }
+          .share-container { max-width: none !important; padding: 0 !important; }
+          .share-card { box-shadow: none !important; border: 1px solid #e5e7eb !important; margin-top: 10pt !important; padding: 12pt 14pt !important; }
+          .share-section { break-inside: avoid; page-break-inside: avoid; }
+          .insp-item { break-inside: avoid; page-break-inside: avoid; }
+          .insp-section { break-before: page; page-break-before: always; }
+          .cover-divider { border-top: 2px solid #111 !important; margin-top: 10pt !important; padding-top: 10pt !important; }
+          a[href]:after { content: ""; }
+          h1, h2, h3 { break-after: avoid; page-break-after: avoid; }
+          table { font-size: 10pt; }
+          .insp-divider-page {
+            break-before: page; page-break-before: always;
+            display: flex !important; flex-direction: column; align-items: center; justify-content: center;
+            min-height: 7in;
+            text-align: center;
+            color: #111;
+          }
+        }
+        @media screen {
+          .insp-divider-page { display: none !important; }
         }
         .muted { color: #6b7280; }
       `}</style>
-      <div style={{ maxWidth: 900, margin: '0 auto', padding: '24px 16px' }}>{children}</div>
+      <div className="share-container" style={{ maxWidth: 900, margin: '0 auto', padding: '24px 16px' }}>{children}</div>
     </div>
   )
 }

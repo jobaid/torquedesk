@@ -63,6 +63,7 @@ func (s *Server) Handler(staticDir string) http.Handler {
 	s.inspectionRoutes(mux)
 	s.photoRoutes(mux)
 	s.shareRoutes(mux)
+	s.authorizationRoutes(mux)
 	s.ownerRoutes(mux)
 	s.backupRoutes(mux)
 	s.resetRoutes(mux)

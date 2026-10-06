@@ -847,14 +847,37 @@ function ShareLinkModal({ doc, customer, onClose, onInspectionToggle }) {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const [include, setInclude] = useState(doc.includeInspection) // true | false | null (= inherit)
+  const [auth, setAuth] = useState(undefined) // undefined=loading, null=none, object=exists
+  const [authBusy, setAuthBusy] = useState(false)
+
+  const loadAuth = async () => {
+    try { setAuth(await api(`/documents/${doc.id}/authorization`)) }
+    catch { setAuth(null) }
+  }
 
   useEffect(() => {
     (async () => {
       try { setLink(await api(`/documents/${doc.id}/share-link`)) }
       catch (e) { setErr(e.message) }
       finally { setLoading(false) }
+      loadAuth()
     })()
   }, [doc.id])
+
+  const requestAuth = async () => {
+    setAuthBusy(true)
+    try { await api(`/documents/${doc.id}/authorization`, { method: 'POST', body: {} }); await loadAuth(); toast.success('Authorization requested', 'Share the link with your customer so they can approve or deny.') }
+    catch (e) { toast.error('Could not request', e.message) }
+    finally { setAuthBusy(false) }
+  }
+  const resendAuth = requestAuth
+  const cancelAuth = async () => {
+    if (!confirm('Cancel the active authorization request?')) return
+    setAuthBusy(true)
+    try { await api(`/documents/${doc.id}/authorization`, { method: 'DELETE' }); await loadAuth() }
+    catch (e) { toast.error('Could not cancel', e.message) }
+    finally { setAuthBusy(false) }
+  }
 
   const create = async () => {
     setBusy(true); setErr('')
@@ -916,6 +939,57 @@ function ShareLinkModal({ doc, customer, onClose, onInspectionToggle }) {
 
         {err && <div className="callout callout-danger" role="alert">{err}</div>}
 
+        {/* ---------- Authorization request ---------- */}
+        <div className="callout" style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.3)' }}>
+          <strong>Customer authorization</strong>
+          <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+            Ask the customer to approve, deny or request changes to this {DOC_TYPES[doc.type]?.label?.toLowerCase() || 'document'} on the share link.
+          </div>
+          {auth === undefined ? (
+            <div className="muted" style={{ fontSize: 12, marginTop: 8 }}>Loading…</div>
+          ) : auth === null ? (
+            <div className="row gap-8" style={{ marginTop: 10, justifyContent: 'flex-end' }}>
+              <button className="btn btn-primary btn-sm" onClick={requestAuth} disabled={authBusy || !link}>{authBusy ? 'Requesting…' : 'Request authorization'}</button>
+            </div>
+          ) : (
+            <div style={{ marginTop: 10 }}>
+              <AuthStatusBadge auth={auth} />
+              {auth.respondedAt && (
+                <div style={{ fontSize: 12, marginTop: 6 }}>
+                  Signed by <strong>{auth.respondedName}</strong> on {new Date(auth.respondedAt).toLocaleString()}
+                  {auth.responseReason && <div style={{ marginTop: 4, color: '#374151' }}>“{auth.responseReason}”</div>}
+                </div>
+              )}
+              {auth.events?.length > 0 && (
+                <details style={{ marginTop: 8 }}>
+                  <summary style={{ cursor: 'pointer', fontSize: 12 }}>Audit history ({auth.events.length})</summary>
+                  <ul style={{ margin: '6px 0 0 18px', padding: 0, fontSize: 12 }}>
+                    {auth.events.map((e, i) => (
+                      <li key={i}>
+                        <strong style={{ textTransform: 'capitalize' }}>{e.kind.replace('_', ' ')}</strong>
+                        {' '}by {e.actor || e.actorRole}
+                        {' '}· {new Date(e.at).toLocaleString()}
+                        {e.note && <> — {e.note}</>}
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+              {['pending', 'viewed'].includes(auth.status) && (
+                <div className="row gap-8" style={{ marginTop: 10, justifyContent: 'flex-end' }}>
+                  <button className="btn btn-ghost btn-sm" onClick={cancelAuth} disabled={authBusy}>Cancel request</button>
+                  <button className="btn btn-secondary btn-sm" onClick={resendAuth} disabled={authBusy}>Resend</button>
+                </div>
+              )}
+              {['approved', 'denied', 'changes_requested', 'cancelled', 'expired', 'revised_required'].includes(auth.status) && (
+                <div className="row gap-8" style={{ marginTop: 10, justifyContent: 'flex-end' }}>
+                  <button className="btn btn-primary btn-sm" onClick={requestAuth} disabled={authBusy}>Request again</button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
         <div className="row gap-8" style={{ justifyContent: 'flex-end' }}>
           {link
             ? <button className="btn btn-ghost" onClick={revoke} disabled={busy}><Trash2 size={14} />Revoke link</button>
@@ -925,4 +999,19 @@ function ShareLinkModal({ doc, customer, onClose, onInspectionToggle }) {
       </div>
     </Modal>
   )
+}
+
+function AuthStatusBadge({ auth }) {
+  const map = {
+    pending:           { bg: '#eff6ff', fg: '#1e40af', label: 'Pending — waiting for customer' },
+    viewed:            { bg: '#eff6ff', fg: '#1e40af', label: 'Viewed by customer' },
+    approved:          { bg: '#f0fdf4', fg: '#166534', label: 'Approved' },
+    denied:            { bg: '#fef2f2', fg: '#991b1b', label: 'Denied' },
+    changes_requested: { bg: '#fff7ed', fg: '#9a3412', label: 'Changes requested' },
+    cancelled:         { bg: '#f3f4f6', fg: '#4b5563', label: 'Cancelled' },
+    expired:           { bg: '#f3f4f6', fg: '#4b5563', label: 'Expired' },
+    revised_required:  { bg: '#fff7ed', fg: '#9a3412', label: 'Revised authorization required' },
+  }
+  const c = map[auth.status] || map.pending
+  return <span className="badge" style={{ background: c.bg, color: c.fg, fontSize: 11 }}>{c.label}</span>
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Printer, Phone, Mail, MapPin, Globe, CheckCircle2, AlertTriangle, X, MinusCircle, ClipboardCheck, FileText } from 'lucide-react'
+import { Printer, Phone, Mail, Globe, CheckCircle2, AlertTriangle, X, MinusCircle, ClipboardCheck, FileText, ThumbsUp, ThumbsDown, MessageCircle, ShieldCheck } from 'lucide-react'
 
 // Public, no-auth customer-facing share view. Reads /api/public/share/{token}.
 // Never shows any field the shop didn't choose to show; display only — no
@@ -31,6 +31,12 @@ export default function ShareView() {
   if (err || !data) return <PublicShell><div style={{ textAlign: 'center' }}><X size={28} color="#dc2626" /><h2 style={{ marginTop: 8 }}>Link unavailable</h2><p className="muted">{err || 'This link has been revoked or does not exist.'}</p></div></PublicShell>
 
   const { document: doc, shop, inspection, inspectionItems, includeInspection } = data
+  const [auth, setAuth] = useState(undefined) // undefined = loading, null = none, object = exists
+  useEffect(() => {
+    if (!token) return
+    fetch(`/api/public/share/${encodeURIComponent(token)}/authorization`)
+      .then((r) => r.ok ? r.json() : null).then(setAuth).catch(() => setAuth(null))
+  }, [token])
   const t = totalsOf(doc)
   const typeLabel = { invoice: 'Invoice', repair_order: 'Repair Order', estimate: 'Estimate', statement: 'Statement' }[doc.type] || 'Document'
   const customer = doc.customerSnapshot || {}
@@ -42,6 +48,10 @@ export default function ShareView() {
       <div className="no-print" style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
         <button className="btn btn-primary" onClick={() => window.print()}><Printer size={14} />Print / Save as PDF</button>
       </div>
+
+      {auth !== undefined && auth && (
+        <AuthorizationPanel token={token} auth={auth} onChanged={setAuth} docLabel={doc && ({ invoice: 'invoice', repair_order: 'repair order', estimate: 'estimate' }[doc.type] || 'document')} />
+      )}
 
       {/* Shop + document header (acts as the cover block on page 1) */}
       <header className="share-section cover-divider" style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap', justifyContent: 'space-between' }}>
@@ -223,6 +233,105 @@ export default function ShareView() {
         <FileText size={11} style={{ verticalAlign: -1 }} /> This is a read-only copy. Contact the shop if anything looks wrong.
       </footer>
     </PublicShell>
+  )
+}
+
+// ---------- authorization panel ----------
+
+function AuthorizationPanel({ token, auth, onChanged, docLabel }) {
+  const [open, setOpen] = useState(null) // null | 'approve' | 'deny' | 'changes'
+  const [name, setName] = useState('')
+  const [reason, setReason] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+
+  const submit = async () => {
+    setBusy(true); setErr('')
+    try {
+      const res = await fetch(`/api/public/share/${encodeURIComponent(token)}/authorization/respond`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          decision: open === 'approve' ? 'approve' : open === 'deny' ? 'deny' : 'request_changes',
+          name: name.trim(),
+          reason: reason.trim(),
+        }),
+      })
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Request failed')
+      // Reload the auth status.
+      const next = await fetch(`/api/public/share/${encodeURIComponent(token)}/authorization`).then((r) => r.ok ? r.json() : null)
+      onChanged(next); setOpen(null); setReason(''); setName('')
+    } catch (e) { setErr(e.message) }
+    finally { setBusy(false) }
+  }
+
+  const terminal = ['approved', 'denied', 'changes_requested', 'cancelled', 'expired', 'revised_required'].includes(auth.status)
+  const banner = {
+    pending:            ['#eff6ff', '#1e40af', 'The shop would like your authorization.'],
+    viewed:             ['#eff6ff', '#1e40af', 'The shop would like your authorization.'],
+    approved:           ['#f0fdf4', '#166534', 'You approved this ' + docLabel + '.'],
+    denied:             ['#fef2f2', '#991b1b', 'You denied this ' + docLabel + '.'],
+    changes_requested:  ['#fff7ed', '#9a3412', 'You requested changes to this ' + docLabel + '.'],
+    cancelled:          ['#f3f4f6', '#4b5563', 'This authorization request was cancelled by the shop.'],
+    expired:            ['#f3f4f6', '#4b5563', 'This authorization request expired.'],
+    revised_required:   ['#fff7ed', '#9a3412', 'The shop has revised this ' + docLabel + '. A new authorization is required.'],
+  }[auth.status] || ['#f3f4f6', '#4b5563', 'Status: ' + auth.status]
+
+  return (
+    <section className="share-section share-card" style={{ background: banner[0], borderColor: 'transparent' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <ShieldCheck size={20} color={banner[1]} />
+        <div style={{ fontWeight: 600, color: banner[1] }}>{banner[2]}</div>
+      </div>
+      {auth.respondedAt && (
+        <div className="muted" style={{ marginTop: 6, fontSize: 12 }}>
+          {auth.respondedName && <>Signed by <strong>{auth.respondedName}</strong> · </>}
+          {new Date(auth.respondedAt).toLocaleString()}
+          {auth.responseReason && <div style={{ marginTop: 4, color: '#374151' }}>“{auth.responseReason}”</div>}
+        </div>
+      )}
+
+      {!terminal && (
+        <>
+          {!open && (
+            <div className="row gap-8 no-print" style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button className="btn" style={{ background: '#16a34a', color: '#fff' }} onClick={() => setOpen('approve')}><ThumbsUp size={14} /> Approve</button>
+              <button className="btn" style={{ background: '#f59e0b', color: '#fff' }} onClick={() => setOpen('changes')}><MessageCircle size={14} /> Request changes</button>
+              <button className="btn" style={{ background: '#dc2626', color: '#fff' }} onClick={() => setOpen('deny')}><ThumbsDown size={14} /> Deny</button>
+            </div>
+          )}
+          {open && (
+            <div className="no-print" style={{ marginTop: 12, background: '#fff', border: '1px solid #e5e7eb', borderRadius: 8, padding: 14 }}>
+              <div style={{ fontWeight: 600, marginBottom: 8 }}>
+                {open === 'approve' ? 'Confirm approval' : open === 'deny' ? 'Deny this ' + docLabel : 'Request changes'}
+              </div>
+              <label style={{ display: 'block', marginBottom: 10 }}>
+                <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>Your name <span style={{ color: '#dc2626' }}>*</span></div>
+                <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. John Smith" />
+              </label>
+              <label style={{ display: 'block', marginBottom: 10 }}>
+                <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 4 }}>
+                  {open === 'approve' ? 'Notes (optional)' : (open === 'deny' ? 'Reason for denial' : 'What changes do you want?')}
+                  {open !== 'approve' && <span style={{ color: '#dc2626' }}> *</span>}
+                </div>
+                <textarea className="input" style={{ minHeight: 80 }} value={reason} onChange={(e) => setReason(e.target.value)}
+                  placeholder={open === 'approve' ? 'Any note for the shop' : open === 'deny' ? 'Tell the shop why you are not approving the work' : 'Describe the changes you want'} />
+              </label>
+              <div style={{ marginBottom: 10, fontSize: 11, color: '#6b7280' }}>
+                By submitting you confirm you are authorized to make decisions for this {docLabel}. Your name, time of response and the shop will see this exactly as entered.
+              </div>
+              {err && <div style={{ color: '#dc2626', fontSize: 12, marginBottom: 10 }}>{err}</div>}
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                <button className="btn btn-ghost" onClick={() => { setOpen(null); setErr(''); setReason('') }} disabled={busy}>Cancel</button>
+                <button className="btn btn-primary" onClick={submit} disabled={busy || !name.trim() || (open !== 'approve' && !reason.trim())}>
+                  {busy ? 'Submitting…' : (open === 'approve' ? 'Confirm approval' : open === 'deny' ? 'Submit denial' : 'Send changes')}
+                </button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </section>
   )
 }
 

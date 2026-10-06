@@ -18,6 +18,7 @@ export default function ShareView() {
   // All hooks must run on every render — kept above the early-return guards
   // below to avoid React error #310 ("more hooks rendered than previous").
   const [auth, setAuth] = useState(undefined) // undefined = loading, null = none, object = exists
+  const [tab, setTab] = useState('auth')      // 'auth' | 'chat'
 
   useEffect(() => {
     if (!token) { setErr('Invalid link.'); setLoading(false); return }
@@ -45,8 +46,6 @@ export default function ShareView() {
   const typeLabel = { invoice: 'Invoice', repair_order: 'Repair Order', estimate: 'Estimate', statement: 'Statement' }[doc.type] || 'Document'
   const customer = doc.customerSnapshot || {}
   const vehicle = doc.vehicleSnapshot || {}
-  // Tabbed layout — Authorization (default) or Chat (full-screen on mobile).
-  const [tab, setTab] = useState('auth')
 
   if (tab === 'chat') {
     return (

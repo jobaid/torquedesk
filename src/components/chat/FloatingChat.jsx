@@ -209,11 +209,13 @@ export function ChatThread({ docId, isPublic, publicToken, onThreadRead }) {
 
   useEffect(() => { reloadAll() /* eslint-disable-next-line */ }, [docId, publicToken])
 
-  // Real-time strategy: try SSE first for instant delivery; if the stream
-  // can't be opened (any proxy that buffers, old nginx config, offline),
-  // fall back to polling every 2 s. Polling is correct and plenty fast
-  // for chat; it's not the primary mode because of load, but it's a safe
-  // net the deployment can rely on without any proxy tweaks.
+  // Real-time strategy: 2-second polling. We tried SSE first but found that
+  // reverse proxies (nginx with proxy_buffering on, Cloudflare, some ISP
+  // transparent proxies) hold the stream open while silently buffering the
+  // body, so the reader hangs with no data forever and never fell back.
+  // Polling is boringly reliable through every proxy and 2 s latency is
+  // invisible for a chat. Can revisit SSE later when the nginx config is
+  // known-good.
   useEffect(() => {
     let cancelled = false
     let abort
@@ -244,56 +246,7 @@ export function ChatThread({ docId, isPublic, publicToken, onThreadRead }) {
       pollTimer = setInterval(tick, 2000)
     }
 
-    const stream = async () => {
-      try {
-        const url = isPublic
-          ? `/api/public/share/${encodeURIComponent(publicToken)}/messages/stream`
-          : `/api/documents/${docId}/messages/stream`
-        const headers = {}
-        if (!isPublic && token) headers.Authorization = `Bearer ${token}`
-        abort = new AbortController()
-        setConnState('connecting')
-        // 5 s to receive the first byte; if proxies strip SSE this times out
-        // and we fall back to polling instead of showing "Reconnecting…"
-        // forever.
-        const to = setTimeout(() => abort && abort.abort(), 5000)
-        const r = await fetch(url, { headers, signal: abort.signal })
-        clearTimeout(to)
-        if (!r.ok || !r.body) throw new Error('stream unavailable')
-        setConnState('open')
-        const reader = r.body.getReader()
-        const dec = new TextDecoder()
-        let buf = ''
-        while (!cancelled) {
-          const { value, done } = await reader.read()
-          if (done) break
-          buf += dec.decode(value, { stream: true })
-          let idx
-          while ((idx = buf.indexOf('\n\n')) !== -1) {
-            const chunk = buf.slice(0, idx); buf = buf.slice(idx + 2)
-            let event = 'message'; let data = ''
-            for (const line of chunk.split('\n')) {
-              if (line.startsWith('event:')) event = line.slice(6).trim()
-              else if (line.startsWith('data:')) data += line.slice(5).trim()
-            }
-            if (event === 'message' && data) {
-              try {
-                const parsed = JSON.parse(data)
-                if (parsed.type === 'message' && parsed.message) {
-                  setMessages((prev) => prev.some((m) => m.id === parsed.message.id) ? prev : [...prev, parsed.message])
-                  onThreadRead?.()
-                }
-              } catch { /* ignore malformed */ }
-            }
-          }
-        }
-        // Stream ended cleanly — fall back to polling so the UI stays alive.
-        if (!cancelled) startPoll()
-      } catch {
-        if (!cancelled) startPoll()
-      }
-    }
-    stream()
+    startPoll()
     return () => {
       cancelled = true
       try { abort && abort.abort() } catch { /* ignore */ }

@@ -14,6 +14,9 @@ export default function ShareView() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState('')
+  // All hooks must run on every render — kept above the early-return guards
+  // below to avoid React error #310 ("more hooks rendered than previous").
+  const [auth, setAuth] = useState(undefined) // undefined = loading, null = none, object = exists
 
   useEffect(() => {
     if (!token) { setErr('Invalid link.'); setLoading(false); return }
@@ -27,16 +30,16 @@ export default function ShareView() {
     })()
   }, [token])
 
-  if (loading) return <PublicShell><div className="muted" style={{ textAlign: 'center' }}>Loading…</div></PublicShell>
-  if (err || !data) return <PublicShell><div style={{ textAlign: 'center' }}><X size={28} color="#dc2626" /><h2 style={{ marginTop: 8 }}>Link unavailable</h2><p className="muted">{err || 'This link has been revoked or does not exist.'}</p></div></PublicShell>
-
-  const { document: doc, shop, inspection, inspectionItems, includeInspection } = data
-  const [auth, setAuth] = useState(undefined) // undefined = loading, null = none, object = exists
   useEffect(() => {
     if (!token) return
     fetch(`/api/public/share/${encodeURIComponent(token)}/authorization`)
       .then((r) => r.ok ? r.json() : null).then(setAuth).catch(() => setAuth(null))
   }, [token])
+
+  if (loading) return <PublicShell><div className="muted" style={{ textAlign: 'center' }}>Loading…</div></PublicShell>
+  if (err || !data) return <PublicShell><div style={{ textAlign: 'center' }}><X size={28} color="#dc2626" /><h2 style={{ marginTop: 8 }}>Link unavailable</h2><p className="muted">{err || 'This link has been revoked or does not exist.'}</p></div></PublicShell>
+
+  const { document: doc, shop, inspection, inspectionItems, includeInspection } = data
   const t = totalsOf(doc)
   const typeLabel = { invoice: 'Invoice', repair_order: 'Repair Order', estimate: 'Estimate', statement: 'Statement' }[doc.type] || 'Document'
   const customer = doc.customerSnapshot || {}

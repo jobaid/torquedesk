@@ -1006,6 +1006,8 @@ function ShareLinkModal({ doc, customer, onClose, onInspectionToggle }) {
           )}
         </div>
 
+        <ShopChatPanel docId={doc.id} />
+
         <div className="row gap-8" style={{ justifyContent: 'flex-end' }}>
           {link
             ? <button className="btn btn-ghost" onClick={revoke} disabled={busy}><Trash2 size={14} />Revoke link</button>
@@ -1014,6 +1016,63 @@ function ShareLinkModal({ doc, customer, onClose, onInspectionToggle }) {
         </div>
       </div>
     </Modal>
+  )
+}
+
+function ShopChatPanel({ docId }) {
+  const [data, setData] = useState({ messages: [], unread: 0 })
+  const [body, setBody] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+
+  const load = async () => {
+    try { setData(await api(`/documents/${docId}/messages`)) }
+    catch (e) { setErr(e.message) }
+  }
+  useEffect(() => { load(); const t = setInterval(load, 15000); return () => clearInterval(t) }, [docId])
+
+  const send = async (e) => {
+    e?.preventDefault()
+    if (!body.trim()) return
+    setBusy(true); setErr('')
+    try {
+      const next = await api(`/documents/${docId}/messages`, { method: 'POST', body: { body: body.trim() } })
+      setBody(''); setData(next)
+    } catch (e) { setErr(e.message) }
+    finally { setBusy(false) }
+  }
+  const markRead = async () => { await api(`/documents/${docId}/messages/read`, { method: 'POST', body: {} }); load() }
+
+  return (
+    <div className="callout" style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.3)' }}>
+      <div className="row between" style={{ alignItems: 'center' }}>
+        <strong>Chat with the customer{data.unread > 0 && <span className="badge" style={{ marginLeft: 8, background: '#dc2626', color: '#fff' }}>{data.unread} new</span>}</strong>
+        {data.unread > 0 && <button className="btn btn-ghost btn-sm" onClick={markRead}>Mark as read</button>}
+      </div>
+      <div style={{ maxHeight: 280, overflowY: 'auto', background: '#fff', border: '1px solid var(--border, #e5e7eb)', borderRadius: 8, padding: 10, marginTop: 8 }}>
+        {data.messages.length === 0 ? <div className="muted" style={{ textAlign: 'center', padding: 10, fontSize: 12 }}>No messages yet. Send one once the share link is created.</div>
+          : data.messages.map((m) => (
+            <div key={m.id} style={{ display: 'flex', justifyContent: m.senderRole === 'shop' ? 'flex-end' : 'flex-start', marginBottom: 6 }}>
+              <div style={{
+                maxWidth: '75%',
+                padding: '6px 10px', borderRadius: 10, fontSize: 13,
+                background: m.senderRole === 'shop' ? '#dbeafe' : '#f3f4f6',
+                border: '1px solid ' + (m.senderRole === 'shop' ? '#bfdbfe' : '#e5e7eb'),
+              }}>
+                <div style={{ fontSize: 10, color: '#6b7280', marginBottom: 2 }}>
+                  {m.senderName || (m.senderRole === 'customer' ? 'Customer' : 'Shop')} · {new Date(m.at).toLocaleString()}
+                </div>
+                <div style={{ whiteSpace: 'pre-wrap' }}>{m.body}</div>
+              </div>
+            </div>
+          ))}
+      </div>
+      <form onSubmit={send} style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+        <textarea className="input" style={{ flex: 1, minHeight: 50 }} placeholder="Reply to the customer…" value={body} onChange={(e) => setBody(e.target.value)} maxLength={4000} />
+        <button className="btn btn-primary btn-sm" type="submit" disabled={busy || !body.trim()}>{busy ? 'Sending…' : 'Send'}</button>
+      </form>
+      {err && <div style={{ color: '#dc2626', fontSize: 12, marginTop: 6 }}>{err}</div>}
+    </div>
   )
 }
 

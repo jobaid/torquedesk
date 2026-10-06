@@ -52,6 +52,7 @@ export default function ShareView() {
       {auth !== undefined && auth && (
         <AuthorizationPanel token={token} auth={auth} onChanged={setAuth} docLabel={doc && ({ invoice: 'invoice', repair_order: 'repair order', estimate: 'estimate' }[doc.type] || 'document')} />
       )}
+      <ChatPanel token={token} customerName={(doc.customerSnapshot || {}).name} />
 
       {/* Shop + document header (acts as the cover block on page 1) */}
       <header className="share-section cover-divider" style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap', justifyContent: 'space-between' }}>
@@ -233,6 +234,80 @@ export default function ShareView() {
         <FileText size={11} style={{ verticalAlign: -1 }} /> This is a read-only copy. Contact the shop if anything looks wrong.
       </footer>
     </PublicShell>
+  )
+}
+
+// ---------- chat panel ----------
+
+function ChatPanel({ token, customerName }) {
+  const [data, setData] = useState({ messages: [], unread: 0 })
+  const [loading, setLoading] = useState(true)
+  const [name, setName] = useState(customerName || '')
+  const [body, setBody] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+
+  const load = async () => {
+    try {
+      const res = await fetch(`/api/public/share/${encodeURIComponent(token)}/messages`)
+      if (!res.ok) throw new Error('Could not load chat.')
+      setData(await res.json())
+    } catch (e) { setErr(e.message) }
+    finally { setLoading(false) }
+  }
+  useEffect(() => { load(); const t = setInterval(load, 15000); return () => clearInterval(t) }, [token])
+
+  const send = async (e) => {
+    e?.preventDefault()
+    if (!body.trim()) return
+    setBusy(true); setErr('')
+    try {
+      const res = await fetch(`/api/public/share/${encodeURIComponent(token)}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim(), body: body.trim() }),
+      })
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Request failed')
+      setBody('')
+      setData(await res.json())
+    } catch (e) { setErr(e.message) }
+    finally { setBusy(false) }
+  }
+
+  return (
+    <section className="share-section share-card no-print">
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+        <MessageCircle size={18} />
+        <div style={{ fontWeight: 600 }}>Chat with the shop</div>
+      </div>
+      <div style={{ maxHeight: 340, overflowY: 'auto', background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8, padding: 10 }}>
+        {loading ? <div className="muted" style={{ textAlign: 'center' }}>Loading…</div>
+         : data.messages.length === 0 ? <div className="muted" style={{ textAlign: 'center', padding: 20 }}>No messages yet. Say hi — the shop will reply here.</div>
+         : data.messages.map((m) => (
+          <div key={m.id} style={{ display: 'flex', justifyContent: m.senderRole === 'customer' ? 'flex-end' : 'flex-start', marginBottom: 6 }}>
+            <div style={{
+              maxWidth: '75%',
+              padding: '6px 10px', borderRadius: 10, fontSize: 13,
+              background: m.senderRole === 'customer' ? '#dbeafe' : '#fff',
+              border: '1px solid ' + (m.senderRole === 'customer' ? '#bfdbfe' : '#e5e7eb'),
+            }}>
+              <div style={{ fontSize: 10, color: '#6b7280', marginBottom: 2 }}>
+                {m.senderName || (m.senderRole === 'shop' ? 'Shop' : 'Customer')} · {new Date(m.at).toLocaleString()}
+              </div>
+              <div style={{ whiteSpace: 'pre-wrap' }}>{m.body}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <form onSubmit={send} style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <input className="input" placeholder="Your name" value={name} onChange={(e) => setName(e.target.value)} />
+        <div style={{ display: 'flex', gap: 8 }}>
+          <textarea className="input" style={{ flex: 1, minHeight: 60 }} placeholder="Type a message to the shop…" value={body} onChange={(e) => setBody(e.target.value)} maxLength={4000} />
+          <button className="btn btn-primary" type="submit" disabled={busy || !body.trim()}>{busy ? 'Sending…' : 'Send'}</button>
+        </div>
+        {err && <div style={{ color: '#dc2626', fontSize: 12 }}>{err}</div>}
+      </form>
+    </section>
   )
 }
 

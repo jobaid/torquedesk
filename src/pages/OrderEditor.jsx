@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   ArrowLeft, Mail, Printer, MoreHorizontal, Copy, Trash2, Car, Phone, User, Wrench, Package, Receipt, StickyNote, Percent,
   ChevronUp, ChevronDown, X, Plus, BookOpen, ShieldCheck, ShieldX, Wallet, History, ShieldAlert, ChevronRight, Check, Info, CalendarClock, Pencil, ExternalLink,
-  RefreshCw, Archive, Lock, CreditCard, Link as LinkIcon, MessageSquare, Loader2,
+  RefreshCw, Archive, Lock, CreditCard, Link as LinkIcon, MessageSquare, Loader2, ClipboardCheck, ShieldCheck,
 } from 'lucide-react'
 import { api } from '../lib/api'
 import { useShop, DOC_TYPES, flushSaves, applyMarkup } from '../store/useShop'
@@ -908,15 +908,7 @@ function ShareLinkModal({ doc, customer, onClose, onInspectionToggle }) {
   return (
     <Modal open onClose={onClose} title="Share with customer" description="Creates a read-only link your customer can open from any device. No login needed. You can revoke it any time.">
       <div className="stack gap-12">
-        <div className="callout" style={{ background: 'rgba(37,99,235,0.08)', border: '1px solid rgba(37,99,235,0.3)' }}>
-          <strong>Include Vehicle Inspection Report</strong>
-          <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>Shown on the customer link when a completed inspection exists for this vehicle. Overrides the shop default for this {DOC_TYPES[doc.type]?.label?.toLowerCase() || 'document'} only.</div>
-          <div className="row gap-6 mt-8">
-            <button type="button" className="btn btn-sm" style={{ background: include === null ? '#dbeafe' : 'transparent', color: include === null ? '#1e40af' : 'var(--text-2)', border: '1px solid var(--border, #e5e7eb)' }} onClick={() => updateInclude(null)}>Use shop default</button>
-            <button type="button" className="btn btn-sm" style={{ background: include === true ? '#d1fae5' : 'transparent', color: include === true ? '#065f46' : 'var(--text-2)', border: '1px solid var(--border, #e5e7eb)' }} onClick={() => updateInclude(true)}>Include</button>
-            <button type="button" className="btn btn-sm" style={{ background: include === false ? '#fee2e2' : 'transparent', color: include === false ? '#991b1b' : 'var(--text-2)', border: '1px solid var(--border, #e5e7eb)' }} onClick={() => updateInclude(false)}>Don't include</button>
-          </div>
-        </div>
+        <InspectionIncludeCard doc={doc} value={include} onChange={updateInclude} />
 
         {loading ? <div className="muted">Loading…</div>
          : link ? (
@@ -1014,6 +1006,59 @@ function ShopChatPanel({ docId }) {
         <button className="btn btn-primary btn-sm" type="submit" disabled={busy || !body.trim()}>{busy ? 'Sending…' : 'Send'}</button>
       </form>
       {err && <div style={{ color: '#dc2626', fontSize: 12, marginTop: 6 }}>{err}</div>}
+    </div>
+  )
+}
+
+function InspectionIncludeCard({ doc, value, onChange }) {
+  const docLabel = DOC_TYPES[doc.type]?.label?.toLowerCase() || 'document'
+  const options = [
+    { v: null,  label: 'Use shop default', hint: 'Follow the global setting from Settings → Document Preferences.', accent: '#2563eb', bg: '#eff6ff', border: '#bfdbfe' },
+    { v: true,  label: 'Include',          hint: 'Attach the latest completed inspection to the customer link.',    accent: '#16a34a', bg: '#f0fdf4', border: '#bbf7d0' },
+    { v: false, label: "Don't include",    hint: 'Hide the inspection on this document even if one exists.',        accent: '#dc2626', bg: '#fef2f2', border: '#fecaca' },
+  ]
+  return (
+    <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', borderBottom: '1px solid #e5e7eb', background: '#fafafa' }}>
+        <span style={{ width: 34, height: 34, borderRadius: 8, display: 'grid', placeItems: 'center', background: 'linear-gradient(135deg,#3b82f6,#2563eb)', color: '#fff' }}>
+          <ClipboardCheck size={17} />
+        </span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 600, fontSize: 14 }}>Include Vehicle Inspection Report</div>
+          <div className="muted" style={{ fontSize: 12 }}>Overrides the shop default for this {docLabel} only. Shown on the customer link when a completed inspection exists for this vehicle.</div>
+        </div>
+      </div>
+      <div style={{ padding: 12, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
+        {options.map((o) => {
+          const active = value === o.v
+          return (
+            <button key={String(o.v)} type="button" onClick={() => onChange(o.v)}
+              style={{
+                textAlign: 'left', cursor: 'pointer',
+                padding: 12, borderRadius: 10,
+                background: active ? o.bg : '#fff',
+                border: `1px solid ${active ? o.border : '#e5e7eb'}`,
+                boxShadow: active ? `0 0 0 3px ${o.bg}` : 'none',
+                transition: 'all 0.15s',
+                display: 'flex', flexDirection: 'column', gap: 4,
+              }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{
+                  width: 16, height: 16, borderRadius: '50%',
+                  border: `2px solid ${active ? o.accent : '#d1d5db'}`,
+                  background: active ? o.accent : '#fff',
+                  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                  flexShrink: 0,
+                }}>
+                  {active && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#fff' }} />}
+                </span>
+                <span style={{ fontWeight: 600, fontSize: 13, color: active ? o.accent : '#111' }}>{o.label}</span>
+              </div>
+              <div style={{ fontSize: 11, color: '#6b7280', lineHeight: 1.4, paddingLeft: 24 }}>{o.hint}</div>
+            </button>
+          )
+        })}
+      </div>
     </div>
   )
 }

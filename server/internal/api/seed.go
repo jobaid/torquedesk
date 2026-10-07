@@ -58,7 +58,7 @@ func (s *Server) InitCompanyDefaults(ctx context.Context, tx pgx.Tx, cid string)
 	return nil
 }
 
-// SeedDefaultSaasAdmin creates the initial CuraNex SaaS owner account if none
+// SeedDefaultSaasAdmin creates the initial TorqueDesk SaaS owner account if none
 // exists. Credentials come from env (SAAS_ADMIN_EMAIL / SAAS_ADMIN_PASSWORD);
 // otherwise a dev-mode default is used with the password logged ONCE on first
 // boot so the operator can sign in and rotate it immediately.
@@ -82,11 +82,11 @@ func (s *Server) SeedDefaultSaasAdmin(ctx context.Context) error {
 		return err
 	}
 	if _, err := s.db.Exec(ctx, `INSERT INTO saas_admin_users (email, name, password_hash) VALUES ($1, $2, $3)`,
-		strings.ToLower(email), "CuraNex Owner", hash); err != nil {
+		strings.ToLower(email), "TorqueDesk Owner", hash); err != nil {
 		return err
 	}
 	if logged {
-		log.Printf("---- CuraNex SaaS Owner Portal: initial admin created ----")
+		log.Printf("---- TorqueDesk SaaS Owner Portal: initial admin created ----")
 		log.Printf("  email:    %s", email)
 		log.Printf("  password: %s", password)
 		log.Printf("  (set SAAS_ADMIN_EMAIL and SAAS_ADMIN_PASSWORD env vars before first run to override)")
@@ -114,12 +114,12 @@ func (s *Server) ResetSaasAdminPassword(ctx context.Context, email, password str
 	}
 	if tag.RowsAffected() == 0 {
 		if _, err := s.db.Exec(ctx, `INSERT INTO saas_admin_users (email, name, password_hash) VALUES ($1, $2, $3)`,
-			email, "CuraNex Owner", hash); err != nil {
+			email, "TorqueDesk Owner", hash); err != nil {
 			return err
 		}
-		log.Printf("CuraNex SaaS Owner reset: created new admin %s", email)
+		log.Printf("TorqueDesk SaaS Owner reset: created new admin %s", email)
 	} else {
-		log.Printf("CuraNex SaaS Owner reset: password updated for %s", email)
+		log.Printf("TorqueDesk SaaS Owner reset: password updated for %s", email)
 	}
 	return nil
 }

@@ -298,7 +298,7 @@ function CustomerChatView({ token, shopName, docLabel, onBack }) {
           <div style={{ fontSize: 11, opacity: 0.85 }}>{docLabel}</div>
         </div>
       </header>
-      <ChatThread isPublic publicToken={token} />
+      <ChatThread isPublic publicToken={token} shopName={shopName} />
     </div>
   )
 }

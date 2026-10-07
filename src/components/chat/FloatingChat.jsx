@@ -175,7 +175,7 @@ function ConversationList({ unread, documents, onPick }) {
   )
 }
 
-export function ChatThread({ docId, isPublic, publicToken, onThreadRead }) {
+export function ChatThread({ docId, isPublic, publicToken, shopName, onThreadRead }) {
   // Shared bubble UI. For the shop app `isPublic` is false and we hit the
   // authed endpoints; for the customer public view we skip the authed GET
   // and talk to the token-scoped endpoints instead.
@@ -327,7 +327,8 @@ export function ChatThread({ docId, isPublic, publicToken, onThreadRead }) {
                 {group.messages.map((m, i, arr) => (
                   <Bubble key={m.id} m={m} mine={m.senderRole === myRole}
                           groupStart={i === 0 || arr[i - 1].senderRole !== m.senderRole}
-                          groupEnd={i === arr.length - 1 || arr[i + 1].senderRole !== m.senderRole} />
+                          groupEnd={i === arr.length - 1 || arr[i + 1].senderRole !== m.senderRole}
+                          displayName={isPublic && m.senderRole === 'shop' && shopName ? shopName : m.senderName} />
                 ))}
               </div>
             ))
@@ -375,7 +376,7 @@ export function ChatThread({ docId, isPublic, publicToken, onThreadRead }) {
   )
 }
 
-function Bubble({ m, mine, groupStart, groupEnd }) {
+function Bubble({ m, mine, groupStart, groupEnd, displayName }) {
   const bg = mine ? 'linear-gradient(135deg,#2563eb,#1d4ed8)' : '#fff'
   const fg = mine ? '#fff' : '#111'
   const radius = {
@@ -395,8 +396,8 @@ function Bubble({ m, mine, groupStart, groupEnd }) {
         whiteSpace: 'pre-wrap', wordBreak: 'break-word',
         ...radius,
       }}>
-        {!mine && groupStart && m.senderName && (
-          <div style={{ fontSize: 10, fontWeight: 600, color: '#2563eb', marginBottom: 2 }}>{m.senderName}</div>
+        {!mine && groupStart && (displayName || m.senderName) && (
+          <div style={{ fontSize: 10, fontWeight: 600, color: '#2563eb', marginBottom: 2 }}>{displayName || m.senderName}</div>
         )}
         {m.body}
         {groupEnd && (

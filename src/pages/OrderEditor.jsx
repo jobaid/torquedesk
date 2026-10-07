@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   ArrowLeft, Mail, Printer, MoreHorizontal, Copy, Trash2, Car, Phone, User, Wrench, Package, Receipt, StickyNote, Percent,
   ChevronUp, ChevronDown, X, Plus, BookOpen, ShieldCheck, ShieldX, Wallet, History, ShieldAlert, ChevronRight, Check, Info, CalendarClock, Pencil, ExternalLink,
-  RefreshCw, Archive, Lock, CreditCard, Link as LinkIcon, MessageSquare, Loader2, ClipboardCheck, ShieldCheck,
+  RefreshCw, Archive, Lock, CreditCard, Link as LinkIcon, MessageSquare, Loader2, ClipboardCheck,
 } from 'lucide-react'
 import { api } from '../lib/api'
 import { useShop, DOC_TYPES, flushSaves, applyMarkup } from '../store/useShop'

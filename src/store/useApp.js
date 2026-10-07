@@ -122,7 +122,17 @@ export const useApp = create(
       markRead: (id) => set((s) => ({ notifications: s.notifications.map((n) => (n.id === id ? { ...n, read: true } : n)) })),
       clearNotifications: () => set({ notifications: [] }),
     }),
-    { name: 'torque-app', version: 1 },
+    {
+      name: 'torque-app',
+      version: 2,
+      // features is tenant-controlled and may be toggled by the SaaS owner at
+      // any time; always fetch fresh via /api/me/features — never from cache.
+      partialize: (s) => {
+        const { features, ...rest } = s
+        void features
+        return rest
+      },
+    },
   ),
 )
 

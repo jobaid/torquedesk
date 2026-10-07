@@ -155,6 +155,10 @@ function Boot() {
     loadDocuments()
     loadCustomers()
     loadFeatures()
+    // Owner can flip features any time. Re-fetch every 30 s so the shop
+    // sidebar reacts without a hard refresh.
+    const t = setInterval(() => loadFeatures(), 30000)
+    return () => clearInterval(t)
   }, [load, loadDocuments, loadCustomers, loadFeatures])
 
   if (error && !data) {

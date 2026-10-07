@@ -11,7 +11,7 @@ export default function AuditLog() {
 
   return (
     <div>
-      <PageHeader title="Audit log" subtitle="Every administrative action on the CuraNex platform is recorded here." />
+      <PageHeader title="Audit log" subtitle="Every administrative action on the TorqueDesk platform is recorded here." />
       {error && <Card style={{ color: '#ffb3b8' }}>{error}</Card>}
       {!rows && !error && <Card>Loading…</Card>}
       {rows && (

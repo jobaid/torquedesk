@@ -39,7 +39,7 @@ export default function OwnerSettings() {
         <Card>
           <div style={{ fontSize: 15, fontWeight: 600, color: '#e5edf5', marginBottom: 4 }}>Change password</div>
           <div style={{ fontSize: 12, color: '#8da2bf', marginBottom: 16 }}>
-            Rotate your CuraNex Owner Portal password. You stay signed in on this device.
+            Rotate your TorqueDesk Owner Portal password. You stay signed in on this device.
           </div>
           <form onSubmit={submit} style={{ display: 'grid', gap: 12 }} noValidate>
             <Pwd label="Current password" value={current} onChange={setCurrent} show={show} autoComplete="current-password" />

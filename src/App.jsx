@@ -146,6 +146,7 @@ export default function App() {
 function Boot() {
   const { data, error, errorStatus, load } = useSettings()
   const logout = useApp((s) => s.logout)
+  const loadFeatures = useApp((s) => s.loadFeatures)
   const loadDocuments = useShop((s) => s.loadDocuments)
   const loadCustomers = useShop((s) => s.loadCustomers)
   const docsLoaded = useShop((s) => s.docsLoaded)
@@ -153,7 +154,8 @@ function Boot() {
     load().catch(() => {})
     loadDocuments()
     loadCustomers()
-  }, [load, loadDocuments, loadCustomers])
+    loadFeatures()
+  }, [load, loadDocuments, loadCustomers, loadFeatures])
 
   if (error && !data) {
     // 401 is handled by the API client (auto-logout). 403 here means the token

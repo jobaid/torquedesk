@@ -177,7 +177,106 @@ export default function CompanyDetail() {
           </Card>
         </div>
       </div>
+
+      <FeatureAccess companyId={id} />
     </div>
+  )
+}
+
+function FeatureAccess({ companyId }) {
+  const [state, setState] = useState(null) // { features: {k:bool}, catalog: [...] }
+  const [draft, setDraft] = useState({})
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+
+  const load = async () => {
+    try {
+      const r = await ownerApi(`/companies/${companyId}/features`)
+      setState(r); setDraft(r.features || {})
+    } catch (e) { setErr(e.message) }
+  }
+  useEffect(() => { load() }, [companyId])
+
+  const dirty = state && Object.keys({ ...state.features, ...draft }).some((k) => (state.features[k] ?? false) !== (draft[k] ?? false))
+
+  const save = async () => {
+    setBusy(true); setErr('')
+    try {
+      const r = await ownerApi(`/companies/${companyId}/features`, { method: 'PUT', body: { features: draft } })
+      setState(r); setDraft(r.features || {})
+    } catch (e) { setErr(e.message) }
+    finally { setBusy(false) }
+  }
+  const reset = () => setDraft(state?.features || {})
+  const toggle = (k) => setDraft((d) => ({ ...d, [k]: !d[k] }))
+  const groupToggle = (keys, on) => setDraft((d) => { const n = { ...d }; keys.forEach((k) => (n[k] = on)); return n })
+
+  if (!state) return <Card style={{ marginTop: 16 }}>Loading feature access…</Card>
+
+  // Group catalog by `group`.
+  const groups = []
+  const idx = new Map()
+  for (const f of state.catalog) {
+    if (!idx.has(f.group)) { idx.set(f.group, groups.length); groups.push({ name: f.group, items: [] }) }
+    groups[idx.get(f.group)].items.push(f)
+  }
+  const enabledCount = Object.values(draft).filter(Boolean).length
+  const totalCount = state.catalog.length
+
+  return (
+    <Card style={{ marginTop: 16 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
+        <h3 style={{ margin: 0, fontSize: 14, flex: 1 }}>Feature access</h3>
+        <span style={{ fontSize: 12, color: '#8da2bf' }}>{enabledCount} / {totalCount} enabled</span>
+        {dirty && (
+          <>
+            <Btn variant="ghost" onClick={reset} disabled={busy}>Reset</Btn>
+            <Btn onClick={save} disabled={busy}>{busy ? 'Saving…' : 'Save changes'}</Btn>
+          </>
+        )}
+      </div>
+      <div style={{ fontSize: 12, color: '#8da2bf', marginBottom: 14 }}>
+        Toggle which modules this shop can access. Disabled items disappear from their sidebar at next sign-in or page reload. Server-side enforcement follows in a later update.
+      </div>
+      {err && <div style={{ color: '#fda4af', fontSize: 12, marginBottom: 10 }}>{err}</div>}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
+        {groups.map((g) => {
+          const allOn = g.items.every((f) => draft[f.key])
+          const allOff = g.items.every((f) => !draft[f.key])
+          return (
+            <div key={g.name} style={{ background: '#0b1220', border: '1px solid #1e2a44', borderRadius: 10, padding: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <div style={{ flex: 1, fontSize: 11, color: '#8da2bf', textTransform: 'uppercase', letterSpacing: '.08em', fontWeight: 600 }}>{g.name}</div>
+                <button type="button" onClick={() => groupToggle(g.items.map((f) => f.key), !allOn)}
+                  style={{ background: 'transparent', border: '1px solid #2a3650', color: '#8da2bf', borderRadius: 6, padding: '2px 8px', fontSize: 10, cursor: 'pointer' }}>
+                  {allOn ? 'All off' : 'All on'}
+                </button>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {g.items.map((f) => {
+                  const on = !!draft[f.key]
+                  return (
+                    <label key={f.key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 2px', cursor: 'pointer' }}>
+                      <span onClick={() => toggle(f.key)} style={{
+                        position: 'relative', display: 'inline-block', width: 32, height: 18, borderRadius: 999,
+                        background: on ? '#2563eb' : '#2a3650', transition: 'background 0.15s', flexShrink: 0,
+                      }}>
+                        <span style={{
+                          position: 'absolute', top: 2, left: on ? 16 : 2, width: 14, height: 14, borderRadius: '50%',
+                          background: '#fff', transition: 'left 0.15s',
+                        }} />
+                      </span>
+                      <span style={{ fontSize: 13, color: on ? '#e5edf5' : '#8da2bf' }}>{f.label}</span>
+                    </label>
+                  )
+                })}
+              </div>
+              {allOff && <div style={{ marginTop: 6, fontSize: 10, color: '#fda4af' }}>All {g.name.toLowerCase()} features disabled</div>}
+            </div>
+          )
+        })}
+      </div>
+    </Card>
   )
 }
 

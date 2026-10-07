@@ -28,6 +28,25 @@ export const useApp = create(
       searchHistory: [],
       favorites: [],
       notifications: SEED_NOTIFS,
+      // Per-tenant feature flags from /api/me/features; loaded on boot.
+      // null = not yet loaded (treat everything as enabled so first paint
+      // doesn't flash-hide the whole sidebar).
+      features: null,
+      loadFeatures: async () => {
+        const token = get().user?.token
+        if (!token) return
+        try {
+          const { api } = await import('../lib/api')
+          const f = await api('/me/features')
+          set({ features: f || {} })
+        } catch { /* ignore; stale value is better than hiding everything */ }
+      },
+      can_feature: (key) => {
+        const f = get().features
+        if (!f) return true // not loaded yet
+        if (!(key in f)) return true // unknown key = assume on
+        return !!f[key]
+      },
 
       // When the tenant changes (new company signs in, or someone logs out and a
       // different company signs in on the same browser), wipe browser-held

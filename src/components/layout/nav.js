@@ -3,35 +3,37 @@ import {
   Megaphone, Cpu, Star, History, FileText, Users, Settings, UserRound, BarChart3, ClipboardCheck,
 } from 'lucide-react'
 
+// `feature` is the key the SaaS owner can toggle in Owner Portal → Company →
+// Feature access. Missing feature = always shown.
 export const NAV = [
   {
     label: 'Workspace',
     items: [
-      { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
-      { to: '/vehicle', label: 'Vehicle', icon: Car },
+      { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true, feature: 'dashboard' },
+      { to: '/vehicle', label: 'Vehicle', icon: Car, feature: 'vehicles' },
       { to: '/search', label: 'Search', icon: Search },
     ],
   },
   {
     label: 'Repair Info',
     items: [
-      { to: '/repair', label: 'Repair Information', icon: Wrench },
-      { to: '/diagnostics', label: 'Diagnostics', icon: Stethoscope },
-      { to: '/dtc', label: 'DTC', icon: ScanLine },
-      { to: '/wiring', label: 'Wiring Diagrams', icon: Zap },
-      { to: '/maintenance', label: 'Maintenance', icon: CalendarCheck },
-      { to: '/specifications', label: 'Specifications', icon: ClipboardList },
-      { to: '/bulletins', label: 'Technical Bulletins', icon: Megaphone },
-      { to: '/components', label: 'Components', icon: Cpu },
+      { to: '/repair', label: 'Repair Information', icon: Wrench, feature: 'repair_info' },
+      { to: '/diagnostics', label: 'Diagnostics', icon: Stethoscope, feature: 'diagnostics' },
+      { to: '/dtc', label: 'DTC', icon: ScanLine, feature: 'dtc' },
+      { to: '/wiring', label: 'Wiring Diagrams', icon: Zap, feature: 'wiring' },
+      { to: '/maintenance', label: 'Maintenance', icon: CalendarCheck, feature: 'maintenance' },
+      { to: '/specifications', label: 'Specifications', icon: ClipboardList, feature: 'repair_info' },
+      { to: '/bulletins', label: 'Technical Bulletins', icon: Megaphone, feature: 'bulletins' },
+      { to: '/components', label: 'Components', icon: Cpu, feature: 'repair_info' },
     ],
   },
   {
     label: 'Shop',
     items: [
-      { to: '/orders', label: 'Repair Orders', icon: FileText, countKey: 'openOrders' },
-      { to: '/customers', label: 'Customers', icon: Users },
-      { to: '/inspections', label: 'Inspections', icon: ClipboardCheck },
-      { to: '/reports', label: 'Reports', icon: BarChart3 },
+      { to: '/orders', label: 'Repair Orders', icon: FileText, countKey: 'openOrders', feature: 'orders' },
+      { to: '/customers', label: 'Customers', icon: Users, feature: 'customers' },
+      { to: '/inspections', label: 'Inspections', icon: ClipboardCheck, feature: 'inspections' },
+      { to: '/reports', label: 'Reports', icon: BarChart3, feature: 'reports' },
     ],
   },
   {

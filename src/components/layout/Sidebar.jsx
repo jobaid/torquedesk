@@ -11,6 +11,8 @@ export default function Sidebar() {
   const favorites = useApp((s) => s.favorites.length)
   const logout = useApp((s) => s.logout)
   const openOrders = useShop((s) => s.documents.filter((d) => d.type !== 'invoice').length)
+  const features = useApp((s) => s.features)
+  const canFeature = (k) => !features || !(k in features) || !!features[k]
   const setDrawer = useUI((s) => s.setDrawer)
   const navigate = useNavigate()
   const counts = { favorites, openOrders }
@@ -43,12 +45,16 @@ export default function Sidebar() {
         </button>
       </div>
       <nav className="sidebar-scroll">
-        {NAV.map((group) => (
-          <div key={group.label} role="group" aria-label={group.label}>
-            <div className="nav-group-label"><span>{group.label}</span></div>
-            {group.items.map(link)}
-          </div>
-        ))}
+        {NAV.map((group) => {
+          const items = group.items.filter((i) => !i.feature || canFeature(i.feature))
+          if (items.length === 0) return null
+          return (
+            <div key={group.label} role="group" aria-label={group.label}>
+              <div className="nav-group-label"><span>{group.label}</span></div>
+              {items.map(link)}
+            </div>
+          )
+        })}
       </nav>
       <div className="sidebar-foot">
         {FOOT_NAV.map(link)}

@@ -11,7 +11,7 @@ const PROVIDERS = [
   {
     id: 'stripe',
     name: 'Stripe',
-    description: 'Charge CuraNex customers for their TorqueDesk subscription through Stripe Billing / Checkout.',
+    description: 'Charge TorqueDesk customers for their TorqueDesk subscription through Stripe Billing / Checkout.',
     publishableLabel: 'Publishable key',
     publishableHint: 'Starts with pk_test_ or pk_live_',
     secretLabel: 'Secret key',
@@ -22,7 +22,7 @@ const PROVIDERS = [
   {
     id: 'authnet',
     name: 'Authorize.Net',
-    description: 'Charge CuraNex customers for their TorqueDesk subscription through Authorize.Net.',
+    description: 'Charge TorqueDesk customers for their TorqueDesk subscription through Authorize.Net.',
     publishableLabel: 'API Login ID',
     publishableHint: 'From Account → Settings → API Credentials & Keys.',
     secretLabel: 'Transaction Key',
@@ -50,7 +50,7 @@ export default function Billing() {
     <div>
       <PageHeader
         title="Billing Processors"
-        subtitle="How CuraNex collects subscription payments from shops. Secret keys are encrypted at rest and never returned to this screen after you save them."
+        subtitle="How TorqueDesk collects subscription payments from shops. Secret keys are encrypted at rest and never returned to this screen after you save them."
       />
       {err && <Card style={{ background: '#2a0d10', borderColor: '#51232a', color: '#fda4af', marginBottom: 16 }}>{err}</Card>}
       <div style={{ display: 'grid', gap: 16 }}>

@@ -95,7 +95,7 @@ export default function OwnerLogin() {
         </div>
 
         <div style={{ marginTop: 10, fontSize: 11, color: '#5c6c86', textAlign: 'center' }}>
-          Not a CuraNex administrator? <a href="/" style={{ color: '#8da2bf' }}>Go to the main app</a>.
+          Not a TorqueDesk administrator? <a href="/" style={{ color: '#8da2bf' }}>Go to the main app</a>.
         </div>
       </form>
     </div>

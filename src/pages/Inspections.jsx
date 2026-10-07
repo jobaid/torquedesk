@@ -329,6 +329,7 @@ function ItemRow({ item, saving, inspectionId, onChange, onPhotosChanged }) {
   const [note, setNote] = useState(item.note || '')
   const [measurement, setMeasurement] = useState(item.measurement || '')
   const [uploading, setUploading] = useState(false)
+  const [lightbox, setLightbox] = useState(null)
   useEffect(() => { setNote(item.note || ''); setMeasurement(item.measurement || '') }, [item.id, item.note, item.measurement])
 
   const setStatus = (s) => onChange({ status: s })
@@ -396,14 +397,19 @@ function ItemRow({ item, saving, inspectionId, onChange, onPhotosChanged }) {
       </div>
       {photos.length > 0 && (
         <div className="row gap-8 wrap" style={{ marginTop: 8 }}>
-          {photos.map((p) => (
+          {photos.map((p, i) => (
             <div key={p.id} style={{ position: 'relative' }}>
-              <img src={p.url} alt="" style={{ width: 96, height: 96, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--border, #e5e7eb)' }} />
+              <button type="button" onClick={() => setLightbox({ photos, index: i, label: item.label })}
+                style={{ padding: 0, border: 'none', background: 'none', cursor: 'zoom-in' }}
+                aria-label={`Open photo ${i + 1} of ${photos.length}`}>
+                <img src={p.url} alt="" style={{ width: 96, height: 96, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--border, #e5e7eb)', display: 'block' }} />
+              </button>
               <button type="button" onClick={() => removePhoto(p.id)} className="icon-btn sm" style={{ position: 'absolute', top: -6, right: -6, background: '#fff', border: '1px solid var(--border, #e5e7eb)', borderRadius: '50%' }} aria-label="Delete photo"><X size={12} /></button>
             </div>
           ))}
         </div>
       )}
+      {lightbox && <InspLightbox photos={lightbox.photos} index={lightbox.index} label={lightbox.label} onClose={() => setLightbox(null)} />}
     </div>
   )
 }
@@ -426,5 +432,43 @@ function StatusBtn({ label, active, bg, fg, icon: Icon, onClick }) {
       <Icon size={14} />
       <span className="only-wide">{label}</span>
     </button>
+  )
+}
+
+function InspLightbox({ photos, index: start, label, onClose }) {
+  const [i, setI] = useState(start || 0)
+  const prev = () => setI((n) => (n - 1 + photos.length) % photos.length)
+  const next = () => setI((n) => (n + 1) % photos.length)
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape') onClose()
+      else if (e.key === 'ArrowLeft') prev()
+      else if (e.key === 'ArrowRight') next()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+  const p = photos[i]
+  if (!p) return null
+  return (
+    <div onClick={onClose} role="dialog" aria-label="Photo"
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, cursor: 'zoom-out' }}>
+      <button onClick={(e) => { e.stopPropagation(); onClose() }} aria-label="Close"
+        style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', width: 40, height: 40, borderRadius: '50%', cursor: 'pointer', display: 'grid', placeItems: 'center' }}><X size={22} /></button>
+      {photos.length > 1 && (
+        <>
+          <button onClick={(e) => { e.stopPropagation(); prev() }} aria-label="Previous"
+            style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', width: 44, height: 44, borderRadius: '50%', cursor: 'pointer', fontSize: 22 }}>&lsaquo;</button>
+          <button onClick={(e) => { e.stopPropagation(); next() }} aria-label="Next"
+            style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)', background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', width: 44, height: 44, borderRadius: '50%', cursor: 'pointer', fontSize: 22 }}>&rsaquo;</button>
+        </>
+      )}
+      <div onClick={(e) => e.stopPropagation()} style={{ textAlign: 'center', maxWidth: '100%', maxHeight: '100%' }}>
+        <img src={p.url} alt={label || ''} style={{ maxWidth: '90vw', maxHeight: '85vh', objectFit: 'contain', borderRadius: 8 }} />
+        <div style={{ marginTop: 12, color: 'rgba(255,255,255,0.85)', fontSize: 13 }}>
+          {label}{photos.length > 1 && <> &middot; <span style={{ opacity: 0.7 }}>{i + 1} of {photos.length}</span></>}
+        </div>
+      </div>
+    </div>
   )
 }

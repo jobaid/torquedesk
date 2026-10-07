@@ -19,6 +19,7 @@ export default function ShareView() {
   // below to avoid React error #310 ("more hooks rendered than previous").
   const [auth, setAuth] = useState(undefined) // undefined = loading, null = none, object = exists
   const [tab, setTab] = useState('auth')      // 'auth' | 'chat'
+  const [lightbox, setLightbox] = useState(null) // { photos, index } | null
 
   // Poll both the document and the authorization every 5 seconds so when
   // the shop adds a line, revises the authorization, or sends a message the
@@ -243,11 +244,21 @@ export default function ShareView() {
                       </div>
                     </div>
                     {Array.isArray(it.photos) && it.photos.length > 0 && (
-                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8, marginLeft: 98 }}>
+                      <div className="no-print" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8, marginLeft: 98 }}>
+                        {it.photos.map((p, i) => (
+                          <button key={p.id} type="button" onClick={() => setLightbox({ photos: it.photos, index: i, label: it.label })}
+                            style={{ padding: 0, border: 'none', background: 'none', cursor: 'zoom-in', display: 'inline-block' }}
+                            aria-label={`Open photo ${i + 1} of ${it.photos.length}`}>
+                            <img src={p.url} alt={it.label} loading="lazy" style={{ width: 120, height: 120, objectFit: 'cover', borderRadius: 6, border: '1px solid #e5e7eb', display: 'block' }} />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {/* Print-only: full-size layout, no lightbox */}
+                    {Array.isArray(it.photos) && it.photos.length > 0 && (
+                      <div className="only-print" style={{ display: 'none', gap: 8, flexWrap: 'wrap', marginTop: 8, marginLeft: 98 }}>
                         {it.photos.map((p) => (
-                          <a key={p.id} href={p.url} target="_blank" rel="noreferrer" style={{ display: 'inline-block' }}>
-                            <img src={p.url} alt={it.label} loading="lazy" style={{ width: 120, height: 120, objectFit: 'cover', borderRadius: 6, border: '1px solid #e5e7eb' }} />
-                          </a>
+                          <img key={p.id} src={p.url} alt={it.label} style={{ maxWidth: 240, maxHeight: 180, border: '1px solid #e5e7eb', borderRadius: 6 }} />
                         ))}
                       </div>
                     )}
@@ -276,7 +287,54 @@ export default function ShareView() {
       <footer className="share-section" style={{ marginTop: 24, textAlign: 'center', color: '#9ca3af', fontSize: 11 }}>
         <FileText size={11} style={{ verticalAlign: -1 }} /> This is a read-only copy. Contact the shop if anything looks wrong.
       </footer>
+      {lightbox && <Lightbox photos={lightbox.photos} index={lightbox.index} label={lightbox.label} onClose={() => setLightbox(null)} />}
     </PublicShell>
+  )
+}
+
+// ---------- photo lightbox ----------
+
+function Lightbox({ photos, index: start, label, onClose }) {
+  const [i, setI] = useState(start || 0)
+  const prev = () => setI((n) => (n - 1 + photos.length) % photos.length)
+  const next = () => setI((n) => (n + 1) % photos.length)
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape') onClose()
+      else if (e.key === 'ArrowLeft') prev()
+      else if (e.key === 'ArrowRight') next()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+  const p = photos[i]
+  if (!p) return null
+  return (
+    <div onClick={onClose} role="dialog" aria-label="Photo"
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)',
+        zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: 24, cursor: 'zoom-out',
+      }}>
+      <button onClick={(e) => { e.stopPropagation(); onClose() }} aria-label="Close"
+        style={{ position: 'absolute', top: 16, right: 16, background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', width: 40, height: 40, borderRadius: '50%', cursor: 'pointer', display: 'grid', placeItems: 'center' }}>
+        <X size={22} />
+      </button>
+      {photos.length > 1 && (
+        <>
+          <button onClick={(e) => { e.stopPropagation(); prev() }} aria-label="Previous"
+            style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', width: 44, height: 44, borderRadius: '50%', cursor: 'pointer', fontSize: 22 }}>‹</button>
+          <button onClick={(e) => { e.stopPropagation(); next() }} aria-label="Next"
+            style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)', background: 'rgba(255,255,255,0.1)', border: 'none', color: '#fff', width: 44, height: 44, borderRadius: '50%', cursor: 'pointer', fontSize: 22 }}>›</button>
+        </>
+      )}
+      <div onClick={(e) => e.stopPropagation()} style={{ textAlign: 'center', maxWidth: '100%', maxHeight: '100%' }}>
+        <img src={p.url} alt={label} style={{ maxWidth: '90vw', maxHeight: '85vh', objectFit: 'contain', borderRadius: 8 }} />
+        <div style={{ marginTop: 12, color: 'rgba(255,255,255,0.85)', fontSize: 13 }}>
+          {label}{photos.length > 1 && <> · <span style={{ opacity: 0.7 }}>{i + 1} of {photos.length}</span></>}
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -577,6 +635,10 @@ function PublicShell({ children }) {
         }
         @media screen {
           .insp-divider-page { display: none !important; }
+          .only-print { display: none !important; }
+        }
+        @media print {
+          .only-print { display: flex !important; }
         }
         .muted { color: #6b7280; }
       `}</style>

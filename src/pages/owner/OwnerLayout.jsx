@@ -34,8 +34,8 @@ export default function OwnerLayout() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '18px 16px', borderBottom: '1px solid #1e2a44' }}>
           <div style={{ background: 'linear-gradient(135deg,#5b8def,#8b5cf6)', borderRadius: 8, padding: 6, display: 'flex' }}><ShieldCheck size={18} color="#fff" /></div>
           <div>
-            <div style={{ fontSize: 15, fontWeight: 700, lineHeight: 1 }}>CuraNex</div>
-            <div style={{ fontSize: 10.5, color: '#8da2bf', marginTop: 2 }}>Owner Portal</div>
+            <div style={{ fontSize: 15, fontWeight: 700, lineHeight: 1 }}>TorqueDesk</div>
+            <div style={{ fontSize: 10.5, color: '#8da2bf', marginTop: 2 }}>Admin Portal</div>
           </div>
         </div>
         <nav style={{ padding: 10, overflow: 'auto', flex: 1 }}>

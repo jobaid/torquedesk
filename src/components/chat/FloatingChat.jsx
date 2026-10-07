@@ -12,6 +12,8 @@ import { useShop } from '../../store/useShop'
 
 export default function FloatingChat() {
   const token = useApp((s) => s.user?.token)
+  const features = useApp((s) => s.features)
+  const chatEnabled = !features || !('chat' in features) || !!features.chat
   const [open, setOpen] = useState(false)
   const [activeDocId, setActiveDocId] = useState(null)
   const [unread, setUnread] = useState({ total: 0, docs: [] })
@@ -33,6 +35,7 @@ export default function FloatingChat() {
   }, [token, bump])
 
   if (!token) return null // not signed in → no chat
+  if (!chatEnabled) return null // SaaS owner disabled the chat feature for this tenant
 
   const bumpUnread = () => setBump((n) => n + 1)
   const docInfo = (id) => documents.find((d) => d.id === id)

@@ -53,6 +53,8 @@ function Editor({ doc }) {
   const saving = useShop((s) => s.saving[doc.id])
   const { updateDocument, deleteDocument, createDocument, addItem, updateItem, removeItem, moveItem, addPayment, removePayment, updateCustomer, applyCurrentSettings } = useShop.getState()
   const can = useApp((s) => s.can)
+  const features = useApp((s) => s.features)
+  const canFeature = (k) => !features || !(k in features) || !!features[k]
   const setVehicle = useApp((s) => s.setVehicle)
   const navigate = useNavigate()
 
@@ -356,8 +358,12 @@ function Editor({ doc }) {
               )}
               <div style={{ padding: 12 }} className="stack gap-8">
                 <button className="btn btn-block deposit-btn" onClick={guard(() => setModal('pay'))} disabled={totals.balance <= 0 && !readOnly}><Wallet size={16} />{doc.type === 'invoice' ? 'Record payment' : 'Add deposit'}</button>
-                <button className="btn btn-block btn-secondary" onClick={guard(() => setModal('paylink'))} disabled={totals.balance <= 0 && !readOnly} title="Create a Stripe Checkout link your customer can pay from any device"><CreditCard size={16} />Send online payment link</button>
-                <button className="btn btn-block btn-secondary" onClick={guard(() => setModal('share'))} title="Share a read-only link with the customer"><LinkIcon size={16} />Share with customer</button>
+                {canFeature('online_payments') && (
+                  <button className="btn btn-block btn-secondary" onClick={guard(() => setModal('paylink'))} disabled={totals.balance <= 0 && !readOnly} title="Create a Stripe Checkout link your customer can pay from any device"><CreditCard size={16} />Send online payment link</button>
+                )}
+                {canFeature('share_link') && (
+                  <button className="btn btn-block btn-secondary" onClick={guard(() => setModal('share'))} title="Share a read-only link with the customer"><LinkIcon size={16} />Share with customer</button>
+                )}
               </div>
             </div>
 

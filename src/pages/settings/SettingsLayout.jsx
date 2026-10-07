@@ -11,6 +11,7 @@ import { BackupSettings } from './BackupSettings'
 import { MfaSettings } from './MfaSettings'
 import { PaymentGateways } from './PaymentGateways'
 import { NotificationSettings } from './Notifications'
+import { useApp } from '../../store/useApp'
 
 // Adding a settings page = one entry here + its component.
 export const SETTINGS_NAV = [
@@ -25,7 +26,7 @@ export const SETTINGS_NAV = [
     { path: 'financial/taxes', label: 'Tax Rates', icon: Percent, el: <TaxRates /> },
     { path: 'financial/markups', label: 'Markups & Display', icon: TrendingUp, el: <Markups /> },
     { path: 'financial/fees', label: 'Shop Fees', icon: Receipt, el: <ShopFees /> },
-    { path: 'financial/payment-gateways', label: 'Payment Gateways', icon: CreditCard, el: <PaymentGateways /> },
+    { path: 'financial/payment-gateways', label: 'Payment Gateways', icon: CreditCard, el: <PaymentGateways />, feature: 'online_payments' },
   ] },
   { group: 'Documents', items: [
     { path: 'documents/numbering', label: 'Numbering & Units', icon: Hash, el: <Numbering /> },
@@ -36,21 +37,30 @@ export const SETTINGS_NAV = [
   ] },
   { group: 'General', items: [
     { path: 'general/appearance', label: 'Appearance', icon: Palette, el: <Appearance /> },
-    { path: 'general/notifications', label: 'Notifications', icon: KeyRound, el: <NotificationSettings /> },
+    { path: 'general/notifications', label: 'Notifications', icon: KeyRound, el: <NotificationSettings />, feature: 'notifications' },
     { path: 'general/password', label: 'Change Password', icon: KeyRound, el: <ChangePassword /> },
     { path: 'general/mfa', label: 'Two-factor (MFA)', icon: ShieldCheck, el: <MfaSettings /> },
-    { path: 'general/backup', label: 'Backup & Restore', icon: Archive, el: <BackupSettings /> },
-    { path: 'general/audit', label: 'Audit Log', icon: History, el: <AuditLog /> },
+    { path: 'general/backup', label: 'Backup & Restore', icon: Archive, el: <BackupSettings />, feature: 'backup' },
+    { path: 'general/audit', label: 'Audit Log', icon: History, el: <AuditLog />, feature: 'audit_log' },
     { path: 'general/data', label: 'Local Data', icon: Database, el: <DataSettings /> },
   ] },
 ]
 
+function filterByFeatures(groups, canFeature) {
+  return groups
+    .map((g) => ({ ...g, items: g.items.filter((i) => !i.feature || canFeature(i.feature)) }))
+    .filter((g) => g.items.length > 0)
+}
+
 export default function SettingsLayout() {
+  const features = useApp((s) => s.features)
+  const canFeature = (k) => !features || !(k in features) || !!features[k]
+  const visibleNav = filterByFeatures(SETTINGS_NAV, canFeature)
   return (
     <div className="page full">
       <div className="settings-shell">
         <nav className="settings-nav card" aria-label="Settings sections">
-          {SETTINGS_NAV.map((g) => (
+          {visibleNav.map((g) => (
             <div key={g.group} role="group" aria-label={g.group}>
               <div className="settings-nav-group">{g.group}</div>
               {g.items.map((i) => (
@@ -64,7 +74,7 @@ export default function SettingsLayout() {
         <div className="settings-main">
           <Routes>
             <Route index element={<Navigate to="shop/details" replace />} />
-            {SETTINGS_NAV.flatMap((g) => g.items).map((i) => <Route key={i.path} path={i.path} element={i.el} />)}
+            {visibleNav.flatMap((g) => g.items).map((i) => <Route key={i.path} path={i.path} element={i.el} />)}
             <Route path="*" element={<Navigate to="shop/details" replace />} />
           </Routes>
         </div>

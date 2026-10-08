@@ -72,6 +72,7 @@ func (s *Server) Handler(staticDir string) http.Handler {
 	s.ownerBackupRoutes(mux)
 	s.repairRoutes(mux)
 	s.ownerRoutes(mux)
+	s.platformMailRoutes(mux)
 	s.backupRoutes(mux)
 	s.resetRoutes(mux)
 	s.customerRoutes(mux)

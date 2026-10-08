@@ -609,6 +609,10 @@ func (s *Server) createCompany(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	c, _ := scanCompanyRow(s.db.QueryRow(r.Context(), `SELECT `+companyCols+` FROM companies WHERE id::text = $1`, newCompanyID))
+	// Fire-and-forget welcome email from the platform mailer. A disabled or
+	// misconfigured platform mailer logs and no-ops; it does NOT block creation.
+	ownerFullName := strings.TrimSpace(in.Owner.FirstName + " " + in.Owner.LastName)
+	go s.NotifyCompanyCreated(context.Background(), in.Owner.Email, ownerFullName, in.Name, defaultAppURL(in.ApplicationURL, in.Slug))
 	writeJSON(w, 201, c)
 }
 
@@ -711,6 +715,12 @@ func (s *Server) changeCompanyStatus(w http.ResponseWriter, r *http.Request) {
 	}
 	// Make the new status take effect on the very next data request.
 	invalidateCompanyStatus(id)
+	// Fire-and-forget status-change email to the primary owner.
+	var companyName string
+	_ = s.db.QueryRow(r.Context(), `SELECT name FROM companies WHERE id::text = $1`, id).Scan(&companyName)
+	if email, _ := s.primaryOwnerEmail(r.Context(), id); email != "" {
+		go s.NotifyCompanyStatusChange(context.Background(), email, companyName, p.Status, p.Reason)
+	}
 	s.getCompany(w, r)
 }
 
@@ -860,6 +870,31 @@ func (s *Server) updateSubscription(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		handleErr(w, err)
 		return
+	}
+	// Fire-and-forget subscription-change notification. Kind is best-effort:
+	// an ExtendDays patch is "extended", a plan patch is "plan_changed", a
+	// status flip to active is "renewed", to expired is "expired".
+	kind := ""
+	switch {
+	case p.ExtendDays != nil:
+		kind = "extended"
+	case p.Plan != nil:
+		kind = "plan_changed"
+	case p.Status != nil && *p.Status == "active":
+		kind = "renewed"
+	case p.Status != nil && *p.Status == "expired":
+		kind = "expired"
+	}
+	if kind != "" {
+		var cid, cname, plan, cycle, endStr string
+		_ = s.db.QueryRow(r.Context(), `SELECT s.company_id::text, c.name, s.plan, s.billing_cycle, coalesce(to_char(s.end_date, 'YYYY-MM-DD'), '')
+			FROM subscriptions s JOIN companies c ON c.id = s.company_id WHERE s.id::text = $1`, id).
+			Scan(&cid, &cname, &plan, &cycle, &endStr)
+		if email, _ := s.primaryOwnerEmail(r.Context(), cid); email != "" {
+			go s.NotifySubscriptionChange(context.Background(), email, cname, kind, map[string]string{
+				"plan": plan, "billingCycle": cycle, "endDate": endStr,
+			})
+		}
 	}
 	writeJSON(w, 200, map[string]any{"ok": true})
 }

@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
-import { BarChart3, FileText, Package, Wallet, Receipt } from 'lucide-react'
-import { useApp } from '../../store/useApp'
+import { BarChart3, FileText, Package, Wallet, Receipt, RefreshCw } from 'lucide-react'
+import { useApp, toast } from '../../store/useApp'
+import { api } from '../../lib/api'
 import { EmptyState } from '../../components/ui'
 
 const SECTIONS = [
@@ -30,7 +32,20 @@ export default function ReportsLayout() {
   const perms = user?.permissions || []
   const isAdmin = user?.role === 'admin'
   const hasPerm = (p) => isAdmin || perms.includes(p)
+  const canResync = isAdmin || perms.includes('shop.edit')
   const visibleSections = SECTIONS.filter((s) => hasPerm(s.perm))
+  const [resyncing, setResyncing] = useState(false)
+
+  const resync = async () => {
+    if (!confirm('Rebuild the report tables from current documents? Safe to run — nothing is deleted.')) return
+    setResyncing(true)
+    try {
+      const r = await api('/reports/resync', { method: 'POST', body: {} })
+      toast.success('Reports resynced', `Recalculated ${r.recalculated} documents. Refresh any report to see the data.`)
+    } catch (e) {
+      toast.error('Resync failed', e.message)
+    } finally { setResyncing(false) }
+  }
 
   if (!user) {
     return (
@@ -65,6 +80,16 @@ export default function ReportsLayout() {
             ))}
           </div>
         ))}
+        {canResync && (
+          <div style={{ borderTop: '1px solid var(--border, #e5e7eb)', padding: '12px 10px', marginTop: 10 }}>
+            <button className="btn btn-ghost btn-sm" style={{ width: '100%', justifyContent: 'center' }} onClick={resync} disabled={resyncing}>
+              <RefreshCw size={13} />{resyncing ? 'Resyncing…' : 'Resync report tables'}
+            </button>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6, lineHeight: 1.4 }}>
+              Click once if Parts Profit, Payments or Tax show no data after a restore.
+            </div>
+          </div>
+        )}
       </aside>
       <main>
         <Outlet />

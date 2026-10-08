@@ -783,6 +783,18 @@ func (s *Server) restoreBackup(w http.ResponseWriter, r *http.Request) {
 			}
 			summary.Messages++
 		}
+		// Recompute totals + child tables (document_lines / document_taxes /
+		// document_fees) for every restored document — otherwise Parts Profit,
+		// Payments and Tax reports see empty child tables.
+		for _, d := range snap.Documents {
+			id, _ := d["id"].(string)
+			if id == "" {
+				continue
+			}
+			if err := recalcDocument(r.Context(), tx, id); err != nil {
+				return fmt.Errorf("recalc doc %s: %w", id, err)
+			}
+		}
 		// Audit event
 		return audit(r.Context(), tx, u, "backup", "restore", "update", "Backup restored",
 			"", fmt.Sprintf("takenAt=%s docs=%d photos=%d msgs=%d", snap.TakenAt, summary.Documents, summary.Photos, summary.Messages), cid)

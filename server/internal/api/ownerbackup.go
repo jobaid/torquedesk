@@ -562,6 +562,16 @@ func (s *Server) ownerRestoreBackup(w http.ResponseWriter, r *http.Request) {
 				}
 				summary.Messages++
 			}
+			// Rebuild child tables for every restored doc so reports work.
+			for _, d := range snap.Documents {
+				did, _ := d["id"].(string)
+				if did == "" {
+					continue
+				}
+				if err := recalcDocument(r.Context(), tx, did); err != nil {
+					return fmt.Errorf("company %s recalc %s: %w", cid, did, err)
+				}
+			}
 		}
 		return nil
 	})

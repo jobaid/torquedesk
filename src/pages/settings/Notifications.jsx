@@ -7,22 +7,92 @@ import { toast } from '../../store/useApp'
 // Provider presets. Each one sets the SMTP host/port/TLS and includes a link
 // to that provider's app-password docs. Gmail / Outlook / AOL all require an
 // 'app password' (not the regular login password) for third-party clients.
+// Provider presets include a sign-in URL (opens their account page) and an
+// app-password URL (where to generate the 16-char password for third-party
+// apps). Gmail / Outlook / AOL all need an app password, not the regular
+// login password; the wizard walks the user through each step.
 const EMAIL_PRESETS = [
-  { id: 'gmail',   label: 'Gmail',    emoji: '📧', host: 'smtp.gmail.com',       port: 587, tls: true,
+  { id: 'gmail',   label: 'Gmail',    emoji: '📧', host: 'smtp.gmail.com',        port: 587, tls: true,
+    signIn: 'https://accounts.google.com/signin',
+    appPassword: 'https://myaccount.google.com/apppasswords',
+    tipPrefill: '@gmail.com',
     help: 'https://support.google.com/accounts/answer/185833' },
   { id: 'outlook', label: 'Outlook',  emoji: '📨', host: 'smtp-mail.outlook.com', port: 587, tls: true,
+    signIn: 'https://login.live.com/',
+    appPassword: 'https://account.live.com/proofs/AppPassword',
+    tipPrefill: '@outlook.com',
     help: 'https://support.microsoft.com/en-us/account-billing/5896ed9b-4263-e681-128a-a6f2979a7944' },
   { id: 'aol',     label: 'AOL',      emoji: '📬', host: 'smtp.aol.com',          port: 587, tls: true,
+    signIn: 'https://login.aol.com/',
+    appPassword: 'https://login.aol.com/account/security',
+    tipPrefill: '@aol.com',
     help: 'https://help.aol.com/articles/Create-and-manage-app-password' },
   { id: 'yahoo',   label: 'Yahoo',    emoji: '📥', host: 'smtp.mail.yahoo.com',   port: 587, tls: true,
+    signIn: 'https://login.yahoo.com/',
+    appPassword: 'https://login.yahoo.com/account/security',
+    tipPrefill: '@yahoo.com',
     help: 'https://help.yahoo.com/kb/SLN15241.html' },
   { id: 'icloud',  label: 'iCloud',   emoji: '☁️',  host: 'smtp.mail.me.com',      port: 587, tls: true,
+    signIn: 'https://www.icloud.com/',
+    appPassword: 'https://appleid.apple.com/account/manage',
+    tipPrefill: '@icloud.com',
     help: 'https://support.apple.com/en-us/102654' },
-  { id: 'custom',  label: 'Other SMTP', emoji: '⚙️', host: '',                      port: 587, tls: true, help: '' },
+  { id: 'custom',  label: 'Other SMTP', emoji: '⚙️', host: '',                     port: 587, tls: true, help: '' },
 ]
 
 // Settings → General → Notifications. SMTP + reminder config so the ticker
 // can send customer reminders when an authorization sits unanswered.
+
+function ConnectWizard({ preset, onClose, email, setEmail, password, setPassword, userEmail, setUserEmail }) {
+  const openSignIn = () => window.open(preset.signIn, '_blank', 'noopener')
+  const openAppPw = () => window.open(preset.appPassword, '_blank', 'noopener')
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'grid', placeItems: 'center', padding: 16 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 12, padding: 22, maxWidth: 520, width: '100%', boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 17, fontWeight: 600 }}>
+            <span style={{ fontSize: 24 }}>{preset.emoji}</span> Connect {preset.label}
+          </div>
+          <button onClick={onClose} aria-label="Close" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: '#9ca3af' }}>×</button>
+        </div>
+        <ol style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 14, fontSize: 13.5, lineHeight: 1.5 }}>
+          <li>
+            <strong>Sign in to your {preset.label} account.</strong>
+            <div style={{ marginTop: 6 }}>
+              <button type="button" onClick={openSignIn}
+                style={{ padding: '8px 14px', borderRadius: 8, background: '#2563eb', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
+                Open {preset.label} sign-in ↗
+              </button>
+            </div>
+          </li>
+          <li>
+            <strong>Generate an app password.</strong>
+            <div style={{ color: '#6b7280', marginTop: 2 }}>Not your regular login password — a special 16-character password for third-party apps.</div>
+            <div style={{ marginTop: 6 }}>
+              <button type="button" onClick={openAppPw}
+                style={{ padding: '8px 14px', borderRadius: 8, background: '#fff', color: '#111', border: '1px solid #e5e7eb', cursor: 'pointer', fontWeight: 600 }}>
+                Open app-password page ↗
+              </button>
+            </div>
+          </li>
+          <li>
+            <strong>Paste the details here, then Save below.</strong>
+            <div style={{ display: 'grid', gap: 8, marginTop: 8 }}>
+              <input className="input" type="email" placeholder={`you${preset.tipPrefill || '@example.com'}`}
+                value={email} onChange={(e) => { setEmail(e.target.value); if (!userEmail) setUserEmail(e.target.value) }} />
+              <input className="input" type="password" placeholder="16-character app password"
+                value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" />
+            </div>
+          </li>
+        </ol>
+        <div style={{ marginTop: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <a href={preset.help} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: '#2563eb' }}>Full step-by-step guide ↗</a>
+          <button className="btn btn-primary" type="button" onClick={onClose}>Continue</button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export function NotificationSettings() {
   const [data, setData] = useState(null)
@@ -45,11 +115,18 @@ export function NotificationSettings() {
   const [remindersEnabled, setRemindersEnabled] = useState(false)
   const [reminderDays, setReminderDays] = useState(2)
   const [helpUrl, setHelpUrl] = useState('')
+  const [wizard, setWizard] = useState(null) // active preset for the connect wizard
 
   const applyPreset = (p) => {
     setHost(p.host); setPort(p.port); setUseTls(p.tls); setHelpUrl(p.help || '')
-    toast.success(`${p.label} selected`, p.host ? `Server set to ${p.host}. Enter your email and app password below.` : 'Enter your custom SMTP server below.')
+    if (p.id === 'custom') {
+      toast.success('Other SMTP selected', 'Enter your custom SMTP server below.')
+      setWizard(null)
+      return
+    }
+    setWizard(p)
   }
+  const closeWizard = () => setWizard(null)
 
   const load = async () => {
     setLoading(true); setErr('')
@@ -134,6 +211,10 @@ export function NotificationSettings() {
                 How to generate an app password →
               </a>
             )}
+            {wizard && <ConnectWizard preset={wizard} onClose={closeWizard}
+              email={fromEmail} setEmail={setFromEmail}
+              password={password} setPassword={setPassword}
+              userEmail={user} setUserEmail={setUser} />}
           </section>
 
           <section className="card card-pad stack gap-12" style={{ marginTop: 16 }}>

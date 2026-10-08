@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   ArrowLeft, Mail, Printer, MoreHorizontal, Copy, Trash2, Car, Phone, User, Wrench, Package, Receipt, StickyNote, Percent,
   ChevronUp, ChevronDown, X, Plus, BookOpen, ShieldCheck, ShieldX, Wallet, History, ShieldAlert, ChevronRight, Check, Info, CalendarClock, Pencil, ExternalLink,
-  RefreshCw, RotateCcw, Archive, Lock, CreditCard, Link as LinkIcon, MessageSquare, Loader2, ClipboardCheck, Ban,
+  RefreshCw, RotateCcw, Archive, Lock, CreditCard, Link as LinkIcon, MessageSquare, Loader2, ClipboardCheck, Ban, Send,
 } from 'lucide-react'
 import { api } from '../lib/api'
 import { useShop, DOC_TYPES, flushSaves, applyMarkup } from '../store/useShop'
@@ -939,7 +939,17 @@ function ShareLinkModal({ doc, customer, onClose, onInspectionToggle }) {
               </div>
             </Field>
             <div className="row gap-8 wrap">
-              <a className="btn btn-secondary" href={`mailto:${encodeURIComponent(customer?.email || '')}?subject=${encodeURIComponent(docLabel)}&body=${encodeURIComponent(emailBody)}`}><Mail size={14} />Email customer</a>
+              <button className="btn btn-primary" type="button" onClick={async () => {
+                if (!customer?.email) { toast.error('No customer email on file'); return }
+                try {
+                  await api('/mail/send', { method: 'POST', body: { to: customer.email, subject: docLabel, text: emailBody, html: '<pre style="font: 13px/1.5 sans-serif">' + emailBody.replace(/[<>&]/g, (c) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' }[c])) + '</pre>' } })
+                  toast.success('Email sent', 'Delivered through your connected account.')
+                } catch (e) {
+                  if (e.message?.toLowerCase().includes('not configured')) toast.error('Email not set up', 'Settings → Notifications → connect Gmail / Outlook / AOL first.')
+                  else toast.error('Send failed', e.message)
+                }
+              }}><Send size={14} />Send via your email</button>
+              <a className="btn btn-secondary" href={`mailto:${encodeURIComponent(customer?.email || '')}?subject=${encodeURIComponent(docLabel)}&body=${encodeURIComponent(emailBody)}`}><Mail size={14} />Open in email app</a>
               <a className="btn btn-secondary" href={`sms:?&body=${encodeURIComponent(smsBody)}`}><MessageSquare size={14} />Text message</a>
               <a className="btn btn-secondary" href={link.url} target="_blank" rel="noreferrer"><ExternalLink size={14} />Preview</a>
             </div>

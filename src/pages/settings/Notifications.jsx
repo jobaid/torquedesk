@@ -4,6 +4,23 @@ import { SectionHead } from './kit'
 import { api } from '../../lib/api'
 import { toast } from '../../store/useApp'
 
+// Provider presets. Each one sets the SMTP host/port/TLS and includes a link
+// to that provider's app-password docs. Gmail / Outlook / AOL all require an
+// 'app password' (not the regular login password) for third-party clients.
+const EMAIL_PRESETS = [
+  { id: 'gmail',   label: 'Gmail',    emoji: '📧', host: 'smtp.gmail.com',       port: 587, tls: true,
+    help: 'https://support.google.com/accounts/answer/185833' },
+  { id: 'outlook', label: 'Outlook',  emoji: '📨', host: 'smtp-mail.outlook.com', port: 587, tls: true,
+    help: 'https://support.microsoft.com/en-us/account-billing/5896ed9b-4263-e681-128a-a6f2979a7944' },
+  { id: 'aol',     label: 'AOL',      emoji: '📬', host: 'smtp.aol.com',          port: 587, tls: true,
+    help: 'https://help.aol.com/articles/Create-and-manage-app-password' },
+  { id: 'yahoo',   label: 'Yahoo',    emoji: '📥', host: 'smtp.mail.yahoo.com',   port: 587, tls: true,
+    help: 'https://help.yahoo.com/kb/SLN15241.html' },
+  { id: 'icloud',  label: 'iCloud',   emoji: '☁️',  host: 'smtp.mail.me.com',      port: 587, tls: true,
+    help: 'https://support.apple.com/en-us/102654' },
+  { id: 'custom',  label: 'Other SMTP', emoji: '⚙️', host: '',                      port: 587, tls: true, help: '' },
+]
+
 // Settings → General → Notifications. SMTP + reminder config so the ticker
 // can send customer reminders when an authorization sits unanswered.
 
@@ -27,6 +44,12 @@ export function NotificationSettings() {
   const [replyTo, setReplyTo] = useState('')
   const [remindersEnabled, setRemindersEnabled] = useState(false)
   const [reminderDays, setReminderDays] = useState(2)
+  const [helpUrl, setHelpUrl] = useState('')
+
+  const applyPreset = (p) => {
+    setHost(p.host); setPort(p.port); setUseTls(p.tls); setHelpUrl(p.help || '')
+    toast.success(`${p.label} selected`, p.host ? `Server set to ${p.host}. Enter your email and app password below.` : 'Enter your custom SMTP server below.')
+  }
 
   const load = async () => {
     setLoading(true); setErr('')
@@ -88,7 +111,33 @@ export function NotificationSettings() {
       {loading ? <div className="muted">Loading…</div> : (
         <>
           <section className="card card-pad stack gap-12">
-            <h2 style={{ margin: 0, fontSize: 15 }}><Mail size={16} style={{ verticalAlign: -2 }} /> SMTP</h2>
+            <h2 style={{ margin: 0, fontSize: 15 }}><Mail size={16} style={{ verticalAlign: -2 }} /> Connect your email account</h2>
+            <div className="muted" style={{ fontSize: 12 }}>
+              Pick your provider to pre-fill the server. Then enter your email and <strong>app password</strong>
+              {' '}(not your regular password — Gmail / Outlook / AOL all require a one-time app password for third-party apps).
+            </div>
+            <div className="row gap-6 wrap">
+              {EMAIL_PRESETS.map((p) => (
+                <button key={p.id} type="button" onClick={() => applyPreset(p)}
+                  style={{
+                    padding: '8px 14px', borderRadius: 8,
+                    background: '#fff', border: '1px solid #e5e7eb',
+                    display: 'inline-flex', alignItems: 'center', gap: 8,
+                    cursor: 'pointer', fontSize: 13,
+                  }}>
+                  <span style={{ fontSize: 16 }}>{p.emoji}</span>{p.label}
+                </button>
+              ))}
+            </div>
+            {helpUrl && (
+              <a href={helpUrl} target="_blank" rel="noreferrer" className="small" style={{ color: 'var(--brand-text, #2563eb)' }}>
+                How to generate an app password →
+              </a>
+            )}
+          </section>
+
+          <section className="card card-pad stack gap-12" style={{ marginTop: 16 }}>
+            <h2 style={{ margin: 0, fontSize: 15 }}>SMTP details</h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }}>
               <label>
                 <div className="muted" style={{ fontSize: 12, marginBottom: 4 }}>Host</div>

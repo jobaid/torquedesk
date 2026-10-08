@@ -38,6 +38,67 @@ func (s *Server) notificationRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/settings/notifications", s.auth("settings.view", s.getNotifSettings))
 	mux.HandleFunc("PUT /api/settings/notifications", s.auth("shop.edit", s.updateNotifSettings))
 	mux.HandleFunc("POST /api/settings/notifications/test", s.auth("shop.edit", s.sendTestEmail))
+	// Generic authed send endpoint. Any shop user with documents.edit can send
+	// a short email through the tenant's configured SMTP (used by Share link
+	// modals, invoice email, inspection email, etc.).
+	mux.HandleFunc("POST /api/mail/send", s.auth("documents.edit", s.mailSend))
+}
+
+type mailSendReq struct {
+	To      string `json:"to"`
+	Subject string `json:"subject"`
+	HTML    string `json:"html"`
+	Text    string `json:"text"`
+}
+
+func (s *Server) mailSend(w http.ResponseWriter, r *http.Request) {
+	cid := companyFrom(r.Context())
+	var in mailSendReq
+	if err := readJSON(r, &in); err != nil {
+		writeErr(w, 400, "Invalid request.")
+		return
+	}
+	in.To = strings.TrimSpace(in.To)
+	if in.To == "" {
+		writeErr(w, 400, "Enter a recipient email.")
+		return
+	}
+	if strings.TrimSpace(in.Subject) == "" {
+		writeErr(w, 400, "Subject is required.")
+		return
+	}
+	if strings.TrimSpace(in.HTML) == "" && strings.TrimSpace(in.Text) == "" {
+		writeErr(w, 400, "Message body is empty.")
+		return
+	}
+	// Guard against runaway size.
+	if len(in.HTML) > 200000 || len(in.Text) > 200000 {
+		writeErr(w, 413, "Message is too large.")
+		return
+	}
+	cfg, pw, err := s.loadMailer(r.Context(), cid)
+	if err != nil {
+		writeErr(w, 400, "Email is not configured for this shop. Set it up in Settings → Notifications.")
+		return
+	}
+	text := in.Text
+	if text == "" {
+		text = "Please view this message in an HTML-capable email client."
+	}
+	html := in.HTML
+	if html == "" {
+		html = "<pre style=\"font: 13px/1.5 -apple-system,BlinkMacSystemFont,sans-serif\">" + htmlEscape(in.Text) + "</pre>"
+	}
+	if err := cfg.send(pw, []string{in.To}, in.Subject, html, text); err != nil {
+		writeErr(w, 502, "Could not send: "+err.Error())
+		return
+	}
+	writeJSON(w, 200, map[string]any{"ok": true})
+}
+
+func htmlEscape(s string) string {
+	r := strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", "\"", "&quot;", "'", "&#39;")
+	return r.Replace(s)
 }
 
 type notifSettingsDTO struct {

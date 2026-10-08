@@ -1,7 +1,7 @@
 import { NavLink, Navigate, Outlet, useNavigate } from 'react-router-dom'
 import {
   ShieldCheck, LayoutDashboard, Building2, CreditCard, Users, KeyRound,
-  Globe, Receipt, ScrollText, Lock, Settings, LogOut,
+  Globe, Receipt, ScrollText, Lock, Settings, LogOut, HardDrive,
 } from 'lucide-react'
 import { useOwner } from '../../store/useOwner'
 
@@ -18,6 +18,7 @@ const NAV = [
   { to: `${BASE}/access`, label: 'Access Management', icon: KeyRound },
   { to: `${BASE}/urls`, label: 'Application URLs', icon: Globe },
   { to: `${BASE}/billing`, label: 'Billing', icon: Receipt },
+  { to: `${BASE}/backups`, label: 'Backups', icon: HardDrive },
   { to: `${BASE}/audit`, label: 'Audit Logs', icon: ScrollText },
   { to: `${BASE}/security`, label: 'Security', icon: Lock },
   { to: `${BASE}/settings`, label: 'Settings', icon: Settings },

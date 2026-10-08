@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { Stethoscope, Plus, Car, Check, AlertTriangle, X, MinusCircle, ArrowLeft, Save, CheckCircle2, Trash2, Camera } from 'lucide-react'
+import { Stethoscope, Plus, Car, Check, AlertTriangle, X, MinusCircle, ArrowLeft, Save, CheckCircle2, Trash2, Camera, Smartphone, Copy, ExternalLink, Mail, MessageSquare } from 'lucide-react'
 import { api } from '../lib/api'
 import { useApp as _useAppForToken } from '../store/useApp'
 import { useShop } from '../store/useShop'
@@ -202,6 +202,7 @@ function InspectionEditor({ id }) {
   const [savingItem, setSavingItem] = useState(null)
   const [notes, setNotes] = useState('')
   const [savingNotes, setSavingNotes] = useState(false)
+  const [sendOpen, setSendOpen] = useState(false)
 
   const load = async () => {
     setLoading(true); setErr('')
@@ -271,6 +272,7 @@ function InspectionEditor({ id }) {
         <Link to="/inspections" className="btn btn-ghost btn-sm"><ArrowLeft size={14} />Back</Link>
         <div className="row gap-8">
           <button className="btn btn-ghost" onClick={remove}><Trash2 size={14} />Delete</button>
+          <button className="btn btn-secondary" onClick={() => setSendOpen(true)}><Smartphone size={15} />Send to technician</button>
           {insp.status !== 'completed' && <button className="btn btn-primary" onClick={complete}><CheckCircle2 size={15} />Complete inspection</button>}
         </div>
       </div>
@@ -318,8 +320,77 @@ function InspectionEditor({ id }) {
         </div>
       </div>
 
-      <div className="muted" style={{ marginTop: 16, fontSize: 12 }}>
-        Session A: tech-facing checklist. Customer-facing share link, photo upload per item, and combined-with-invoice PDF arrive in later sessions.
+      {sendOpen && <TechLinkModal inspectionId={id} onClose={() => setSendOpen(false)} />}
+    </div>
+  )
+}
+
+function TechLinkModal({ inspectionId, onClose }) {
+  const [link, setLink] = useState(undefined) // undefined=loading, null=none, object=exists
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const load = async () => {
+    try { setLink(await api(`/inspections/${inspectionId}/technician-link`)) }
+    catch (e) { setErr(e.message); setLink(null) }
+  }
+  useEffect(() => { load() }, [inspectionId])
+  const create = async () => {
+    setBusy(true); setErr('')
+    try { setLink(await api(`/inspections/${inspectionId}/technician-link`, { method: 'POST' })) }
+    catch (e) { setErr(e.message) }
+    finally { setBusy(false) }
+  }
+  const revoke = async () => {
+    if (!confirm('Revoke this technician link? The technician will immediately lose access.')) return
+    setBusy(true)
+    try { await api(`/inspections/${inspectionId}/technician-link`, { method: 'DELETE' }); setLink(null) }
+    catch (e) { setErr(e.message) }
+    finally { setBusy(false) }
+  }
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(link.url); toast.success('Link copied') }
+    catch { toast.error('Copy failed') }
+  }
+
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'grid', placeItems: 'center', padding: 16 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 12, padding: 24, maxWidth: 520, width: '100%', boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
+        <div className="row between" style={{ alignItems: 'flex-start', marginBottom: 12 }}>
+          <div>
+            <h2 style={{ margin: 0, fontSize: 18 }}>Send to technician</h2>
+            <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>Share this link with your technician. They open it on a phone or iPad to run the inspection. They never see pricing.</div>
+          </div>
+          <button className="icon-btn sm" onClick={onClose} aria-label="Close"><X size={16} /></button>
+        </div>
+        {err && <div className="callout callout-danger" role="alert" style={{ marginBottom: 12 }}>{err}</div>}
+        {link === undefined ? (
+          <div className="muted">Loading…</div>
+        ) : link === null ? (
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+            <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
+            <button className="btn btn-primary" onClick={create} disabled={busy}><Smartphone size={14} />{busy ? 'Creating…' : 'Create link'}</button>
+          </div>
+        ) : (
+          <>
+            <div className="stack gap-8">
+              <Field label="Technician link" hint={`Views: ${link.openCount}${link.lastOpenedAt ? ' · Last opened ' + new Date(link.lastOpenedAt).toLocaleString() : ''}`}>
+                <div className="input-wrap">
+                  <input className="input" value={link.url} readOnly onFocus={(e) => e.target.select()} style={{ paddingRight: 44 }} />
+                  <button className="icon-btn sm" style={{ position: 'absolute', right: 4 }} onClick={copy} aria-label="Copy"><Copy size={14} /></button>
+                </div>
+              </Field>
+              <div className="row gap-8 wrap">
+                <a className="btn btn-secondary" href={`sms:?&body=${encodeURIComponent('Please run this inspection: ' + link.url)}`}><MessageSquare size={14} />Text to technician</a>
+                <a className="btn btn-secondary" href={`mailto:?subject=${encodeURIComponent('Inspection link')}&body=${encodeURIComponent('Please run this inspection: ' + link.url)}`}><Mail size={14} />Email</a>
+                <a className="btn btn-secondary" href={link.url} target="_blank" rel="noreferrer"><ExternalLink size={14} />Open</a>
+              </div>
+            </div>
+            <div className="row gap-8" style={{ justifyContent: 'flex-end', marginTop: 16 }}>
+              <button className="btn btn-ghost" onClick={revoke} disabled={busy}><Trash2 size={14} />Revoke link</button>
+              <button className="btn btn-primary" onClick={onClose}>Done</button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   )

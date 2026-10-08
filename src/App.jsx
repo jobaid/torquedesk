@@ -62,6 +62,7 @@ function PageFallback() {
 const ResetPassword = lazy(() => import('./pages/ResetPassword'))
 const PayReturn = lazy(() => import('./pages/PayReturn'))
 const ShareView = lazy(() => import('./pages/ShareView'))
+const TechnicianInspection = lazy(() => import('./pages/TechnicianInspection'))
 
 export default function App() {
   useThemeSync()
@@ -88,6 +89,14 @@ export default function App() {
     return (
       <Suspense fallback={null}>
         <ShareView />
+      </Suspense>
+    )
+  }
+  // Technician mobile inspection — public, token in URL, no pricing.
+  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/technician/inspection/')) {
+    return (
+      <Suspense fallback={null}>
+        <TechnicianInspection />
       </Suspense>
     )
   }

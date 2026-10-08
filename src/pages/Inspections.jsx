@@ -204,15 +204,25 @@ function InspectionEditor({ id }) {
   const [savingNotes, setSavingNotes] = useState(false)
   const [sendOpen, setSendOpen] = useState(false)
 
-  const load = async () => {
-    setLoading(true); setErr('')
+  const load = async (silent) => {
+    if (!silent) setLoading(true)
+    setErr('')
     try {
       const r = await api(`/inspections/${id}`)
-      setInsp(r); setNotes(r.notes || '')
-    } catch (e) { setErr(e.message) }
-    finally { setLoading(false) }
+      setInsp(r)
+      // Don't clobber the manager's unsaved edits in the Notes textarea when
+      // a background poll lands.
+      if (!silent) setNotes(r.notes || '')
+    } catch (e) { if (!silent) setErr(e.message) }
+    finally { if (!silent) setLoading(false) }
   }
-  useEffect(() => { load() }, [id])
+  useEffect(() => {
+    load()
+    // Poll every 10 s so a technician submission from the mobile page shows
+    // up in the manager's view without a manual refresh.
+    const t = setInterval(() => load(true), 10000)
+    return () => clearInterval(t)
+  }, [id]) // eslint-disable-line
 
   const customer = customers.find((c) => c.id === insp?.customerId)
   const vehicle = customer?.vehicles?.find((v) => v.id === insp?.vehicleId)
@@ -320,7 +330,163 @@ function InspectionEditor({ id }) {
         </div>
       </div>
 
+      <RecommendationsPanel insp={insp} />
+
       {sendOpen && <TechLinkModal inspectionId={id} onClose={() => setSendOpen(false)} />}
+    </div>
+  )
+}
+
+// RecommendationsPanel reads inspection items that need action (status
+// attention/fail AND recommendation other than none/customer_declined) and
+// lets the manager append them to an open estimate / repair order for the
+// same customer. De-dup is done by stamping each new line item with
+// `source: 'insp:<itemId>'`; the next render marks them as already imported.
+const RECO_LABELS = {
+  inspect_further: 'Inspect further', repair: 'Repair', replace: 'Replace',
+  service: 'Service', monitor: 'Monitor', customer_declined: 'Customer declined',
+  other: 'Other', none: 'No action',
+}
+
+function RecommendationsPanel({ insp }) {
+  const documents = useShop((s) => s.documents)
+  const addItem = useShop((s) => s.addItem)
+  const createDocument = useShop((s) => s.createDocument)
+  const [picked, setPicked] = useState({})
+  const [target, setTarget] = useState('') // '' | docId | '__new__'
+  const [busy, setBusy] = useState(false)
+
+  const actionable = (insp.items || []).filter((it) =>
+    (it.status === 'attention' || it.status === 'fail') &&
+    it.recommendation && it.recommendation !== 'none' && it.recommendation !== 'customer_declined'
+  )
+  const customerDocs = useMemo(() =>
+    documents.filter((d) => d.customerId === insp.customerId && (d.type === 'estimate' || d.type === 'repair_order') && d.status !== 'paid' && d.status !== 'void'),
+    [documents, insp.customerId])
+
+  // Pre-select the already-attached document.
+  useEffect(() => {
+    if (!target && insp.documentId && customerDocs.some((d) => d.id === insp.documentId)) {
+      setTarget(insp.documentId)
+    }
+  }, [insp.documentId, customerDocs.length]) // eslint-disable-line
+
+  // For dedupe: existing lines across all this customer's docs, keyed by source.
+  const alreadyImported = useMemo(() => {
+    const out = {} // itemId -> {docId, docNumber}
+    for (const d of customerDocs) {
+      for (const line of (d.items || [])) {
+        if (typeof line.source === 'string' && line.source.startsWith('insp:')) {
+          out[line.source.slice('insp:'.length)] = { docId: d.id, docNumber: d.number || d.displayNumber }
+        }
+      }
+    }
+    return out
+  }, [customerDocs])
+
+  if (actionable.length === 0) return null
+
+  const toggle = (id) => setPicked((p) => ({ ...p, [id]: !p[id] }))
+  const selectAll = () => setPicked(Object.fromEntries(actionable.filter((i) => !alreadyImported[i.id]).map((i) => [i.id, true])))
+  const clearSel = () => setPicked({})
+
+  const importSelected = async () => {
+    const chosen = actionable.filter((i) => picked[i.id] && !alreadyImported[i.id])
+    if (chosen.length === 0) { toast.info('Nothing to import'); return }
+    setBusy(true)
+    try {
+      let docId = target
+      if (target === '__new__') {
+        const created = await createDocument({ type: 'estimate', customerId: insp.customerId, vehicleId: insp.vehicleId })
+        docId = created?.id
+      }
+      if (!docId) { toast.error('Pick a document first'); return }
+      for (const it of chosen) {
+        const label = it.label
+        const reco = RECO_LABELS[it.recommendation] || it.recommendation
+        const parts = [`${reco}: ${label}`]
+        if (it.measurement) parts.push(`(${it.measurement})`)
+        if (it.note) parts.push(`— ${it.note}`)
+        await addItem(docId, {
+          kind: 'other',
+          description: parts.join(' '),
+          quantity: 1,
+          rate: 0,
+          autoPrice: false,
+          source: 'insp:' + it.id,
+        })
+      }
+      toast.success(`Added ${chosen.length} finding${chosen.length > 1 ? 's' : ''} to the estimate`, 'Edit the price and labor from the document.')
+      setPicked({})
+      // Refresh doc list so alreadyImported picks the new line.
+      useShop.getState().loadDocuments?.()
+    } catch (e) { toast.error('Import failed', e.message) }
+    finally { setBusy(false) }
+  }
+
+  const canImportCount = actionable.filter((i) => picked[i.id] && !alreadyImported[i.id]).length
+
+  return (
+    <div className="card card-pad mt-16">
+      <div className="row between wrap" style={{ alignItems: 'center', marginBottom: 10 }}>
+        <h2 style={{ margin: 0, fontSize: 15 }}>Review findings & import to estimate</h2>
+        <div className="muted" style={{ fontSize: 12 }}>{actionable.length} actionable finding{actionable.length === 1 ? '' : 's'}</div>
+      </div>
+      <div className="row gap-8 wrap" style={{ marginBottom: 10 }}>
+        <select className="select" style={{ maxWidth: 280 }} value={target} onChange={(e) => setTarget(e.target.value)}>
+          <option value="">— Pick where to import —</option>
+          {customerDocs.map((d) => <option key={d.id} value={d.id}>{(d.type || '').replace('_', ' ')} #{d.number || d.displayNumber}</option>)}
+          <option value="__new__">— Create a new estimate —</option>
+        </select>
+        <button className="btn btn-ghost btn-sm" onClick={selectAll}>Select all</button>
+        <button className="btn btn-ghost btn-sm" onClick={clearSel} disabled={Object.keys(picked).length === 0}>Clear</button>
+        <div style={{ flex: 1 }} />
+        <button className="btn btn-primary" onClick={importSelected} disabled={busy || !target || canImportCount === 0}>
+          <Plus size={14} />{busy ? 'Importing…' : `Add ${canImportCount || ''} to estimate`}
+        </button>
+      </div>
+      <div style={{ border: '1px solid var(--border, #e5e7eb)', borderRadius: 8 }}>
+        {actionable.map((it, i) => {
+          const already = alreadyImported[it.id]
+          const sel = !!picked[it.id] && !already
+          return (
+            <label key={it.id} style={{
+              display: 'flex', alignItems: 'flex-start', gap: 10, padding: 10,
+              borderTop: i === 0 ? 'none' : '1px solid var(--border, #e5e7eb)',
+              cursor: already ? 'default' : 'pointer', opacity: already ? 0.65 : 1,
+            }}>
+              <input type="checkbox" disabled={!!already} checked={sel} onChange={() => toggle(it.id)} style={{ marginTop: 3 }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 500 }}>{it.label}</div>
+                <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
+                  <span className="badge" style={{
+                    background: it.status === 'fail' ? '#fee2e2' : '#fef3c7',
+                    color: it.status === 'fail' ? '#991b1b' : '#92400e',
+                    marginRight: 6,
+                  }}>{it.status === 'fail' ? 'Bad' : 'Needs attention'}</span>
+                  <strong>{RECO_LABELS[it.recommendation] || it.recommendation}</strong>
+                  {it.measurement && <> · {it.measurement}</>}
+                  {it.note && <> · {it.note}</>}
+                </div>
+                {already && (
+                  <div style={{ fontSize: 11, color: '#166534', marginTop: 4 }}>
+                    <Check size={11} style={{ verticalAlign: -1 }} /> Already added to {already.docNumber ? `#${already.docNumber}` : 'an estimate'}
+                  </div>
+                )}
+                {(it.photos || []).length > 0 && (
+                  <div style={{ display: 'flex', gap: 4, marginTop: 6 }}>
+                    {it.photos.slice(0, 4).map((p) => <img key={p.id} src={p.url} alt="" style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 4, border: '1px solid var(--border, #e5e7eb)' }} />)}
+                    {it.photos.length > 4 && <span style={{ fontSize: 11, alignSelf: 'center', color: '#6b7280' }}>+{it.photos.length - 4} more</span>}
+                  </div>
+                )}
+              </div>
+            </label>
+          )
+        })}
+      </div>
+      <div className="muted" style={{ fontSize: 11, marginTop: 8 }}>
+        Imported lines land with <strong>$0 rate</strong>. Open the estimate to assign parts, labor and pricing. Items already added to an open document are greyed out so re-imports don't duplicate.
+      </div>
     </div>
   )
 }

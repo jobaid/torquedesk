@@ -190,90 +190,12 @@ export default function ShareView() {
             <div className="muted" style={{ fontSize: 11, marginTop: 20 }}>Prepared by {shop?.name || 'the shop'}</div>
           </div>
 
-          <section className="insp-section share-section share-card" style={{ ...cardStyle, marginTop: 32 }}>
-            <div style={{ borderBottom: '2px solid #111', paddingBottom: 10, marginBottom: 14 }}>
-              <div style={{ textTransform: 'uppercase', letterSpacing: '.1em', fontSize: 11, color: '#6b7280' }}><ClipboardCheck size={12} style={{ verticalAlign: -2 }} /> Vehicle Inspection Report</div>
-              <h2 style={{ margin: '4px 0 0', fontSize: 20 }}>{[vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ') || 'Vehicle'}</h2>
-              <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
-                {inspection.performedAt && <>Inspected {new Date(inspection.performedAt).toLocaleDateString()}</>}
-                {inspection.performedBy && <> · by {inspection.performedBy}</>}
-                {inspection.mileage > 0 && <> · {inspection.mileage.toLocaleString()} mi</>}
-              </div>
-            </div>
-
-            <div className="row gap-8 wrap" style={{ marginBottom: 14, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {inspection.passCount > 0 && <span style={pillStyle('#d1fae5', '#065f46')}><CheckCircle2 size={11} /> {inspection.passCount} pass</span>}
-              {inspection.attentionCount > 0 && <span style={pillStyle('#fef3c7', '#92400e')}><AlertTriangle size={11} /> {inspection.attentionCount} needs attention</span>}
-              {inspection.failCount > 0 && <span style={pillStyle('#fee2e2', '#991b1b')}><X size={11} /> {inspection.failCount} fail</span>}
-              {inspection.naCount > 0 && <span style={pillStyle('#f3f4f6', '#4b5563')}><MinusCircle size={11} /> {inspection.naCount} N/A</span>}
-            </div>
-
-            {/* Priority block: show failed + attention items first so a customer scanning the PDF sees the real recommendations immediately. */}
-            {(inspection.failCount + inspection.attentionCount > 0) && (
-              <div className="share-section" style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 8, padding: 12, marginBottom: 16 }}>
-                <div style={{ textTransform: 'uppercase', letterSpacing: '.08em', fontSize: 10, color: '#9a3412', fontWeight: 700 }}>Recommended attention</div>
-                <ul style={{ margin: '6px 0 0 18px', padding: 0, fontSize: 13, color: '#1f2937' }}>
-                  {(inspectionItems || []).filter((it) => it.status === 'fail' || it.status === 'attention').map((it, i) => (
-                    <li key={i} style={{ marginTop: 3 }}>
-                      <strong style={{ color: it.status === 'fail' ? '#991b1b' : '#92400e' }}>{statusLabel(it.status)}:</strong>{' '}
-                      {it.label}
-                      {it.measurement && <> — <em>{it.measurement}</em></>}
-                      {it.note && <> — {it.note}</>}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {groupedItems(inspectionItems || []).map((g) => (
-              <div key={g.category} className="share-section" style={{ marginBottom: 16 }}>
-                <h3 style={{ margin: '0 0 6px', fontSize: 14, textTransform: 'uppercase', letterSpacing: '.04em', color: '#374151' }}>{g.category}</h3>
-                {g.items.map((it, i) => (
-                  <div key={i} className="insp-item" style={{ padding: '6px 0', borderTop: '1px solid #e5e7eb' }}>
-                    <div style={{ display: 'flex', gap: 12, alignItems: 'baseline' }}>
-                      <span style={{ ...statusChip(it.status), minWidth: 86, textAlign: 'center' }}>{statusLabel(it.status)}</span>
-                      <div style={{ flex: 1 }}>
-                        <div>{it.label}</div>
-                        {(it.measurement || it.note) && (
-                          <div className="muted" style={{ fontSize: 12, marginTop: 2 }}>
-                            {it.measurement && <strong>{it.measurement}</strong>}
-                            {it.measurement && it.note && ' · '}
-                            {it.note}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    {Array.isArray(it.photos) && it.photos.length > 0 && (
-                      <div className="no-print" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8, marginLeft: 98 }}>
-                        {it.photos.map((p, i) => (
-                          <button key={p.id} type="button" onClick={() => setLightbox({ photos: it.photos, index: i, label: it.label })}
-                            style={{ padding: 0, border: 'none', background: 'none', cursor: 'zoom-in', display: 'inline-block' }}
-                            aria-label={`Open photo ${i + 1} of ${it.photos.length}`}>
-                            <img src={p.url} alt={it.label} loading="lazy" style={{ width: 120, height: 120, objectFit: 'cover', borderRadius: 6, border: '1px solid #e5e7eb', display: 'block' }} />
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                    {/* Print-only: full-size layout, no lightbox */}
-                    {Array.isArray(it.photos) && it.photos.length > 0 && (
-                      <div className="only-print" style={{ display: 'none', gap: 8, flexWrap: 'wrap', marginTop: 8, marginLeft: 98 }}>
-                        {it.photos.map((p) => (
-                          <img key={p.id} src={p.url} alt={it.label} style={{ maxWidth: 240, maxHeight: 180, border: '1px solid #e5e7eb', borderRadius: 6 }} />
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ))}
-
-            {inspection.notes && (
-              <div className="share-section" style={{ marginTop: 16, padding: 10, background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 6 }}>
-                <div style={labelStyle}>Technician notes</div>
-                <div style={{ whiteSpace: 'pre-wrap' }}>{inspection.notes}</div>
-              </div>
-            )}
-          </section>
+          <InspectionReport
+            inspection={inspection}
+            inspectionItems={inspectionItems}
+            vehicle={vehicle}
+            onOpenPhotos={(photos, index, label) => setLightbox({ photos, index, label })}
+          />
         </>
       )}
 
@@ -289,6 +211,175 @@ export default function ShareView() {
       </footer>
       {lightbox && <Lightbox photos={lightbox.photos} index={lightbox.index} label={lightbox.label} onClose={() => setLightbox(null)} />}
     </PublicShell>
+  )
+}
+
+// ---------- inspection report (print-ready, DVI-style) ----------
+
+const CONDITION_MAP = {
+  pass:      { code: 'OK', label: 'Checked Okay', bg: '#dcfce7', fg: '#166534', dot: '#16a34a' },
+  attention: { code: '!',  label: 'Service Soon', bg: '#fef3c7', fg: '#92400e', dot: '#f59e0b', icon: AlertTriangle },
+  fail:      { code: '!',  label: 'Service Now',  bg: '#fee2e2', fg: '#991b1b', dot: '#dc2626', icon: X },
+  na:        { code: 'NC', label: 'Not Checked',  bg: '#f3f4f6', fg: '#6b7280', dot: '#9ca3af' },
+}
+
+function ConditionBadge({ status }) {
+  const c = CONDITION_MAP[status] || CONDITION_MAP.na
+  const Icon = c.icon
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+      minWidth: 26, height: 22, padding: '0 7px',
+      borderRadius: 6, background: c.bg, color: c.fg,
+      fontSize: 10, fontWeight: 800, letterSpacing: '.04em',
+      border: '1px solid ' + c.dot + '55',
+    }}>
+      {Icon ? <Icon size={13} strokeWidth={3} /> : c.code}
+    </span>
+  )
+}
+
+function InspectionReport({ inspection, inspectionItems, vehicle, onOpenPhotos }) {
+  const groups = groupedItems(inspectionItems || [])
+  const allPhotos = (inspectionItems || []).flatMap((it) => (it.photos || []).map((p) => ({ ...p, _label: it.label })))
+
+  return (
+    <>
+      {/* Divider cover page before the report (print only) */}
+      <section className="insp-section share-section share-card" style={{ ...cardStyle, marginTop: 32, padding: 0, overflow: 'hidden' }}>
+        {/* Header strip */}
+        <div style={{ background: '#111', color: '#fff', padding: '14px 20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+            <div>
+              <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.14em', opacity: 0.7 }}>
+                <ClipboardCheck size={11} style={{ verticalAlign: -2 }} /> Multi-point Vehicle Inspection
+              </div>
+              <h2 style={{ margin: '4px 0 0', fontSize: 22, fontWeight: 700 }}>
+                {[vehicle.year, vehicle.make, vehicle.model].filter(Boolean).join(' ') || 'Vehicle'}
+              </h2>
+            </div>
+            <div style={{ textAlign: 'right', fontSize: 11, opacity: 0.9 }}>
+              {inspection.performedAt && <div>Inspected {new Date(inspection.performedAt).toLocaleString()}</div>}
+              {inspection.performedBy && <div>By {inspection.performedBy}</div>}
+              {inspection.mileage > 0 && <div>{inspection.mileage.toLocaleString()} miles</div>}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ padding: 18 }}>
+          {/* Summary tiles */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 14 }}>
+            {[
+              { k: 'pass',      n: inspection.passCount,      label: 'Checked Okay' },
+              { k: 'attention', n: inspection.attentionCount, label: 'Service Soon' },
+              { k: 'fail',      n: inspection.failCount,      label: 'Service Now'  },
+              { k: 'na',        n: inspection.naCount,        label: 'Not Checked'  },
+            ].map((t) => {
+              const c = CONDITION_MAP[t.k]
+              return (
+                <div key={t.k} style={{ background: c.bg, border: `1px solid ${c.dot}44`, borderRadius: 8, padding: '10px 8px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: c.fg, lineHeight: 1 }}>{t.n}</div>
+                  <div style={{ fontSize: 10, color: c.fg, marginTop: 4, textTransform: 'uppercase', letterSpacing: '.06em', fontWeight: 700 }}>{t.label}</div>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Recommended attention block */}
+          {(inspection.failCount + inspection.attentionCount > 0) && (
+            <div className="share-section" style={{ background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 8, padding: 12, marginBottom: 14 }}>
+              <div style={{ textTransform: 'uppercase', letterSpacing: '.08em', fontSize: 10, color: '#9a3412', fontWeight: 800, marginBottom: 6 }}>Recommended attention</div>
+              <ul style={{ margin: 0, padding: '0 0 0 18px', fontSize: 13, color: '#1f2937' }}>
+                {(inspectionItems || []).filter((it) => it.status === 'fail' || it.status === 'attention').map((it, i) => (
+                  <li key={i} style={{ marginTop: 3 }}>
+                    <strong style={{ color: it.status === 'fail' ? '#991b1b' : '#92400e' }}>{it.status === 'fail' ? 'Service Now' : 'Service Soon'}:</strong>{' '}
+                    {it.label}
+                    {it.measurement && <> — <em>{it.measurement}</em></>}
+                    {it.note && <> — {it.note}</>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Sections — DVI-style 3-column grid of items per category */}
+          {groups.map((g) => (
+            <div key={g.category} className="share-section" style={{ marginBottom: 18, breakInside: 'avoid', pageBreakInside: 'avoid' }}>
+              <h3 style={{
+                margin: '0 0 8px', paddingBottom: 6, borderBottom: '2px solid #111',
+                fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.08em', color: '#111',
+              }}>
+                {g.category}
+              </h3>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 1, background: '#e5e7eb', border: '1px solid #e5e7eb', borderRadius: 6, overflow: 'hidden' }}>
+                {g.items.map((it) => (
+                  <div key={it.id || it.label} className="insp-item" style={{ background: '#fff', padding: '8px 10px', display: 'flex', gap: 10, alignItems: 'flex-start', minHeight: 44 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, color: '#111', lineHeight: 1.3 }}>{it.label}</div>
+                      {(it.measurement || it.note) && (
+                        <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2, lineHeight: 1.3 }}>
+                          {it.measurement && <strong>{it.measurement}</strong>}
+                          {it.measurement && it.note && ' · '}
+                          {it.note}
+                        </div>
+                      )}
+                      {(it.photos || []).length > 0 && (
+                        <div className="no-print" style={{ display: 'flex', gap: 4, marginTop: 6 }}>
+                          {it.photos.slice(0, 3).map((p, i) => (
+                            <button key={p.id} type="button" onClick={() => onOpenPhotos(it.photos, i, it.label)}
+                              style={{ padding: 0, border: 'none', background: 'none', cursor: 'zoom-in' }}
+                              aria-label={`Open photo ${i + 1} of ${it.photos.length}`}>
+                              <img src={p.url} alt={it.label} loading="lazy" style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 4, border: '1px solid #e5e7eb', display: 'block' }} />
+                            </button>
+                          ))}
+                          {it.photos.length > 3 && <span style={{ alignSelf: 'center', fontSize: 11, color: '#6b7280' }}>+{it.photos.length - 3}</span>}
+                        </div>
+                      )}
+                    </div>
+                    <ConditionBadge status={it.status} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+
+          {/* Condition legend */}
+          <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', padding: '12px 0 4px', borderTop: '1px solid #e5e7eb', fontSize: 11, color: '#374151' }}>
+            <div style={{ textTransform: 'uppercase', letterSpacing: '.06em', fontWeight: 700, color: '#6b7280' }}>Condition codes</div>
+            {['na', 'pass', 'attention', 'fail'].map((k) => (
+              <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <ConditionBadge status={k} />
+                {CONDITION_MAP[k].label}
+              </div>
+            ))}
+          </div>
+
+          {inspection.notes && (
+            <div className="share-section" style={{ marginTop: 14, padding: 12, background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 6 }}>
+              <div style={labelStyle}>Technician notes</div>
+              <div style={{ whiteSpace: 'pre-wrap' }}>{inspection.notes}</div>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Photo gallery — screen only; per-item photos already print inline next to the finding above */}
+      {allPhotos.length > 0 && (
+        <section className="insp-section share-section share-card no-print" style={{ ...cardStyle, marginTop: 16 }}>
+          <h3 style={{ margin: 0, marginBottom: 10, fontSize: 13, textTransform: 'uppercase', letterSpacing: '.06em', color: '#374151' }}>Inspection photos</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 }}>
+            {allPhotos.map((p, i) => (
+              <button key={p.id} type="button" onClick={() => onOpenPhotos(allPhotos, i, p._label)}
+                style={{ padding: 0, border: 'none', background: 'none', cursor: 'zoom-in' }}
+                aria-label={`Open photo ${i + 1} of ${allPhotos.length}`}>
+                <img src={p.url} alt={p._label} loading="lazy" style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', borderRadius: 6, border: '1px solid #e5e7eb', display: 'block' }} />
+                <div style={{ fontSize: 10, color: '#6b7280', marginTop: 4, textAlign: 'left' }}>{p._label}</div>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
+    </>
   )
 }
 

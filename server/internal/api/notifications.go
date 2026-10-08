@@ -96,6 +96,21 @@ func (s *Server) mailSend(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{"ok": true})
 }
 
+// xoauth2Auth is a minimal smtp.Auth implementation of SASL XOAUTH2 (used by
+// Gmail / Outlook SMTP when authenticating with an OAuth access token).
+type xoauth2Auth struct{ saslPayload string }
+
+func (a xoauth2Auth) Start(server *smtp.ServerInfo) (string, []byte, error) {
+	return "XOAUTH2", []byte(a.saslPayload), nil
+}
+func (a xoauth2Auth) Next(fromServer []byte, more bool) ([]byte, error) {
+	if more {
+		// Error challenge — reply empty to abort cleanly.
+		return []byte{}, nil
+	}
+	return nil, nil
+}
+
 func htmlEscape(s string) string {
 	r := strings.NewReplacer("&", "&amp;", "<", "&lt;", ">", "&gt;", "\"", "&quot;", "'", "&#39;")
 	return r.Replace(s)
@@ -270,9 +285,44 @@ type mailer struct {
 	Host, User, FromEmail, FromName, ReplyTo string
 	Port                                     int
 	UseTLS                                   bool
+	// XOAuth2 is the base64 SASL XOAUTH2 payload. When non-empty, send() uses
+	// AUTH XOAUTH2 instead of PLAIN; the password argument is ignored.
+	XOAuth2 string
 }
 
+// loadMailer resolves the SMTP config for a tenant and the credential to
+// authenticate with. Preference order:
+//   1. OAuth (Google / Microsoft) via /api/mail/oauth — uses XOAUTH2 against
+//      smtp.gmail.com / smtp-mail.outlook.com with a fresh access token.
+//   2. Password-based SMTP from notification_settings (manual entry).
+// Returns the mailer config, the authentication secret (password OR XOAUTH2
+// payload), and a flag telling send() which mechanism to use.
 func (s *Server) loadMailer(ctx context.Context, cid string) (mailer, string, error) {
+	// Try OAuth first.
+	for _, prov := range []string{"google", "microsoft"} {
+		email, token, err := s.getOAuthAccessToken(ctx, cid, prov)
+		if err == nil && email != "" && token != "" {
+			cfg := mailer{
+				Host: oauthSMTPHost(prov), Port: 587, User: email,
+				FromEmail: email, FromName: "", ReplyTo: "", UseTLS: true,
+				XOAuth2: xoauth2SASL(email, token),
+			}
+			// Honour an explicit From-name saved in notification_settings if any.
+			var fromName, replyTo, fromEmail string
+			_ = s.db.QueryRow(ctx, `SELECT coalesce(from_name,''), coalesce(reply_to,''), coalesce(from_email,'')
+				FROM notification_settings WHERE company_id::text = $1`, cid).Scan(&fromName, &replyTo, &fromEmail)
+			if fromName != "" {
+				cfg.FromName = fromName
+			}
+			if replyTo != "" {
+				cfg.ReplyTo = replyTo
+			}
+			if fromEmail != "" {
+				cfg.FromEmail = fromEmail
+			}
+			return cfg, "", nil
+		}
+	}
 	dto, pwBlob, err := scanNotif(s.db.QueryRow(ctx, `SELECT `+notifCols+` FROM notification_settings WHERE company_id::text = $1`, cid))
 	if err != nil {
 		return mailer{}, "", err
@@ -296,6 +346,16 @@ func (s *Server) loadMailer(ctx context.Context, cid string) (mailer, string, er
 		FromEmail: dto.FromEmail, FromName: dto.FromName, ReplyTo: dto.ReplyTo,
 		UseTLS: dto.SMTPUseTLS,
 	}, pw, nil
+}
+
+func oauthSMTPHost(provider string) string {
+	switch provider {
+	case "google":
+		return "smtp.gmail.com"
+	case "microsoft":
+		return "smtp-mail.outlook.com"
+	}
+	return ""
 }
 
 // send is deliberately dependency-free: net/smtp from stdlib. Supports STARTTLS
@@ -332,7 +392,9 @@ func (m mailer) send(password string, to []string, subject, htmlBody, textBody s
 	b.WriteString("\r\n--" + boundary + "--\r\n")
 
 	var auth smtp.Auth
-	if m.User != "" && password != "" {
+	if m.XOAuth2 != "" {
+		auth = xoauth2Auth{saslPayload: m.XOAuth2}
+	} else if m.User != "" && password != "" {
 		auth = smtp.PlainAuth("", m.User, password, m.Host)
 	}
 	if m.UseTLS {

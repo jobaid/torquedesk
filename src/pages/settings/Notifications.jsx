@@ -43,9 +43,24 @@ const EMAIL_PRESETS = [
 // Settings → General → Notifications. SMTP + reminder config so the ticker
 // can send customer reminders when an authorization sits unanswered.
 
-function ConnectWizard({ preset, onClose, email, setEmail, password, setPassword, userEmail, setUserEmail }) {
+function ConnectWizard({ preset, onClose, email, setEmail, password, setPassword, userEmail, setUserEmail, oauth, providerKey }) {
   const openSignIn = () => window.open(preset.signIn, '_blank', 'noopener')
   const openAppPw = () => window.open(preset.appPassword, '_blank', 'noopener')
+  const oauthAvailable = providerKey && oauth?.available?.[providerKey]
+  const oauthConnected = providerKey && oauth?.connected?.[providerKey]
+
+  const startOauth = async () => {
+    try {
+      const r = await api(`/mail/oauth/${providerKey}/start`, { method: 'POST', body: {} })
+      if (!r?.url) throw new Error('No sign-in URL returned.')
+      // Pop up the provider's auth page — the callback page will close itself
+      // and postMessage back to Settings so the Connected badge appears.
+      window.open(r.url, 'torquedesk-oauth', 'width=520,height=700')
+    } catch (e) {
+      toast.error('Could not start sign-in', e.message)
+    }
+  }
+
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'grid', placeItems: 'center', padding: 16 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 12, padding: 22, maxWidth: 520, width: '100%', boxShadow: '0 20px 50px rgba(0,0,0,0.2)' }}>
@@ -55,6 +70,30 @@ function ConnectWizard({ preset, onClose, email, setEmail, password, setPassword
           </div>
           <button onClick={onClose} aria-label="Close" style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 20, color: '#9ca3af' }}>×</button>
         </div>
+        {oauthAvailable && (
+          <div style={{ padding: 14, borderRadius: 8, background: '#eff6ff', border: '1px solid #bfdbfe', marginBottom: 14 }}>
+            <div style={{ fontWeight: 600, color: '#1e40af' }}>Sign in with {preset.label} (recommended)</div>
+            <div style={{ fontSize: 12, color: '#1e3a8a', marginTop: 4 }}>
+              Authenticate with your {preset.label} account in a popup. No app password needed — TorqueDesk will send mail through your account using OAuth.
+            </div>
+            {oauthConnected ? (
+              <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, color: '#065f46' }}>
+                <CheckCircle2 size={14} /> Already connected as <strong>{oauthConnected.email}</strong>
+                <button type="button" onClick={startOauth} style={{ marginLeft: 'auto', padding: '6px 12px', borderRadius: 6, border: '1px solid #bfdbfe', background: '#fff', cursor: 'pointer', fontSize: 12 }}>Reconnect</button>
+              </div>
+            ) : (
+              <button type="button" onClick={startOauth}
+                style={{ marginTop: 10, padding: '10px 16px', borderRadius: 8, background: '#1e40af', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                Sign in with {preset.label} ↗
+              </button>
+            )}
+          </div>
+        )}
+        {oauthAvailable && (
+          <div style={{ textAlign: 'center', fontSize: 11, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '.08em', margin: '6px 0 12px' }}>
+            — or use an app password manually —
+          </div>
+        )}
         <ol style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 14, fontSize: 13.5, lineHeight: 1.5 }}>
           <li>
             <strong>Sign in to your {preset.label} account.</strong>
@@ -116,6 +155,30 @@ export function NotificationSettings() {
   const [reminderDays, setReminderDays] = useState(2)
   const [helpUrl, setHelpUrl] = useState('')
   const [wizard, setWizard] = useState(null) // active preset for the connect wizard
+  const [oauth, setOauth] = useState({ available: {}, connected: {} })
+
+  const loadOauth = async () => {
+    try { setOauth(await api('/mail/oauth/status')) }
+    catch { /* ignore */ }
+  }
+  useEffect(() => { loadOauth() }, [])
+  useEffect(() => {
+    const onMsg = (e) => {
+      if (e.data?.type === 'torquedesk:email-oauth') {
+        loadOauth()
+        if (e.data.ok) toast.success('Email connected', e.data.message)
+        else toast.error('Could not connect', e.data.message)
+      }
+    }
+    window.addEventListener('message', onMsg)
+    return () => window.removeEventListener('message', onMsg)
+  }, [])
+  const providerKeyFor = (presetId) => presetId === 'gmail' ? 'google' : presetId === 'outlook' ? 'microsoft' : null
+  const disconnectOauth = async (providerKey) => {
+    if (!confirm('Disconnect this email account?')) return
+    try { await api(`/mail/oauth/${providerKey}`, { method: 'DELETE' }); loadOauth() }
+    catch (e) { toast.error('Could not disconnect', e.message) }
+  }
 
   const applyPreset = (p) => {
     setHost(p.host); setPort(p.port); setUseTls(p.tls); setHelpUrl(p.help || '')
@@ -194,18 +257,38 @@ export function NotificationSettings() {
               {' '}(not your regular password — Gmail / Outlook / AOL all require a one-time app password for third-party apps).
             </div>
             <div className="row gap-6 wrap">
-              {EMAIL_PRESETS.map((p) => (
-                <button key={p.id} type="button" onClick={() => applyPreset(p)}
-                  style={{
-                    padding: '8px 14px', borderRadius: 8,
-                    background: '#fff', border: '1px solid #e5e7eb',
-                    display: 'inline-flex', alignItems: 'center', gap: 8,
-                    cursor: 'pointer', fontSize: 13,
-                  }}>
-                  <span style={{ fontSize: 16 }}>{p.emoji}</span>{p.label}
-                </button>
-              ))}
+              {EMAIL_PRESETS.map((p) => {
+                const pk = providerKeyFor(p.id)
+                const connected = pk ? oauth.connected?.[pk] : null
+                return (
+                  <button key={p.id} type="button" onClick={() => applyPreset(p)}
+                    style={{
+                      padding: '8px 14px', borderRadius: 8,
+                      background: connected ? '#dcfce7' : '#fff',
+                      border: '1px solid ' + (connected ? '#86efac' : '#e5e7eb'),
+                      color: connected ? '#065f46' : 'inherit',
+                      display: 'inline-flex', alignItems: 'center', gap: 8,
+                      cursor: 'pointer', fontSize: 13,
+                    }}>
+                    <span style={{ fontSize: 16 }}>{p.emoji}</span>{p.label}
+                    {connected && <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.06em' }}>Connected</span>}
+                  </button>
+                )
+              })}
             </div>
+            {/* Connected OAuth accounts summary */}
+            {Object.entries(oauth.connected || {}).length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
+                {Object.entries(oauth.connected).map(([pk, info]) => (
+                  <div key={pk} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 6, fontSize: 12 }}>
+                    <CheckCircle2 size={13} color="#059669" />
+                    <strong style={{ textTransform: 'capitalize' }}>{pk}</strong> connected as <strong>{info.email}</strong>
+                    <div style={{ flex: 1 }} />
+                    <button type="button" onClick={() => disconnectOauth(pk)} style={{ background: 'none', border: 'none', color: '#991b1b', cursor: 'pointer', fontSize: 12 }}>Disconnect</button>
+                  </div>
+                ))}
+              </div>
+            )}
             {helpUrl && (
               <a href={helpUrl} target="_blank" rel="noreferrer" className="small" style={{ color: 'var(--brand-text, #2563eb)' }}>
                 How to generate an app password →
@@ -214,7 +297,9 @@ export function NotificationSettings() {
             {wizard && <ConnectWizard preset={wizard} onClose={closeWizard}
               email={fromEmail} setEmail={setFromEmail}
               password={password} setPassword={setPassword}
-              userEmail={user} setUserEmail={setUser} />}
+              userEmail={user} setUserEmail={setUser}
+              oauth={oauth}
+              providerKey={providerKeyFor(wizard.id)} />}
           </section>
 
           <section className="card card-pad stack gap-12" style={{ marginTop: 16 }}>

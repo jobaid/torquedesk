@@ -76,8 +76,10 @@ func (s *Server) mailSend(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 413, "Message is too large.")
 		return
 	}
-	cfg, pw, err := s.loadMailer(r.Context(), cid)
-	if err != nil {
+	// Verify the mailer is configured — we do a lightweight load so a shop
+	// that forgot Notifications setup gets an immediate 400 instead of a
+	// delayed failure in the queue.
+	if _, _, err := s.loadMailer(r.Context(), cid); err != nil {
 		writeErr(w, 400, "Email is not configured for this shop. Set it up in Settings → Notifications.")
 		return
 	}
@@ -89,11 +91,14 @@ func (s *Server) mailSend(w http.ResponseWriter, r *http.Request) {
 	if html == "" {
 		html = "<pre style=\"font: 13px/1.5 -apple-system,BlinkMacSystemFont,sans-serif\">" + htmlEscape(in.Text) + "</pre>"
 	}
-	if err := cfg.send(pw, []string{in.To}, in.Subject, html, text); err != nil {
-		writeErr(w, 502, "Could not send: "+err.Error())
+	if _, err := s.enqueueEmail(r.Context(), emailEnqueue{
+		Scope: "tenant", CompanyID: cid, To: in.To,
+		Subject: in.Subject, HTML: html, Text: text, Kind: "share_link",
+	}); err != nil {
+		writeErr(w, 500, "Could not queue email: "+err.Error())
 		return
 	}
-	writeJSON(w, 200, map[string]any{"ok": true})
+	writeJSON(w, 200, map[string]any{"ok": true, "queued": true})
 }
 
 // xoauth2Auth is a minimal smtp.Auth implementation of SASL XOAUTH2 (used by
@@ -549,8 +554,8 @@ func extractCustEmail(raw []byte) string {
 }
 
 func (s *Server) sendAuthorizationReminder(ctx context.Context, cid, docID, docNum, to string) error {
-	cfg, pw, err := s.loadMailer(ctx, cid)
-	if err != nil {
+	// Verify mailer is configured; actual delivery happens via the queue.
+	if _, _, err := s.loadMailer(ctx, cid); err != nil {
 		return err
 	}
 	// Reuse the current active share token so the link matches what the
@@ -562,10 +567,7 @@ func (s *Server) sendAuthorizationReminder(ctx context.Context, cid, docID, docN
 	if tok == "" {
 		return errors.New("no active share link to remind about")
 	}
-	// Build URL from the shop setting if available; else fall back to a
-	// relative URL that at least gives the customer the token to use.
 	url := "/share/doc/" + tok
-	// Shop name for the subject/body.
 	var shopName string
 	_ = s.db.QueryRow(ctx, `SELECT coalesce(shop_name,'') FROM shop_settings WHERE company_id::text = $1`, cid).Scan(&shopName)
 	if shopName == "" {
@@ -574,7 +576,17 @@ func (s *Server) sendAuthorizationReminder(ctx context.Context, cid, docID, docN
 	subject := fmt.Sprintf("Reminder: please review %s #%s", docNum, docNum)
 	plain := fmt.Sprintf("Hi,\n\n%s is still waiting on your authorization for document #%s.\n\nOpen it here: %s\n\nThanks.\n", shopName, docNum, url)
 	html := fmt.Sprintf(`<p>Hi,</p><p><b>%s</b> is still waiting on your authorization for document <b>#%s</b>.</p><p><a href="%s">Open the document</a></p>`, shopName, docNum, url)
-	return cfg.send(pw, []string{to}, subject, html, plain)
+	// Dedupe one reminder per doc per calendar day so a retrying ticker never
+	// double-sends.
+	today := time.Now().UTC().Format("2006-01-02")
+	_, err := s.enqueueEmail(ctx, emailEnqueue{
+		Scope: "tenant", CompanyID: cid, To: to,
+		Subject: subject, HTML: html, Text: plain,
+		Kind: "authorization_reminder",
+		RelatedType: "document", RelatedID: docID,
+		DedupeKey: "auth_reminder:" + docID + ":" + today,
+	})
+	return err
 }
 
 // Suppress a potentially-unused import warning when the file is sliced.

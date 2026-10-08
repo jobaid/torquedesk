@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Mail, Save, Send, AlertCircle, CheckCircle2, LogOut } from 'lucide-react'
+import { Mail, Save, Send, AlertCircle, CheckCircle2, LogOut, RefreshCw, RotateCw } from 'lucide-react'
 import { SectionHead } from './kit'
 import { api } from '../../lib/api'
 import { toast } from '../../store/useApp'
@@ -399,8 +399,118 @@ export function NotificationSettings() {
               <button className="btn btn-secondary" onClick={sendTest} disabled={testBusy || !testTo.trim()}><Send size={14} />{testBusy ? 'Sending…' : 'Send test'}</button>
             </div>
           </section>
+
+          <DeliveryLog />
         </>
       )}
     </div>
   )
 }
+
+// --------------------------- delivery log -----------------------------------
+function DeliveryLog() {
+  const [rows, setRows] = useState([])
+  const [status, setStatus] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [busy, setBusy] = useState('')
+
+  const load = async () => {
+    setLoading(true)
+    try {
+      const qs = status ? `?status=${encodeURIComponent(status)}` : ''
+      const r = await api(`/settings/notifications/log${qs}`)
+      setRows(Array.isArray(r) ? r : [])
+    } catch (e) { toast.error('Could not load log', e.message) }
+    finally { setLoading(false) }
+  }
+  useEffect(() => { load() }, [status])
+
+  const retry = async (id) => {
+    setBusy(id)
+    try {
+      await api(`/settings/notifications/log/${id}/retry`, { method: 'POST', body: {} })
+      toast.success('Queued for retry')
+      load()
+    } catch (e) { toast.error('Retry failed', e.message) }
+    finally { setBusy('') }
+  }
+
+  return (
+    <section className="card card-pad stack gap-8" style={{ marginTop: 16 }}>
+      <div className="row gap-8" style={{ alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}>
+        <h2 style={{ margin: 0, fontSize: 15 }}>Email delivery log</h2>
+        <div className="row gap-6" style={{ alignItems: 'center' }}>
+          <select className="input" value={status} onChange={(e) => setStatus(e.target.value)} style={{ fontSize: 12, padding: '4px 8px' }}>
+            <option value="">All</option>
+            <option value="pending">Pending / retrying</option>
+            <option value="sent">Sent</option>
+            <option value="failed">Failed</option>
+          </select>
+          <button className="btn btn-secondary" onClick={load} disabled={loading} style={{ fontSize: 12, padding: '4px 10px' }}>
+            <RefreshCw size={12} /> Refresh
+          </button>
+        </div>
+      </div>
+      {rows.length === 0 ? (
+        <div className="muted" style={{ fontSize: 12 }}>{loading ? 'Loading…' : 'No emails yet.'}</div>
+      ) : (
+        <div style={{ overflow: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+            <thead>
+              <tr style={{ textAlign: 'left', color: '#6b7280' }}>
+                <th style={th}>When</th>
+                <th style={th}>To</th>
+                <th style={th}>Subject</th>
+                <th style={th}>Kind</th>
+                <th style={th}>Status</th>
+                <th style={th}>Attempts</th>
+                <th style={th}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.id} style={{ borderTop: '1px solid #eef0f3' }}>
+                  <td style={td}>{new Date(r.createdAt).toLocaleString()}</td>
+                  <td style={td}>{r.to}</td>
+                  <td style={{ ...td, maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.subject}>{r.subject}</td>
+                  <td style={td}>{r.kind}</td>
+                  <td style={td}><StatusBadge status={r.status} /></td>
+                  <td style={td}>{r.attempts}/{r.maxAttempts}</td>
+                  <td style={td}>
+                    {r.status === 'failed' && (
+                      <button className="btn btn-secondary" onClick={() => retry(r.id)} disabled={busy === r.id} style={{ fontSize: 11, padding: '2px 8px' }}>
+                        <RotateCw size={11} /> {busy === r.id ? '…' : 'Retry'}
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {rows.some((r) => r.lastError) && (
+        <details style={{ fontSize: 11, color: '#6b7280', marginTop: 8 }}>
+          <summary style={{ cursor: 'pointer' }}>Recent errors</summary>
+          <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>
+            {rows.filter((r) => r.lastError).slice(0, 5).map((r) => (
+              <li key={r.id}><strong>{r.to}</strong>: {r.lastError}</li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </section>
+  )
+}
+
+function StatusBadge({ status }) {
+  const map = {
+    pending: { bg: '#fef3c7', fg: '#92400e', label: 'Pending' },
+    sent:    { bg: '#dcfce7', fg: '#065f46', label: 'Sent' },
+    failed:  { bg: '#fee2e2', fg: '#991b1b', label: 'Failed' },
+  }
+  const c = map[status] || { bg: '#f3f4f6', fg: '#374151', label: status }
+  return <span style={{ padding: '2px 8px', borderRadius: 999, background: c.bg, color: c.fg, fontSize: 11, fontWeight: 600 }}>{c.label}</span>
+}
+const th = { padding: '6px 8px', fontWeight: 600, textTransform: 'uppercase', fontSize: 10, letterSpacing: '.05em' }
+const td = { padding: '8px', verticalAlign: 'top' }

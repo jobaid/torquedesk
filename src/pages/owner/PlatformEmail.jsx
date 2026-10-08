@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Mail, Save, Send, Power, LogOut } from 'lucide-react'
+import { Mail, Save, Send, Power, LogOut, RefreshCw, RotateCw } from 'lucide-react'
 import { Card, PageHeader, Btn, Field, Input, Select } from './primitives'
 import { ownerApi } from '../../store/useOwner'
 
@@ -220,10 +220,131 @@ export default function PlatformEmail() {
             <Btn variant="secondary" onClick={sendTest} disabled={busy || !testTo.trim()}><Send size={14} /> Send test</Btn>
           </div>
         </Card>
+
+        <DeliveryLog />
       </div>
     </div>
   )
 }
+
+// --------------------------- delivery log -----------------------------------
+function DeliveryLog() {
+  const [rows, setRows] = useState([])
+  const [status, setStatus] = useState('')
+  const [scope, setScope] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [busy, setBusy] = useState('')
+
+  const load = async () => {
+    setLoading(true)
+    try {
+      const qs = new URLSearchParams()
+      if (status) qs.set('status', status)
+      if (scope) qs.set('scope', scope)
+      const path = '/mail/log' + (qs.toString() ? '?' + qs.toString() : '')
+      const r = await ownerApi(path)
+      setRows(Array.isArray(r) ? r : [])
+    } catch { /* ignore */ }
+    finally { setLoading(false) }
+  }
+  useEffect(() => { load() }, [status, scope])
+
+  const retry = async (id) => {
+    setBusy(id)
+    try {
+      await ownerApi(`/mail/log/${id}/retry`, { method: 'POST', body: {} })
+      load()
+    } catch { /* ignore */ }
+    finally { setBusy('') }
+  }
+
+  return (
+    <Card>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+        <div style={{ fontSize: 15, fontWeight: 600 }}>Email delivery log</div>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+          <select value={scope} onChange={(e) => setScope(e.target.value)} style={selStyle}>
+            <option value="">All sources</option>
+            <option value="platform">Platform</option>
+            <option value="tenant">Tenants</option>
+          </select>
+          <select value={status} onChange={(e) => setStatus(e.target.value)} style={selStyle}>
+            <option value="">All statuses</option>
+            <option value="pending">Pending / retrying</option>
+            <option value="sent">Sent</option>
+            <option value="failed">Failed</option>
+          </select>
+          <Btn variant="secondary" onClick={load} disabled={loading}><RefreshCw size={12} /> Refresh</Btn>
+        </div>
+      </div>
+      {rows.length === 0 ? (
+        <div style={{ fontSize: 12, color: '#8da2bf' }}>{loading ? 'Loading…' : 'No emails yet.'}</div>
+      ) : (
+        <div style={{ overflow: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+            <thead>
+              <tr>
+                <th style={ownerTh}>When</th>
+                <th style={ownerTh}>Source</th>
+                <th style={ownerTh}>To</th>
+                <th style={ownerTh}>Subject</th>
+                <th style={ownerTh}>Kind</th>
+                <th style={ownerTh}>Status</th>
+                <th style={ownerTh}>Att</th>
+                <th style={ownerTh}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.id} style={{ borderTop: '1px solid #1e2a44' }}>
+                  <td style={ownerTd}>{new Date(r.createdAt).toLocaleString()}</td>
+                  <td style={ownerTd}>{r.scope === 'platform' ? 'Platform' : (r.companyName || 'Tenant')}</td>
+                  <td style={ownerTd}>{r.to}</td>
+                  <td style={{ ...ownerTd, maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={r.subject}>{r.subject}</td>
+                  <td style={ownerTd}>{r.kind}</td>
+                  <td style={ownerTd}><StatusChip status={r.status} /></td>
+                  <td style={ownerTd}>{r.attempts}/{r.maxAttempts}</td>
+                  <td style={ownerTd}>
+                    {r.status === 'failed' && (
+                      <Btn variant="secondary" onClick={() => retry(r.id)} disabled={busy === r.id} style={{ padding: '2px 8px', fontSize: 11 }}>
+                        <RotateCw size={11} /> Retry
+                      </Btn>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {rows.some((r) => r.lastError) && (
+        <details style={{ fontSize: 11, color: '#8da2bf', marginTop: 10 }}>
+          <summary style={{ cursor: 'pointer' }}>Recent errors</summary>
+          <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>
+            {rows.filter((r) => r.lastError).slice(0, 8).map((r) => (
+              <li key={r.id} style={{ marginBottom: 4 }}>
+                <strong style={{ color: '#c5d2e1' }}>{r.to}</strong> · {r.subject} — <span style={{ color: '#fda1aa' }}>{r.lastError}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </Card>
+  )
+}
+
+function StatusChip({ status }) {
+  const map = {
+    pending: { bg: '#2a1a0d', fg: '#fdba74', label: 'Pending' },
+    sent:    { bg: '#0d2a1b', fg: '#86efac', label: 'Sent' },
+    failed:  { bg: '#3a0d12', fg: '#fda4af', label: 'Failed' },
+  }
+  const c = map[status] || { bg: '#1a2237', fg: '#8da2bf', label: status }
+  return <span style={{ padding: '2px 8px', borderRadius: 999, background: c.bg, color: c.fg, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em' }}>{c.label}</span>
+}
+const ownerTh = { textAlign: 'left', padding: '6px 8px', fontWeight: 600, color: '#8da2bf', fontSize: 10, textTransform: 'uppercase', letterSpacing: '.05em', borderBottom: '1px solid #1e2a44' }
+const ownerTd = { padding: '8px', color: '#c5d2e1', verticalAlign: 'top' }
+const selStyle = { padding: '6px 8px', borderRadius: 8, border: '1px solid #2a3650', background: '#0b1220', color: '#c5d2e1', fontSize: 12 }
 
 function Toggle({ label, sub, checked, onChange }) {
   return (

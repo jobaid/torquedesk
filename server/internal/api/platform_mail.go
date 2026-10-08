@@ -226,21 +226,28 @@ func (s *Server) loadPlatformMailer(ctx context.Context) (mailer, string, error)
 	}, pw, nil
 }
 
-// SendPlatformEmail is the public helper the owner-side flows call. It is
-// fire-and-forget: a disabled or misconfigured platform mailer logs and
-// returns nil so the originating request (create company, change status, etc.)
-// is not blocked by the SaaS owner forgetting to configure email.
-func (s *Server) SendPlatformEmail(ctx context.Context, to []string, subject, htmlBody, textBody string) {
+// SendPlatformEmail is the public helper the owner-side flows call. It
+// enqueues one email_jobs row per recipient; the background worker handles
+// the actual send with retries. If the platform mailer is disabled it still
+// enqueues — the worker will mark the attempt failed and surface it in the
+// delivery log. kind/dedupeKey/related* are optional context passed through
+// to the job row.
+func (s *Server) SendPlatformEmail(ctx context.Context, to []string, subject, htmlBody, textBody, kind, dedupeKey string) {
 	if len(to) == 0 {
 		return
 	}
-	m, pw, err := s.loadPlatformMailer(ctx)
-	if err != nil {
-		log.Printf("platform mail skipped (%s → %v): %v", subject, to, err)
-		return
-	}
-	if err := m.send(pw, to, subject, htmlBody, textBody); err != nil {
-		log.Printf("platform mail failed (%s → %v): %v", subject, to, err)
+	for _, addr := range to {
+		dk := dedupeKey
+		if dk != "" && len(to) > 1 {
+			dk = dedupeKey + ":" + addr
+		}
+		if _, err := s.enqueueEmail(ctx, emailEnqueue{
+			Scope: "platform", To: addr,
+			Subject: subject, HTML: htmlBody, Text: textBody,
+			Kind: kind, DedupeKey: dk,
+		}); err != nil {
+			log.Printf("platform mail enqueue failed (%s → %s): %v", subject, addr, err)
+		}
 	}
 }
 
@@ -312,6 +319,7 @@ func (s *Server) NotifyCompanyCreated(ctx context.Context, ownerEmail, ownerName
 		"Welcome to TorqueDesk — your shop is ready",
 		platformEmailShell(fromName, "Welcome to TorqueDesk", body, "You are receiving this because your shop was just activated on TorqueDesk."),
 		text,
+		"welcome", "welcome:"+strings.ToLower(ownerEmail),
 	)
 }
 
@@ -345,6 +353,7 @@ func (s *Server) NotifyCompanyStatusChange(ctx context.Context, ownerEmail, comp
 		"TorqueDesk account status: "+newStatus,
 		platformEmailShell(fromName, "Account status updated", body, ""),
 		text,
+		"status_change", "",
 	)
 }
 
@@ -393,6 +402,7 @@ func (s *Server) NotifySubscriptionChange(ctx context.Context, ownerEmail, compa
 		"TorqueDesk: "+title,
 		platformEmailShell(fromName, title, body, ""),
 		text,
+		"subscription_"+kind, "",
 	)
 }
 

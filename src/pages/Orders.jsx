@@ -15,6 +15,7 @@ export const STATUS = {
   ready: { label: 'Ready for pickup', cls: 'badge-success' },
   paid: { label: 'Paid', cls: 'badge-success' },
   declined: { label: 'Declined', cls: 'badge-danger' },
+  void: { label: 'Voided', cls: 'badge-danger' },
 }
 
 export default function Orders() {

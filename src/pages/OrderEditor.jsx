@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import {
   ArrowLeft, Mail, Printer, MoreHorizontal, Copy, Trash2, Car, Phone, User, Wrench, Package, Receipt, StickyNote, Percent,
   ChevronUp, ChevronDown, X, Plus, BookOpen, ShieldCheck, ShieldX, Wallet, History, ShieldAlert, ChevronRight, Check, Info, CalendarClock, Pencil, ExternalLink,
-  RefreshCw, Archive, Lock, CreditCard, Link as LinkIcon, MessageSquare, Loader2, ClipboardCheck,
+  RefreshCw, RotateCcw, Archive, Lock, CreditCard, Link as LinkIcon, MessageSquare, Loader2, ClipboardCheck, Ban,
 } from 'lucide-react'
 import { api } from '../lib/api'
 import { useShop, DOC_TYPES, flushSaves, applyMarkup } from '../store/useShop'
@@ -173,6 +173,12 @@ function Editor({ doc }) {
                   <button className="menu-item" role="menuitem" onClick={() => { setMoreOpen(false); setModal('history') }}><History size={16} />Vehicle service history</button>
                   <button className="menu-item" role="menuitem" onClick={() => { setMoreOpen(false); openInRepairInfo() }} disabled={!localCustomer}><BookOpen size={16} />Open vehicle in Repair Info</button>
                   <div className="menu-sep" />
+                  {doc.status !== 'void' && (
+                    <button className="menu-item" role="menuitem" style={{ color: 'var(--warn, #92400e)' }} onClick={() => { setMoreOpen(false); can('documents.delete') ? setModal('void') : toast.error('Permission required', 'Only managers and admins can void documents.') }}><Ban size={16} />Void {DOC_TYPES[doc.type]?.label?.toLowerCase() || 'document'}</button>
+                  )}
+                  {doc.status === 'void' && (
+                    <button className="menu-item" role="menuitem" onClick={() => { setMoreOpen(false); updateDocument(doc.id, { status: 'open' }); toast.success('Document unvoided', 'Status set back to Open.') }}><RotateCcw size={16} />Reopen (unvoid)</button>
+                  )}
                   <button className="menu-item" role="menuitem" style={{ color: 'var(--danger)' }} onClick={() => { setMoreOpen(false); can('documents.delete') ? setModal('delete') : toast.error('Permission required', 'Only advisors and admins can delete documents.') }}><Trash2 size={16} />Delete document</button>
                 </div>
               )}
@@ -460,6 +466,13 @@ function Editor({ doc }) {
       )}
       <ConfirmDialog open={modal === 'delete'} onClose={() => setModal(null)} danger confirmLabel="Delete" title={`Delete ${DOC_TYPES[doc.type].label} #${doc.number}?`} body="This permanently removes the document and its line items. This cannot be undone."
         onConfirm={async () => { try { await deleteDocument(doc.id); toast.success('Document deleted', `#${doc.number}`); navigate('/orders') } catch (e) { toast.error('Could not delete', e.message) } }} />
+      <ConfirmDialog open={modal === 'void'} onClose={() => setModal(null)} danger confirmLabel={`Void ${DOC_TYPES[doc.type]?.label?.toLowerCase() || 'document'}`}
+        title={`Void ${DOC_TYPES[doc.type].label} #${doc.number}?`}
+        body="The document, its line items, and any attached inspection stay on file for the audit trail — but it is marked Voided and excluded from sales reports. You can reopen it later from this same menu if needed."
+        onConfirm={async () => {
+          try { await updateDocument(doc.id, { status: 'void' }); toast.success('Voided', `#${doc.number} has been marked Voided.`) }
+          catch (e) { toast.error('Could not void', e.message) }
+        }} />
       {modal?.startsWith('revert:') && (
         <ConfirmDialog open onClose={() => setModal(null)} title={`Change back to ${DOC_TYPES[modal.slice(7)].label}?`} body="Line items, pricing and payments are kept. Use this to correct a document converted by mistake." confirmLabel="Change type"
           onConfirm={() => { updateDocument(doc.id, { type: modal.slice(7), status: 'open' }); toast.info(`Changed to ${DOC_TYPES[modal.slice(7)].label}`) }} />

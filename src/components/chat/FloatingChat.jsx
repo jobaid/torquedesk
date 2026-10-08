@@ -46,6 +46,7 @@ export default function FloatingChat() {
       <button
         onClick={() => setOpen(true)}
         aria-label="Open chat"
+        className="no-print"
         style={{
           position: 'fixed', right: 20, bottom: 20, zIndex: 2000,
           width: 60, height: 60, borderRadius: '50%',
@@ -77,6 +78,7 @@ export default function FloatingChat() {
         <div
           role="dialog"
           aria-label="Customer chat"
+          className="no-print"
           style={{
             position: 'fixed', right: 20, bottom: 20, zIndex: 2001,
             width: 400, maxWidth: 'calc(100vw - 24px)',

@@ -125,13 +125,15 @@ func (s *Server) requestPasswordReset(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) issueResetToken(ctx context.Context, kind resetTargetKind, email, pathHint string) error {
-	var userID string
+	var userID, companyID string
 	var err error
 	switch kind {
 	case kindSaasAdmin:
 		err = s.db.QueryRow(ctx, `SELECT id::text FROM saas_admin_users WHERE lower(email) = $1 AND active`, email).Scan(&userID)
 	case kindCompanyOwner:
-		err = s.db.QueryRow(ctx, `SELECT id::text FROM company_owners WHERE lower(email) = $1 AND status = 'active' LIMIT 1`, email).Scan(&userID)
+		// Pull company_id too so we can send through the tenant's connected
+		// email account (notification_settings SMTP) when configured.
+		err = s.db.QueryRow(ctx, `SELECT id::text, company_id::text FROM company_owners WHERE lower(email) = $1 AND status = 'active' LIMIT 1`, email).Scan(&userID, &companyID)
 	}
 	if err != nil {
 		// No such user — don't surface this to the caller.
@@ -147,6 +149,31 @@ func (s *Server) issueResetToken(ctx context.Context, kind resetTargetKind, emai
 		return err
 	}
 	link := fmt.Sprintf("%s/%s?token=%s&email=%s", resetBaseURL(), pathHint, plain, email)
+
+	// Preferred path: send through the shop's connected email account
+	// (Settings → Notifications). Falls back to env-var SMTP / log for the
+	// SaaS admin reset or when the tenant hasn't configured a mailer yet.
+	if kind == kindCompanyOwner && companyID != "" {
+		if cfg, pw, err := s.loadMailer(ctx, companyID); err == nil {
+			var shopName string
+			_ = s.db.QueryRow(ctx, `SELECT coalesce(shop_name,'') FROM shop_settings WHERE company_id::text = $1`, companyID).Scan(&shopName)
+			if shopName == "" {
+				shopName = "TorqueDesk"
+			}
+			subject := "Reset your " + shopName + " password"
+			plainBody := "You asked to reset your password at " + shopName + ".\r\n\r\n" +
+				"Click the link below (expires in 1 hour):\r\n\r\n" + link + "\r\n\r\n" +
+				"If you didn't ask for this, ignore this email."
+			htmlBody := "<p>You asked to reset your password at <b>" + shopName + "</b>.</p>" +
+				"<p><a href=\"" + link + "\">Reset your password</a> (expires in 1 hour)</p>" +
+				"<p style=\"color:#6b7280;font-size:12px\">If you didn't ask for this, ignore this email.</p>"
+			if sErr := cfg.send(pw, []string{email}, subject, htmlBody, plainBody); sErr == nil {
+				return nil
+			} else {
+				log.Printf("reset: tenant SMTP for %s failed (%v); falling back to env SMTP / log", email, sErr)
+			}
+		}
+	}
 	return sendResetEmail(email, link)
 }
 

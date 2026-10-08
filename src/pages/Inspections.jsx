@@ -3,6 +3,27 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { Stethoscope, Plus, Car, Check, AlertTriangle, X, MinusCircle, ArrowLeft, Save, CheckCircle2, Trash2, Camera, Smartphone, Copy, ExternalLink, Mail, MessageSquare } from 'lucide-react'
 import { api } from '../lib/api'
 import { useApp as _useAppForToken } from '../store/useApp'
+
+// Inspection photos are served from an authed endpoint but <img src> doesn't
+// attach the Bearer token, so the browser sees 401 → broken image. Fetch via
+// our own API wrapper (which adds the Authorization header) and swap in a
+// blob URL. Revoked on unmount so we don't leak memory.
+function AuthedImg({ src, alt = '', style, onClick }) {
+  const [blobUrl, setBlobUrl] = useState('')
+  useEffect(() => {
+    if (!src) return
+    let revoked = false
+    let url = ''
+    const token = _useAppForToken.getState().user?.token
+    fetch(src, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+      .then((r) => r.ok ? r.blob() : Promise.reject(new Error(`${r.status}`)))
+      .then((b) => { if (!revoked) { url = URL.createObjectURL(b); setBlobUrl(url) } })
+      .catch(() => { if (!revoked) setBlobUrl('') })
+    return () => { revoked = true; if (url) URL.revokeObjectURL(url) }
+  }, [src])
+  if (!blobUrl) return <div style={{ ...style, background: '#f3f4f6', display: 'grid', placeItems: 'center', color: '#9ca3af', fontSize: 10 }}>…</div>
+  return <img src={blobUrl} alt={alt} style={style} onClick={onClick} />
+}
 import { useShop } from '../store/useShop'
 import { useApp, toast } from '../store/useApp'
 import { EmptyState, Field } from '../components/ui'
@@ -475,7 +496,7 @@ function RecommendationsPanel({ insp }) {
                 )}
                 {(it.photos || []).length > 0 && (
                   <div style={{ display: 'flex', gap: 4, marginTop: 6 }}>
-                    {it.photos.slice(0, 4).map((p) => <img key={p.id} src={p.url} alt="" style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 4, border: '1px solid var(--border, #e5e7eb)' }} />)}
+                    {it.photos.slice(0, 4).map((p) => <AuthedImg key={p.id} src={p.url} style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 4, border: '1px solid var(--border, #e5e7eb)' }} />)}
                     {it.photos.length > 4 && <span style={{ fontSize: 11, alignSelf: 'center', color: '#6b7280' }}>+{it.photos.length - 4} more</span>}
                   </div>
                 )}
@@ -639,7 +660,7 @@ function ItemRow({ item, saving, inspectionId, onChange, onPhotosChanged }) {
               <button type="button" onClick={() => setLightbox({ photos, index: i, label: item.label })}
                 style={{ padding: 0, border: 'none', background: 'none', cursor: 'zoom-in' }}
                 aria-label={`Open photo ${i + 1} of ${photos.length}`}>
-                <img src={p.url} alt="" style={{ width: 96, height: 96, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--border, #e5e7eb)', display: 'block' }} />
+                <AuthedImg src={p.url} style={{ width: 96, height: 96, objectFit: 'cover', borderRadius: 6, border: '1px solid var(--border, #e5e7eb)', display: 'block' }} />
               </button>
               <button type="button" onClick={() => removePhoto(p.id)} className="icon-btn sm" style={{ position: 'absolute', top: -6, right: -6, background: '#fff', border: '1px solid var(--border, #e5e7eb)', borderRadius: '50%' }} aria-label="Delete photo"><X size={12} /></button>
             </div>
@@ -701,7 +722,7 @@ function InspLightbox({ photos, index: start, label, onClose }) {
         </>
       )}
       <div onClick={(e) => e.stopPropagation()} style={{ textAlign: 'center', maxWidth: '100%', maxHeight: '100%' }}>
-        <img src={p.url} alt={label || ''} style={{ maxWidth: '90vw', maxHeight: '85vh', objectFit: 'contain', borderRadius: 8 }} />
+        <AuthedImg src={p.url} alt={label || ''} style={{ maxWidth: '90vw', maxHeight: '85vh', objectFit: 'contain', borderRadius: 8 }} />
         <div style={{ marginTop: 12, color: 'rgba(255,255,255,0.85)', fontSize: 13 }}>
           {label}{photos.length > 1 && <> &middot; <span style={{ opacity: 0.7 }}>{i + 1} of {photos.length}</span></>}
         </div>

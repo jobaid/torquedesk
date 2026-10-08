@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Mail, Save, Send, AlertCircle, CheckCircle2 } from 'lucide-react'
+import { Mail, Save, Send, AlertCircle, CheckCircle2, LogOut } from 'lucide-react'
 import { SectionHead } from './kit'
 import { api } from '../../lib/api'
 import { toast } from '../../store/useApp'
@@ -230,6 +230,24 @@ export function NotificationSettings() {
     finally { setBusy(false) }
   }
 
+  const signOut = async () => {
+    if (!confirm('Sign out of this email account? Reminder emails and share-link emails will stop until you connect again.')) return
+    setBusy(true); setErr('')
+    try {
+      await api('/settings/notifications', {
+        method: 'PUT',
+        body: {
+          smtpHost: '', smtpUser: '', smtpPassword: '', clearPassword: true,
+          fromEmail: '', fromName: '', replyTo: '',
+        },
+      })
+      setPassword(''); setClearPassword(false)
+      toast.success('Email account signed out')
+      load()
+    } catch (e) { setErr(e.message) }
+    finally { setBusy(false) }
+  }
+
   const sendTest = async () => {
     if (!testTo.trim()) return
     setTestBusy(true); setErr('')
@@ -363,7 +381,13 @@ export function NotificationSettings() {
             </label>
           </section>
 
-          <div className="row gap-8" style={{ justifyContent: 'flex-end', marginTop: 16 }}>
+          <div className="row gap-8" style={{ justifyContent: 'space-between', alignItems: 'center', marginTop: 16 }}>
+            {(data?.hasPassword || data?.smtpHost) ? (
+              <button type="button" onClick={signOut} disabled={busy}
+                style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #fecaca', background: '#fff', color: '#991b1b', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 600 }}>
+                <LogOut size={14} /> Sign out of email
+              </button>
+            ) : <span />}
             <button className="btn btn-primary" onClick={save} disabled={busy}><Save size={14} />{busy ? 'Saving…' : 'Save'}</button>
           </div>
 

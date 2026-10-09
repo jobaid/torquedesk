@@ -83,6 +83,19 @@ Sign in with the credentials you were provided and start setting up your workspa
 <p style="color:#6b7280;font-size:12px">If you didn't ask for this, ignore this email.</p>`,
 		Text: "You asked to reset your password at {{shop_name}}.\r\n\r\nClick the link below (expires in 1 hour):\r\n\r\n{{reset_url}}\r\n\r\nIf you didn't ask for this, ignore this email.",
 	},
+	"payment_receipt": {
+		Kind: "payment_receipt", Scope: "tenant",
+		Label:        "Payment receipt",
+		Description:  "Sent to the customer when their online payment succeeds (Stripe / Authorize.Net).",
+		Placeholders: []string{"shop_name", "doc_number", "amount", "method", "reference"},
+		Subject:      "Payment received — {{shop_name}} {{doc_number}}",
+		HTML: `<p>Hi,</p>
+<p>Thank you — we received your payment of <strong>{{amount}}</strong> for <strong>{{shop_name}}</strong> {{doc_number}}.</p>
+<p><strong>Payment method:</strong> {{method}}<br><strong>Reference:</strong> {{reference}}</p>
+<p>This email is your receipt. If you have any questions, reply here and we'll help.</p>
+<p>— {{shop_name}}</p>`,
+		Text: "Hi,\n\nThank you — we received your payment of {{amount}} for {{shop_name}} {{doc_number}}.\n\nPayment method: {{method}}\nReference: {{reference}}\n\nThis email is your receipt. If you have any questions, reply here and we'll help.\n\n— {{shop_name}}\n",
+	},
 	"authorization_reminder": {
 		Kind: "authorization_reminder", Scope: "tenant",
 		Label:        "Authorization reminder",

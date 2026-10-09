@@ -324,7 +324,7 @@ func (s *Server) handleStripeSessionCompleted(ctx context.Context, cid string, e
 		return fmt.Errorf("amount mismatch: intent=%s stripe=%s", amount, paid.StringFixed(2))
 	}
 
-	return s.tx(ctx, func(tx pgx.Tx) error {
+	if err := s.tx(ctx, func(tx pgx.Tx) error {
 		// Mark intent succeeded.
 		if _, err := tx.Exec(ctx, `UPDATE shop_payment_intents SET status = 'succeeded', updated_at = now() WHERE id::text = $1`, intentID); err != nil {
 			return err
@@ -336,10 +336,60 @@ func (s *Server) handleStripeSessionCompleted(ctx context.Context, cid string, e
 			cid, docID, paid.StringFixed(2), sess.ID); err != nil {
 			return err
 		}
+		// Post a message in the doc chat so both the shop UI and the customer's
+		// share view show the successful payment immediately. sender_role must
+		// be 'shop' or 'customer' by the CHECK constraint — we use 'shop' with
+		// a system-ish name so the shop sees it as an inbound confirmation.
+		msg := fmt.Sprintf("✓ Payment of $%s received via Stripe (ref %s).", paid.StringFixed(2), sess.ID)
+		if _, err := tx.Exec(ctx, `INSERT INTO document_messages
+			(company_id, document_id, sender_role, sender_name, body, ip)
+			VALUES ($1::uuid, $2::uuid, 'shop', 'Payment system', $3, '')`,
+			cid, docID, msg); err != nil {
+			return err
+		}
 		if err := recalcDocument(ctx, tx, docID); err != nil {
 			return err
 		}
 		return nil
+	}); err != nil {
+		return err
+	}
+	// Receipt email outside the tx so a mail-queue failure doesn't roll back
+	// the recorded payment.
+	s.sendPaymentReceipt(ctx, cid, docID, paid.StringFixed(2), "Stripe", sess.ID)
+	return nil
+}
+
+// sendPaymentReceipt enqueues a receipt email to the customer on file for a
+// document. Resolves From-shop name + customer email + doc number from DB and
+// renders the 'payment_receipt' template (fall-back default built in).
+func (s *Server) sendPaymentReceipt(ctx context.Context, cid, docID, amount, method, ref string) {
+	var docNum, shopName string
+	var custSnap []byte
+	_ = s.db.QueryRow(ctx, `SELECT coalesce(display_number,''), customer_snapshot FROM documents WHERE id::text = $1`, docID).Scan(&docNum, &custSnap)
+	_ = s.db.QueryRow(ctx, `SELECT coalesce(shop_name,'') FROM shop_settings WHERE company_id::text = $1`, cid).Scan(&shopName)
+	if shopName == "" {
+		shopName = "Your shop"
+	}
+	to := extractCustEmail(custSnap)
+	if to == "" {
+		return // no customer email on file; shop UI shows the chat message, that's enough
+	}
+	if _, _, err := s.loadMailer(ctx, cid); err != nil {
+		return // tenant hasn't set up SMTP; silent skip
+	}
+	subject, html, text := s.renderTemplate(ctx, "tenant", cid, "payment_receipt", map[string]string{
+		"shop_name":  htmlEscape(shopName),
+		"doc_number": "#" + docNum,
+		"amount":     "$" + amount,
+		"method":     method,
+		"reference":  ref,
+	})
+	_, _ = s.enqueueEmail(ctx, emailEnqueue{
+		Scope: "tenant", CompanyID: cid, To: to,
+		Subject: subject, HTML: html, Text: text,
+		Kind: "payment_receipt", RelatedType: "document", RelatedID: docID,
+		DedupeKey: "receipt:" + docID + ":" + ref,
 	})
 }
 

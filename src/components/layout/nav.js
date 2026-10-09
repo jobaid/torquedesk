@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, Car, Search, Wrench, Stethoscope, ScanLine, Zap, CalendarCheck, ClipboardList,
-  Megaphone, Cpu, Star, History, FileText, Users, Settings, UserRound, BarChart3, ClipboardCheck,
+  Megaphone, Cpu, Star, History, FileText, Users, Settings, UserRound, BarChart3, ClipboardCheck, Package,
 } from 'lucide-react'
 
 // `feature` is the key the SaaS owner can toggle in Owner Portal → Company →
@@ -46,6 +46,7 @@ export const NAV = [
 ]
 
 export const FOOT_NAV = [
+  { to: '/settings/general/addons', label: 'Add-ons', icon: Package },
   { to: '/settings', label: 'Settings', icon: Settings },
   { to: '/profile', label: 'Profile', icon: UserRound },
 ]

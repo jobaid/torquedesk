@@ -1,19 +1,11 @@
--- Editable email templates.
---
--- scope = 'platform' with company_id NULL  → one global row per kind, owned
---                                             by the SaaS owner, used for
---                                             welcome / status / subscription
---                                             emails sent FROM the platform.
--- scope = 'tenant' with company_id set     → per-shop override for templates
---                                             used by that shop (password
---                                             reset, authorization reminder,
---                                             share link, etc.).
---
--- If a row is missing or enabled=false the sender falls back to the
--- hardcoded default built into Go. Shops/owners therefore never lose email
--- functionality by never visiting this page.
+-- Editable email templates. Idempotent so a partial earlier run doesn't
+-- block subsequent restarts: CREATE TABLE IF NOT EXISTS skips when the
+-- table (and its inline constraints) already exist, CREATE UNIQUE INDEX
+-- IF NOT EXISTS skips when the index is already there, and the ALTER TABLE
+-- that re-adds the named CHECK is wrapped in a DO block that swallows the
+-- duplicate_object error.
 
-CREATE TABLE email_templates (
+CREATE TABLE IF NOT EXISTS email_templates (
     id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     scope       text NOT NULL CHECK (scope IN ('platform', 'tenant')),
     company_id  uuid REFERENCES companies (id) ON DELETE CASCADE,
@@ -30,7 +22,18 @@ CREATE TABLE email_templates (
     )
 );
 
-CREATE UNIQUE INDEX email_templates_platform_idx
+-- If an earlier partial run created the table without the named CHECK (or
+-- vice versa), fix either half without blowing up when both already exist.
+DO $$ BEGIN
+    ALTER TABLE email_templates ADD CONSTRAINT email_templates_scope_check CHECK (
+        (scope = 'platform' AND company_id IS NULL) OR
+        (scope = 'tenant'   AND company_id IS NOT NULL)
+    );
+EXCEPTION WHEN duplicate_object THEN NULL;
+         WHEN duplicate_table THEN NULL;
+END $$;
+
+CREATE UNIQUE INDEX IF NOT EXISTS email_templates_platform_idx
     ON email_templates (kind) WHERE scope = 'platform';
-CREATE UNIQUE INDEX email_templates_tenant_idx
+CREATE UNIQUE INDEX IF NOT EXISTS email_templates_tenant_idx
     ON email_templates (company_id, kind) WHERE scope = 'tenant';

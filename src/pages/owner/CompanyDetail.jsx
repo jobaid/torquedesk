@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, PauseCircle, PlayCircle, XCircle, Copy, ExternalLink, CalendarPlus, Download } from 'lucide-react'
+import { ArrowLeft, PauseCircle, PlayCircle, XCircle, Copy, ExternalLink, CalendarPlus, Download, Mail, KeyRound, Check, X } from 'lucide-react'
 import { ownerApi, useOwner } from '../../store/useOwner'
 import { Card, PageHeader, Btn, StatusPill, Th, Td, money } from './primitives'
 
@@ -134,16 +134,10 @@ export default function CompanyDetail() {
               <div style={{ color: '#8da2bf' }}>No owners.</div>
             ) : (
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead><tr><Th>Name</Th><Th>Email</Th><Th>Username</Th><Th>Status</Th><Th>Last login</Th></tr></thead>
+                <thead><tr><Th>Name</Th><Th>Email</Th><Th>Username</Th><Th>Status</Th><Th>Last login</Th><Th>Actions</Th></tr></thead>
                 <tbody>
                   {c.owners.map((o) => (
-                    <tr key={o.id}>
-                      <Td>{[o.firstName, o.lastName].filter(Boolean).join(' ') || '—'}</Td>
-                      <Td>{o.email}</Td>
-                      <Td style={{ fontFamily: 'monospace' }}>{o.username}</Td>
-                      <Td><StatusPill status={o.status} /></Td>
-                      <Td style={{ color: '#8da2bf' }}>{o.lastLoginAt ? new Date(o.lastLoginAt).toLocaleString() : 'Never'}</Td>
-                    </tr>
+                    <OwnerRow key={o.id} companyID={id} owner={o} onChanged={load} />
                   ))}
                 </tbody>
               </table>
@@ -182,6 +176,100 @@ export default function CompanyDetail() {
     </div>
   )
 }
+
+// OwnerRow renders a single company_owner. The two actions (change email,
+// reset password) switch the row into a small inline form rather than open a
+// modal — fewer clicks when helping a shop over the phone.
+function OwnerRow({ companyID, owner, onChanged }) {
+  const [mode, setMode] = useState(null) // null | 'email' | 'password'
+  const [email, setEmail] = useState(owner.email)
+  const [password, setPassword] = useState('')
+  const [confirmPw, setConfirmPw] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const [ok, setOk] = useState('')
+
+  const reset = () => { setMode(null); setErr(''); setOk(''); setEmail(owner.email); setPassword(''); setConfirmPw('') }
+
+  const save = async (patch) => {
+    setBusy(true); setErr(''); setOk('')
+    try {
+      await ownerApi(`/companies/${companyID}/owners/${owner.id}`, { method: 'PATCH', body: patch })
+      setOk('Saved.')
+      if (onChanged) onChanged()
+      setTimeout(reset, 900)
+    } catch (e) { setErr(e.message) }
+    finally { setBusy(false) }
+  }
+
+  const saveEmail = () => {
+    const e = email.trim().toLowerCase()
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e)) { setErr('Enter a valid email.'); return }
+    save({ email: e })
+  }
+  const savePassword = () => {
+    if (password.length < 8) { setErr('Password must be at least 8 characters.'); return }
+    if (password !== confirmPw) { setErr('Passwords do not match.'); return }
+    save({ password })
+  }
+
+  if (mode === 'email') {
+    return (
+      <tr>
+        <Td>{[owner.firstName, owner.lastName].filter(Boolean).join(' ') || '—'}</Td>
+        <Td colSpan={5}>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+              style={inputStyle} placeholder="owner@shop.com" />
+            <Btn onClick={saveEmail} disabled={busy}><Check size={13} /> Save</Btn>
+            <Btn variant="secondary" onClick={reset} disabled={busy}><X size={13} /> Cancel</Btn>
+            {err && <span style={{ color: '#fda4af', fontSize: 12 }}>{err}</span>}
+            {ok && <span style={{ color: '#86efac', fontSize: 12 }}>{ok}</span>}
+          </div>
+        </Td>
+      </tr>
+    )
+  }
+  if (mode === 'password') {
+    return (
+      <tr>
+        <Td>{[owner.firstName, owner.lastName].filter(Boolean).join(' ') || '—'}</Td>
+        <Td colSpan={5}>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+            <input type="text" value={password} onChange={(e) => setPassword(e.target.value)}
+              style={inputStyle} placeholder="New password (8+ chars)" autoComplete="new-password" />
+            <input type="text" value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)}
+              style={inputStyle} placeholder="Confirm new password" autoComplete="new-password" />
+            <Btn onClick={savePassword} disabled={busy}><Check size={13} /> Set password</Btn>
+            <Btn variant="secondary" onClick={reset} disabled={busy}><X size={13} /> Cancel</Btn>
+            {err && <span style={{ color: '#fda4af', fontSize: 12 }}>{err}</span>}
+            {ok && <span style={{ color: '#86efac', fontSize: 12 }}>{ok}</span>}
+          </div>
+          <div style={{ fontSize: 11, color: '#8da2bf', marginTop: 6 }}>
+            Give this password to the shop owner over a trusted channel. It overwrites their old password immediately — any active login tokens stay valid until expiry.
+          </div>
+        </Td>
+      </tr>
+    )
+  }
+  return (
+    <tr>
+      <Td>{[owner.firstName, owner.lastName].filter(Boolean).join(' ') || '—'}</Td>
+      <Td>{owner.email}</Td>
+      <Td style={{ fontFamily: 'monospace' }}>{owner.username}</Td>
+      <Td><StatusPill status={owner.status} /></Td>
+      <Td style={{ color: '#8da2bf' }}>{owner.lastLoginAt ? new Date(owner.lastLoginAt).toLocaleString() : 'Never'}</Td>
+      <Td>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <Btn variant="secondary" onClick={() => setMode('email')} title="Change this owner's email"><Mail size={13} /> Email</Btn>
+          <Btn variant="secondary" onClick={() => setMode('password')} title="Set a new password for this owner"><KeyRound size={13} /> Reset password</Btn>
+        </div>
+      </Td>
+    </tr>
+  )
+}
+
+const inputStyle = { padding: '6px 10px', borderRadius: 6, border: '1px solid #2a3650', background: '#0b1220', color: '#e5edf5', fontSize: 13 }
 
 function FeatureAccess({ companyId }) {
   const [state, setState] = useState(null) // { features: {k:bool}, catalog: [...] }

@@ -60,6 +60,100 @@ func (s *Server) ownerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("PATCH /api/owner/subscriptions/{id}", s.ownerAuth(s.updateSubscription))
 	mux.HandleFunc("GET /api/owner/audit", s.ownerAuth(s.listSaasAudit))
 	mux.HandleFunc("GET /api/owner/companies/{id}/backup", s.ownerAuth(s.ownerDownloadBackup))
+	mux.HandleFunc("PATCH /api/owner/companies/{id}/owners/{ownerId}", s.ownerAuth(s.updateCompanyOwner))
+}
+
+// updateCompanyOwner lets the SaaS owner help a shop that lost its login:
+// change the owner's email, reset their password, or toggle status. Audited.
+type companyOwnerPatch struct {
+	FirstName *string `json:"firstName"`
+	LastName  *string `json:"lastName"`
+	Email     *string `json:"email"`
+	Phone     *string `json:"phone"`
+	Username  *string `json:"username"`
+	Password  *string `json:"password"`
+	Status    *string `json:"status"`
+}
+
+func (s *Server) updateCompanyOwner(w http.ResponseWriter, r *http.Request) {
+	companyID := r.PathValue("id")
+	ownerID := r.PathValue("ownerId")
+	u := userFrom(r.Context())
+	var p companyOwnerPatch
+	if err := readJSON(r, &p); err != nil {
+		writeErr(w, 400, "Invalid request body.")
+		return
+	}
+	sets, args := []string{"updated_at = now()"}, []any{}
+	add := func(col string, v any) { args = append(args, v); sets = append(sets, fmt.Sprintf("%s = $%d", col, len(args))) }
+	changes := map[string]any{}
+	if p.FirstName != nil {
+		add("first_name", strings.TrimSpace(*p.FirstName))
+		changes["firstName"] = *p.FirstName
+	}
+	if p.LastName != nil {
+		add("last_name", strings.TrimSpace(*p.LastName))
+		changes["lastName"] = *p.LastName
+	}
+	if p.Email != nil {
+		e := strings.ToLower(strings.TrimSpace(*p.Email))
+		if !validEmail(e) {
+			writeErr(w, 400, "Enter a valid email.")
+			return
+		}
+		add("email", e)
+		changes["email"] = e
+	}
+	if p.Phone != nil {
+		add("phone", strings.TrimSpace(*p.Phone))
+	}
+	if p.Username != nil {
+		add("username", strings.ToLower(strings.TrimSpace(*p.Username)))
+		changes["username"] = *p.Username
+	}
+	if p.Status != nil {
+		if *p.Status != "active" && *p.Status != "inactive" {
+			writeErr(w, 400, "Status must be active or inactive.")
+			return
+		}
+		add("status", *p.Status)
+		changes["status"] = *p.Status
+	}
+	if p.Password != nil {
+		pw := strings.TrimSpace(*p.Password)
+		if len(pw) < 8 {
+			writeErr(w, 400, "Password must be at least 8 characters.")
+			return
+		}
+		hash, err := HashPassword(pw)
+		if err != nil {
+			writeErr(w, 500, "Could not hash password.")
+			return
+		}
+		add("password_hash", hash)
+		// Record only that a password reset happened — never the password itself.
+		changes["password"] = "reset"
+	}
+	if len(sets) == 1 {
+		writeErr(w, 400, "Nothing to update.")
+		return
+	}
+	args = append(args, ownerID, companyID)
+	ct, err := s.db.Exec(r.Context(),
+		fmt.Sprintf("UPDATE company_owners SET %s WHERE id::text = $%d AND company_id::text = $%d",
+			strings.Join(sets, ", "), len(args)-1, len(args)),
+		args...)
+	if err != nil {
+		handleErr(w, err)
+		return
+	}
+	if ct.RowsAffected() == 0 {
+		writeErr(w, 404, "Owner not found.")
+		return
+	}
+	_ = s.recordSaasAudit(r.Context(), nil, u.Name, "company_owner_updated", "company_owner",
+		ownerID, &companyID, changes, clientIP(r))
+	writeJSON(w, 200, map[string]any{"ok": true})
 }
 
 // ownerAuth protects owner endpoints: valid HMAC token AND role=saas_owner.

@@ -327,6 +327,7 @@ function Editor({ doc }) {
                   </div>
                 </div>
               )}
+              {canFeature('authorization') && (
               <button className={`auth-btn${doc.authorization?.approved ? ' ok' : doc.authorization ? ' no' : ''}`} onClick={guard(() => setModal('auth'))}>
                 {doc.authorization?.approved ? <ShieldCheck size={18} /> : doc.authorization ? <ShieldX size={18} /> : <ShieldCheck size={18} />}
                 <span className="grow" style={{ textAlign: 'left' }}>
@@ -337,6 +338,7 @@ function Editor({ doc }) {
                 </span>
                 <ChevronRight size={16} />
               </button>
+              )}
             </div>
 
             <div className="card totals">

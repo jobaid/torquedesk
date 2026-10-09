@@ -176,10 +176,18 @@ function Boot() {
     loadDocuments()
     loadCustomers()
     loadFeatures()
-    // Owner can flip features any time. Re-fetch every 30 s so the shop
-    // sidebar reacts without a hard refresh.
-    const t = setInterval(() => loadFeatures(), 30000)
-    return () => clearInterval(t)
+    // Owner can flip features any time. Poll every 10s and also whenever
+    // the tab regains focus so an owner toggle takes effect within seconds.
+    const t = setInterval(() => loadFeatures(), 10000)
+    const onFocus = () => loadFeatures()
+    const onVis = () => { if (!document.hidden) loadFeatures() }
+    window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onVis)
+    return () => {
+      clearInterval(t)
+      window.removeEventListener('focus', onFocus)
+      document.removeEventListener('visibilitychange', onVis)
+    }
   }, [load, loadDocuments, loadCustomers, loadFeatures])
 
   if (error && !data) {

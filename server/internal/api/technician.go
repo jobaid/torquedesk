@@ -17,6 +17,7 @@ package api
 // to pricing data.
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -89,6 +90,10 @@ func (s *Server) createTechnicianLink(w http.ResponseWriter, r *http.Request) {
 	cid := companyFrom(r.Context())
 	u := userFrom(r.Context())
 	inspID := r.PathValue("id")
+	if !s.companyFeatureEnabled(r.Context(), cid, "technician_submit") {
+		writeErr(w, 403, "Technician mobile submit is not enabled for this shop.")
+		return
+	}
 	var exists bool
 	if err := s.db.QueryRow(r.Context(), `SELECT EXISTS (SELECT 1 FROM inspections WHERE id::text = $1 AND company_id::text = $2)`, inspID, cid).Scan(&exists); err != nil || !exists {
 		writeErr(w, 404, "Inspection not found.")
@@ -167,7 +172,36 @@ func (s *Server) resolveTechToken(r *http.Request, tok string) (*techContext, bo
 	if err != nil {
 		return nil, false
 	}
+	// SaaS owner can disable the technician mobile submit feature per tenant
+	// (Owner → Company → Feature Access → technician_submit). When off, the
+	// link stops working for every technician the shop issued it to.
+	if !s.companyFeatureEnabled(r.Context(), ctx.CompanyID, "technician_submit") {
+		return nil, false
+	}
 	return &ctx, true
+}
+
+// companyFeatureEnabled resolves a merged feature flag for a company (stored
+// override overlaid on catalog defaults). Used by token-scoped public
+// endpoints that can't rely on an authed user's features map.
+func (s *Server) companyFeatureEnabled(ctx context.Context, cid, key string) bool {
+	var raw []byte
+	if err := s.db.QueryRow(ctx, `SELECT features FROM company_features WHERE company_id::text = $1`, cid).Scan(&raw); err == nil && len(raw) > 0 {
+		stored := map[string]any{}
+		_ = json.Unmarshal(raw, &stored)
+		if v, ok := stored[key]; ok {
+			if b, ok := v.(bool); ok {
+				return b
+			}
+		}
+	}
+	for _, f := range FeatureCatalog {
+		if f["key"].(string) == key {
+			b, _ := f["defaultOn"].(bool)
+			return b
+		}
+	}
+	return true
 }
 
 // -------------------------------------------------------------- public reads

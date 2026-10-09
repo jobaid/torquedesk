@@ -587,11 +587,49 @@ func (s *Server) publicAuthRespond(w http.ResponseWriter, r *http.Request) {
 			WHERE id::text = $1`, authID, finalStatus, in.Name, in.Reason, ip, ua); err != nil {
 			return err
 		}
-		_, err := tx.Exec(r.Context(), `INSERT INTO document_auth_events
+		if _, err := tx.Exec(r.Context(), `INSERT INTO document_auth_events
 			(authorization_id, document_id, company_id, kind, actor, actor_role, note, ip)
 			VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5, 'customer', $6, $7)`,
-			authID, docID, cid, finalStatus, in.Name, in.Reason, ip)
-		return err
+			authID, docID, cid, finalStatus, in.Name, in.Reason, ip); err != nil {
+			return err
+		}
+		// Mirror the decision onto documents.authorization_info so the shop-UI
+		// authorization badge in Repair Order / Estimate editor shows the
+		// customer's online response immediately. Method='Online' tells the
+		// manager this came through the share link, not an in-shop signature.
+		var authJSON []byte
+		var chatMsg string
+		switch finalStatus {
+		case "approved":
+			authJSON = []byte(fmt.Sprintf(`{"approved":true,"by":%q,"method":"Online","at":%q}`, in.Name, time.Now().UTC().Format(time.RFC3339)))
+			chatMsg = "✓ Authorization approved online by " + in.Name + "."
+		case "denied":
+			authJSON = []byte(fmt.Sprintf(`{"approved":false,"by":%q,"method":"Online","at":%q,"reason":%q}`, in.Name, time.Now().UTC().Format(time.RFC3339), in.Reason))
+			chatMsg = "✗ Authorization declined online by " + in.Name + "."
+			if in.Reason != "" {
+				chatMsg += " Reason: " + in.Reason
+			}
+		case "changes_requested":
+			chatMsg = "Changes requested online by " + in.Name + "."
+			if in.Reason != "" {
+				chatMsg += " " + in.Reason
+			}
+		}
+		if authJSON != nil {
+			if _, err := tx.Exec(r.Context(), `UPDATE documents SET authorization_info = $1, updated_at = now() WHERE id::text = $2 AND company_id::text = $3`,
+				authJSON, docID, cid); err != nil {
+				return err
+			}
+		}
+		if chatMsg != "" {
+			if _, err := tx.Exec(r.Context(), `INSERT INTO document_messages
+				(company_id, document_id, sender_role, sender_name, body, ip)
+				VALUES ($1::uuid, $2::uuid, 'customer', $3, $4, $5)`,
+				cid, docID, in.Name, chatMsg, ip); err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 	if err != nil {
 		handleErr(w, err)

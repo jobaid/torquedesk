@@ -63,6 +63,19 @@ func Migrate(ctx context.Context, pool *pgxpool.Pool) error {
 		}
 		if _, err := tx.Exec(ctx, string(sql)); err != nil {
 			tx.Rollback(ctx)
+			// If the migration failed only because the schema it tries to add
+			// already exists (common when a previous run partially committed
+			// but didn't record itself), accept the state and mark it done.
+			// Idempotent migrations are the preferred fix — this is a safety
+			// net so a server never gets stuck in a crash loop.
+			msg := err.Error()
+			if strings.Contains(msg, "already exists") || strings.Contains(msg, "SQLSTATE 42710") || strings.Contains(msg, "SQLSTATE 42P07") {
+				log.Printf("migration %s: schema already present (%v); marking as applied", e.Name(), err)
+				if _, mErr := pool.Exec(ctx, `INSERT INTO schema_migrations (version) VALUES ($1) ON CONFLICT DO NOTHING`, version); mErr != nil {
+					return mErr
+				}
+				continue
+			}
 			return fmt.Errorf("migration %s: %w", e.Name(), err)
 		}
 		if _, err := tx.Exec(ctx, `INSERT INTO schema_migrations (version) VALUES ($1)`, version); err != nil {

@@ -1,14 +1,7 @@
 -- Platform-level outbound email (SaaS owner's own noreply address).
---
--- Separate from the per-tenant notification_settings used by shops to email
--- their customers. This mailer sends FROM the platform TO shop owners for
--- transactional events the SaaS owner originates: new shop welcome, status
--- change, subscription renewal / expiration.
---
--- Singleton row keyed by a fixed boolean so there is at most one platform
--- mailer configuration. Password stored encrypted with TORQUEDESK_SECRET_KEY.
+-- Idempotent — safe to re-run on partial earlier state.
 
-CREATE TABLE platform_mail_settings (
+CREATE TABLE IF NOT EXISTS platform_mail_settings (
     singleton           boolean PRIMARY KEY DEFAULT true CHECK (singleton = true),
     smtp_host           text NOT NULL DEFAULT '',
     smtp_port           int NOT NULL DEFAULT 587,

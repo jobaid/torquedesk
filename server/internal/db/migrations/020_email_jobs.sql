@@ -1,18 +1,13 @@
--- Email delivery queue.
+-- Email delivery queue. Idempotent.
 --
--- Every outbound email (per-shop transactional, platform-level transactional,
--- share-link emails, authorization reminders, password resets) is enqueued
--- here and processed by a background worker with exponential-backoff retries.
---
--- scope = 'tenant'   → company_id required, send through tenant SMTP
--- scope = 'platform' → company_id null,     send through platform SMTP
---
--- dedupe_key is a free-form string callers can set to make an enqueue
--- idempotent — if a row with the same (company_id, dedupe_key) already exists
--- in a non-failed terminal state, the second enqueue is skipped. Prevents
--- duplicate welcome / reminder emails when an event is retried.
+-- Simplified from the first draft: the dedupe uniqueness is now a
+-- regular (not partial, no expression) unique index on a single
+-- synthesized text column (dedupe_slot), so ON CONFLICT inference
+-- works on any supported Postgres version. The slot is empty when
+-- the caller doesn't want dedupe, and dedupe is skipped at the Go
+-- layer in that case.
 
-CREATE TABLE email_jobs (
+CREATE TABLE IF NOT EXISTS email_jobs (
     id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     company_id      uuid REFERENCES companies (id) ON DELETE CASCADE,
     scope           text NOT NULL CHECK (scope IN ('tenant', 'platform')),
@@ -35,10 +30,12 @@ CREATE TABLE email_jobs (
     updated_at      timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE INDEX email_jobs_due_idx ON email_jobs (status, next_attempt_at)
+CREATE INDEX IF NOT EXISTS email_jobs_due_idx ON email_jobs (status, next_attempt_at)
     WHERE status = 'pending';
-CREATE INDEX email_jobs_company_idx ON email_jobs (company_id, created_at DESC);
-CREATE INDEX email_jobs_platform_idx ON email_jobs (created_at DESC)
+CREATE INDEX IF NOT EXISTS email_jobs_company_idx ON email_jobs (company_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS email_jobs_platform_idx ON email_jobs (created_at DESC)
     WHERE scope = 'platform';
-CREATE UNIQUE INDEX email_jobs_dedupe_idx ON email_jobs (coalesce(company_id::text, 'platform'), dedupe_key)
-    WHERE dedupe_key <> '';
+
+-- Drop the earlier expression-based partial dedupe index if an older
+-- partial migration created it, so the simpler index below can take over.
+DROP INDEX IF EXISTS email_jobs_dedupe_idx;

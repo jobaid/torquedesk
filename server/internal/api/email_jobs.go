@@ -65,22 +65,32 @@ func (s *Server) enqueueEmail(ctx context.Context, e emailEnqueue) (string, erro
 	if e.CompanyID != "" {
 		cid = e.CompanyID
 	}
+	// Dedupe: when a dedupe_key is set, look for an existing non-failed row
+	// with the same (company_id, dedupe_key) first and skip the insert if
+	// one is found. Not using a unique index/ON CONFLICT so the migration
+	// stays portable across Postgres versions.
+	if e.DedupeKey != "" {
+		var existing string
+		err := s.db.QueryRow(ctx, `SELECT id::text FROM email_jobs
+			WHERE dedupe_key = $1
+			  AND company_id IS NOT DISTINCT FROM $2::uuid
+			  AND status IN ('pending', 'sending', 'sent')
+			LIMIT 1`, e.DedupeKey, cid).Scan(&existing)
+		if err == nil {
+			return "", nil // duplicate silently skipped
+		} else if !errors.Is(err, pgx.ErrNoRows) {
+			return "", err
+		}
+	}
 	var id string
 	err := s.db.QueryRow(ctx, `INSERT INTO email_jobs
 		(company_id, scope, to_email, subject, body_html, body_text, kind,
 		 related_type, related_id, dedupe_key, max_attempts)
 		VALUES ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-		ON CONFLICT ((coalesce(company_id::text, 'platform')), dedupe_key)
-			WHERE dedupe_key <> ''
-			DO NOTHING
 		RETURNING id::text`,
 		cid, e.Scope, e.To, e.Subject, e.HTML, e.Text, e.Kind,
 		e.RelatedType, e.RelatedID, e.DedupeKey, e.MaxAttempts,
 	).Scan(&id)
-	if errors.Is(err, pgx.ErrNoRows) {
-		// Dedupe conflict — the duplicate is silently skipped.
-		return "", nil
-	}
 	return id, err
 }
 

@@ -846,8 +846,9 @@ function PaymentLinkModal({ doc, balance, customer, onClose, onPaid }) {
               <button type="button" className="icon-btn sm" style={{ position: 'absolute', right: 4 }} onClick={copy} aria-label="Copy link"><Copy size={14} /></button>
             </div>
           </Field>
+          <SendPaymentLink doc={doc} customer={customer} email={email} intent={intent} />
           <div className="row gap-8 wrap">
-            <a className="btn btn-secondary" href={`mailto:${encodeURIComponent(email || '')}?subject=${encodeURIComponent('Payment link — ' + (DOC_TYPES[doc.type]?.label || 'document') + ' #' + doc.number)}&body=${encodeURIComponent(emailBody)}`}><Mail size={14} />Email customer</a>
+            <a className="btn btn-secondary" href={`mailto:${encodeURIComponent(email || '')}?subject=${encodeURIComponent('Payment link — ' + (DOC_TYPES[doc.type]?.label || 'document') + ' #' + doc.number)}&body=${encodeURIComponent(emailBody)}`}><Mail size={14} />Open mail app</a>
             <a className="btn btn-secondary" href={`sms:?&body=${encodeURIComponent(smsBody)}`}><MessageSquare size={14} />Text message</a>
             <a className="btn btn-secondary" href={intent.url} target="_blank" rel="noreferrer"><ExternalLink size={14} />Open in new tab</a>
           </div>
@@ -857,6 +858,56 @@ function PaymentLinkModal({ doc, balance, customer, onClose, onPaid }) {
         </div>
       )}
     </Modal>
+  )
+}
+
+// SendPaymentLink is the "Send via your email" bar inside the payment-link
+// modal — same mechanism as the share-link's send button. Prefills the
+// customer's email + a short message with the Stripe Checkout URL, and
+// posts to /api/mail/send which enqueues through the shop's own SMTP.
+function SendPaymentLink({ doc, customer, email, intent }) {
+  const [to, setTo] = useState(email || customer?.email || '')
+  const [subject, setSubject] = useState(`Payment link — ${DOC_TYPES[doc.type]?.label || 'document'} #${doc.number}`)
+  const [busy, setBusy] = useState(false)
+  const [sent, setSent] = useState(false)
+  const [err, setErr] = useState('')
+
+  const body = `Hi${customer?.name ? ' ' + customer.name.split(' ')[0] : ''},\n\nYou can pay ${money(Number(intent.amount))} for ${DOC_TYPES[doc.type]?.label || 'your service'} #${doc.number} securely online here:\n\n${intent.url}\n\nThe link expires in 24 hours.\n\nThanks!`
+  const html = `<p>Hi${customer?.name ? ' ' + customer.name.split(' ')[0] : ''},</p>
+<p>You can pay <strong>${money(Number(intent.amount))}</strong> for ${DOC_TYPES[doc.type]?.label || 'your service'} #${doc.number} securely online.</p>
+<p><a href="${intent.url}" style="display:inline-block;padding:10px 18px;background:#2563eb;color:#fff;text-decoration:none;border-radius:8px;font-weight:600">Pay ${money(Number(intent.amount))} now</a></p>
+<p style="font-size:12px;color:#6b7280">Or copy this link: ${intent.url}<br>The link expires in 24 hours.</p>`
+
+  const send = async () => {
+    if (!to.trim()) { setErr('Enter a recipient email.'); return }
+    setBusy(true); setErr('')
+    try {
+      await api('/mail/send', { method: 'POST', body: { to: to.trim(), subject, html, text: body } })
+      setSent(true)
+      toast.success('Payment link queued', 'Delivery status is in Settings → Notifications → Email delivery log.')
+    } catch (e) {
+      setErr(e.message || 'Could not send.')
+    } finally { setBusy(false) }
+  }
+
+  if (sent) {
+    return <div className="callout" style={{ background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.3)' }}>
+      <Check size={14} /> Payment link email sent to <strong>{to}</strong> through your shop's email.
+    </div>
+  }
+  return (
+    <div className="card card-pad stack gap-8" style={{ background: '#f9fafb' }}>
+      <div style={{ fontSize: 13, fontWeight: 600 }}>Send via your email</div>
+      <div style={{ fontSize: 11, color: '#6b7280' }}>Goes through the SMTP account connected in Settings → Notifications. Appears in the delivery log.</div>
+      <input className="input" type="email" value={to} onChange={(e) => setTo(e.target.value)} placeholder="customer@example.com" />
+      <input className="input" value={subject} onChange={(e) => setSubject(e.target.value)} />
+      {err && <div className="callout callout-danger" role="alert">{err}</div>}
+      <div className="row gap-8" style={{ justifyContent: 'flex-end' }}>
+        <button className="btn btn-primary" onClick={send} disabled={busy || !to.trim()}>
+          {busy ? <><Loader2 size={14} className="spin" />Sending…</> : <><Mail size={14} />Send via your email</>}
+        </button>
+      </div>
+    </div>
   )
 }
 

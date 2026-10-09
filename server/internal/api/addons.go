@@ -543,6 +543,15 @@ func (s *Server) handlePlatformSubscriptionEvent(ctx context.Context, raw []byte
 	if sub.TrialEnd > 0 {
 		trialEnd = time.Unix(sub.TrialEnd, 0).UTC()
 	}
+	// Snapshot the prior status so we only fire the welcome email on the
+	// first time this subscription becomes active (not on every renewal
+	// webhook later).
+	var priorStatus string
+	_ = s.db.QueryRow(ctx, `SELECT status FROM shop_addon_subscriptions
+		WHERE stripe_subscription_id = $1 OR id::text = $2
+		LIMIT 1`, sub.ID, sub.Metadata.SubRowID).Scan(&priorStatus)
+	freshlyActive := (status == "trialing" || status == "active") &&
+		priorStatus != "trialing" && priorStatus != "active" && priorStatus != "past_due"
 	return s.tx(ctx, func(tx pgx.Tx) error {
 		// Upsert the subscription row — by sub_row_id if we created one, else
 		// by (company_id, feature_key).
@@ -564,6 +573,10 @@ func (s *Server) handlePlatformSubscriptionEvent(ctx context.Context, raw []byte
 				return err
 			}
 		}
+		// First-time activation → confirmation email to the shop owner.
+		if freshlyActive {
+			s.sendAddonConfirmation(ctx, cid, key, sub.Metadata.AddonID, status, periodEnd, trialEnd)
+		}
 		// Flip feature flag. Reuses company_features (one row per tenant).
 		if featureOn {
 			if _, err := tx.Exec(ctx, `INSERT INTO company_features (company_id, features)
@@ -583,6 +596,62 @@ func (s *Server) handlePlatformSubscriptionEvent(ctx context.Context, raw []byte
 }
 
 // --------------------------- stripe helpers --------------------------------
+
+// sendAddonConfirmation emails the shop's primary owner a professional
+// confirmation when their first add-on subscription activates. Pulls the
+// add-on name + price + trial / renewal dates and renders the
+// 'addon_subscription' platform template.
+func (s *Server) sendAddonConfirmation(ctx context.Context, cid, featureKey, addonID, status string, periodEnd, trialEnd any) {
+	ownerEmail, _ := s.primaryOwnerEmail(ctx, cid)
+	if ownerEmail == "" {
+		return
+	}
+	var shopName, addonName, currency string
+	var monthly float64
+	_ = s.db.QueryRow(ctx, `SELECT coalesce(name,'') FROM companies WHERE id::text = $1`, cid).Scan(&shopName)
+	_ = s.db.QueryRow(ctx, `SELECT name, monthly_price::float, currency FROM addon_catalog WHERE id::text = $1`, addonID).Scan(&addonName, &monthly, &currency)
+	if shopName == "" {
+		shopName = "your shop"
+	}
+	if addonName == "" {
+		addonName = featureKey
+	}
+	fmtMoney := fmt.Sprintf("$%.2f", monthly)
+	if currency != "" && strings.ToUpper(currency) != "USD" {
+		fmtMoney = fmt.Sprintf("%.2f %s", monthly, strings.ToUpper(currency))
+	}
+	fmtDate := func(v any) string {
+		if t, ok := v.(time.Time); ok {
+			return t.Format("Jan 2, 2006")
+		}
+		return "—"
+	}
+	trialEndStr := fmtDate(trialEnd)
+	nextChargeStr := fmtDate(periodEnd)
+	statusPhrase := "Your subscription is active and the feature has been enabled."
+	if status == "trialing" {
+		statusPhrase = fmt.Sprintf("Your %s free trial has started and the feature is already enabled.", "7-day")
+		if trialEndStr != "—" {
+			statusPhrase = fmt.Sprintf("Your free trial is active until %s. You won't be charged until then.", trialEndStr)
+		}
+	}
+	vars := map[string]string{
+		"shop_name":     htmlEscape(shopName),
+		"addon_name":    htmlEscape(addonName),
+		"monthly_price": fmtMoney,
+		"trial_end":     trialEndStr,
+		"next_charge":   nextChargeStr,
+		"status_phrase": statusPhrase,
+	}
+	subject, html, text := s.renderTemplate(ctx, "platform", "", "addon_subscription", vars)
+	fromName := s.platformFromName(ctx)
+	s.SendPlatformEmail(ctx, []string{ownerEmail},
+		subject,
+		platformEmailShell(fromName, addonName+" is active", html, "You can edit your subscription any time from Settings → Add-ons."),
+		text,
+		"addon_subscription", "addon_welcome:"+cid+":"+featureKey,
+	)
+}
 
 func (s *Server) platformStripeSecret(ctx context.Context) (string, bool) {
 	key, err := LoadDataKey(s.secret)

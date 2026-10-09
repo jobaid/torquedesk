@@ -61,6 +61,24 @@ Sign in with the credentials you were provided and start setting up your workspa
 <p>If you believe this is a mistake, reply to this email and the TorqueDesk team will look into it.</p>`,
 		Text: "Your TorqueDesk shop {{company_name}} {{status_phrase}}.\n{{reason}}\n",
 	},
+	"addon_subscription": {
+		Kind: "addon_subscription", Scope: "platform",
+		Label:        "Add-on subscription confirmation",
+		Description:  "Sent to the shop owner when an add-on subscription becomes active or starts a trial.",
+		Placeholders: []string{"shop_name", "addon_name", "monthly_price", "trial_end", "next_charge", "status_phrase"},
+		Subject:      "{{addon_name}} is now active for {{shop_name}}",
+		HTML: `<p>Hi,</p>
+<p>Thank you for subscribing to <strong>{{addon_name}}</strong>. {{status_phrase}}</p>
+<table role="presentation" cellpadding="0" cellspacing="0" style="margin:12px 0 4px">
+  <tr><td style="padding:4px 10px 4px 0;color:#666;font-size:12px">Add-on</td><td style="padding:4px 0;font-size:13px"><strong>{{addon_name}}</strong></td></tr>
+  <tr><td style="padding:4px 10px 4px 0;color:#666;font-size:12px">Price</td><td style="padding:4px 0;font-size:13px"><strong>{{monthly_price}} / month</strong></td></tr>
+  <tr><td style="padding:4px 10px 4px 0;color:#666;font-size:12px">Trial ends</td><td style="padding:4px 0;font-size:13px"><strong>{{trial_end}}</strong></td></tr>
+  <tr><td style="padding:4px 10px 4px 0;color:#666;font-size:12px">First charge</td><td style="padding:4px 0;font-size:13px"><strong>{{next_charge}}</strong></td></tr>
+</table>
+<p style="margin-top:14px">The feature is already enabled in your shop. You can cancel any time from Settings → Add-ons before the trial ends and you won't be charged.</p>
+<p>— The TorqueDesk team</p>`,
+		Text: "Hi,\n\nThank you for subscribing to {{addon_name}}. {{status_phrase}}\n\nAdd-on: {{addon_name}}\nPrice: {{monthly_price}} / month\nTrial ends: {{trial_end}}\nFirst charge: {{next_charge}}\n\nThe feature is already enabled in your shop. Cancel any time from Settings → Add-ons.\n\n— The TorqueDesk team\n",
+	},
 	"subscription": {
 		Kind: "subscription", Scope: "platform",
 		Label:        "Subscription update",

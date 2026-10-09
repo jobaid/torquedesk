@@ -150,9 +150,25 @@ func (s *Server) issueResetToken(ctx context.Context, kind resetTargetKind, emai
 	}
 	link := fmt.Sprintf("%s/%s?token=%s&email=%s", resetBaseURL(), pathHint, plain, email)
 
-	// Preferred path: send through the shop's connected email account
-	// (Settings → Notifications). Falls back to env-var SMTP / log for the
-	// SaaS admin reset or when the tenant hasn't configured a mailer yet.
+	// Preferred paths:
+	//   - saas_admin  → platform mailer (noreply@torquedesk.com), queued
+	//   - shop user   → tenant SMTP, queued
+	// Fallback: env-var SMTP / log when the matching mailer isn't configured.
+	if kind == kindSaasAdmin {
+		if _, _, err := s.loadPlatformMailer(ctx); err == nil {
+			subject := "Reset your TorqueDesk Owner password"
+			htmlBody := `<p>You asked to reset your TorqueDesk Owner Portal password.</p>` +
+				`<p><a href="` + link + `">Reset your password</a> (expires in 1 hour)</p>` +
+				`<p style="color:#6b7280;font-size:12px">If you didn't ask for this, ignore this email.</p>`
+			plainBody := "You asked to reset your TorqueDesk Owner password.\n\n" +
+				"Click the link below (expires in 1 hour):\n\n" + link + "\n\n" +
+				"If you didn't ask for this, ignore this email."
+			s.SendPlatformEmail(ctx, []string{email}, subject,
+				platformEmailShell(s.platformFromName(ctx), "Reset your password", htmlBody, ""),
+				plainBody, "password_reset", "")
+			return nil
+		}
+	}
 	if kind == kindCompanyOwner && companyID != "" {
 		if _, _, err := s.loadMailer(ctx, companyID); err == nil {
 			var shopName string

@@ -40,20 +40,35 @@ var FeatureCatalog = []map[string]any{
 
 	// Shop add-ons
 	{"key": "inspections", "label": "Vehicle inspections (DVI)", "group": "Add-ons", "defaultOn": true},
+	{"key": "technician_submit", "label": "Technician mobile inspection submit", "group": "Add-ons", "defaultOn": true},
+	{"key": "inspection_photos", "label": "Inspection photo capture", "group": "Add-ons", "defaultOn": true},
 	{"key": "share_link", "label": "Customer share links", "group": "Add-ons", "defaultOn": true},
 	{"key": "chat", "label": "Customer chat", "group": "Add-ons", "defaultOn": true},
 	{"key": "authorization", "label": "Online authorization", "group": "Add-ons", "defaultOn": true},
 	{"key": "online_payments", "label": "Online payments (Stripe / Auth.Net)", "group": "Add-ons", "defaultOn": true},
+	{"key": "payment_receipts", "label": "Automated payment receipt emails", "group": "Add-ons", "defaultOn": true},
+	{"key": "email_templates", "label": "Editable email templates", "group": "Add-ons", "defaultOn": true},
+	{"key": "integrations_hub", "label": "Integrations hub", "group": "Add-ons", "defaultOn": true},
 
 	// Reporting
 	{"key": "reports", "label": "Reports", "group": "Reporting", "defaultOn": true},
 	{"key": "sales_reports", "label": "Sales reports", "group": "Reporting", "defaultOn": true},
+	{"key": "parts_profit", "label": "Parts profit report", "group": "Reporting", "defaultOn": true},
+	{"key": "payments_report", "label": "Payments report", "group": "Reporting", "defaultOn": true},
+	{"key": "tax_report", "label": "Tax report", "group": "Reporting", "defaultOn": true},
 	{"key": "advanced_reports", "label": "Advanced reports", "group": "Reporting", "defaultOn": false},
+
+	// Workflow controls
+	{"key": "void_documents", "label": "Void estimates / repair orders / invoices", "group": "Workflow", "defaultOn": true},
+	{"key": "reopen_documents", "label": "Reopen voided documents", "group": "Workflow", "defaultOn": true},
+	{"key": "deposit_payments", "label": "Deposit / partial payments", "group": "Workflow", "defaultOn": true},
 
 	// Operations
 	{"key": "backup", "label": "Backup & restore", "group": "Operations", "defaultOn": true},
 	{"key": "notifications", "label": "Email notifications", "group": "Operations", "defaultOn": true},
 	{"key": "audit_log", "label": "Audit log", "group": "Operations", "defaultOn": true},
+	{"key": "mfa", "label": "Two-factor authentication (MFA)", "group": "Operations", "defaultOn": true},
+	{"key": "password_reset", "label": "Self-serve password reset", "group": "Operations", "defaultOn": true},
 
 	// Not-yet-shipped modules (shown so owners can see what's coming)
 	{"key": "inventory", "label": "Inventory", "group": "Future", "defaultOn": false},

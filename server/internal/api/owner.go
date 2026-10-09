@@ -46,6 +46,7 @@ func (s *Server) ownerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/owner/auth/login", loginLimit(s.ownerLogin))
 	mux.HandleFunc("GET /api/owner/me", s.ownerAuth(s.ownerMe))
 	mux.HandleFunc("POST /api/owner/me/change-password", s.ownerAuth(s.ownerChangePassword))
+	mux.HandleFunc("POST /api/owner/me/change-email", s.ownerAuth(s.ownerChangeEmail))
 	mux.HandleFunc("GET /api/owner/mfa/status", s.ownerAuth(s.ownerMfaStatus))
 	mux.HandleFunc("POST /api/owner/mfa/setup", s.ownerAuth(s.ownerMfaSetup))
 	mux.HandleFunc("POST /api/owner/mfa/enable", s.ownerAuth(s.ownerMfaEnable))
@@ -346,6 +347,50 @@ func (s *Server) ownerChangePassword(w http.ResponseWriter, r *http.Request) {
 	}
 	_ = s.recordSaasAudit(r.Context(), &adminID, u.Name, "owner_password_changed", "saas_admin", adminID, nil, nil, clientIP(r))
 	writeJSON(w, 200, map[string]any{"ok": true})
+}
+
+// ownerChangeEmail lets a signed-in SaaS owner change their own login email.
+// Requires current password so a stolen session can't rebind the account.
+type changeEmailReq struct {
+	CurrentPassword string `json:"currentPassword"`
+	NewEmail        string `json:"newEmail"`
+}
+
+func (s *Server) ownerChangeEmail(w http.ResponseWriter, r *http.Request) {
+	u := userFrom(r.Context())
+	var req changeEmailReq
+	if err := readJSON(r, &req); err != nil {
+		writeErr(w, 400, "Invalid request.")
+		return
+	}
+	newEmail := strings.ToLower(strings.TrimSpace(req.NewEmail))
+	if newEmail == "" || !validEmail(newEmail) {
+		writeErr(w, 400, "Enter a valid email.")
+		return
+	}
+	if req.CurrentPassword == "" {
+		writeErr(w, 400, "Current password is required to change the login email.")
+		return
+	}
+	var adminID, hash string
+	if err := s.db.QueryRow(r.Context(), `SELECT id::text, password_hash FROM saas_admin_users WHERE lower(email) = lower($1)`, u.Email).Scan(&adminID, &hash); err != nil {
+		writeErr(w, 404, "Owner account not found.")
+		return
+	}
+	if !VerifyPassword(req.CurrentPassword, hash) {
+		writeErr(w, 401, "Current password is incorrect.")
+		return
+	}
+	if _, err := s.db.Exec(r.Context(), `UPDATE saas_admin_users SET email = $1 WHERE id::text = $2`, newEmail, adminID); err != nil {
+		handleErr(w, err)
+		return
+	}
+	_ = s.recordSaasAudit(r.Context(), &adminID, u.Name, "owner_email_changed", "saas_admin", adminID, nil,
+		map[string]any{"from": u.Email, "to": newEmail}, clientIP(r))
+	// Return the new email so the frontend can refresh the signed-in user.
+	// The old token still carries the old email; the user should sign out and
+	// back in to pick up the new identity (password reset target also changes).
+	writeJSON(w, 200, map[string]any{"ok": true, "email": newEmail, "signOutRequired": true})
 }
 
 // ---------------------------------------------------------------- dashboard

@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { KeyRound } from 'lucide-react'
+import { KeyRound, AtSign } from 'lucide-react'
 import { Card, PageHeader } from './primitives'
-import { ownerApi } from '../../store/useOwner'
+import { ownerApi, useOwner } from '../../store/useOwner'
 import MfaCard from './MfaCard'
 
 export default function OwnerSettings() {
@@ -35,6 +35,7 @@ export default function OwnerSettings() {
     <div>
       <PageHeader title="Settings" />
       <div style={{ display: 'grid', gap: 16, maxWidth: 520 }}>
+        <EmailCard />
         <MfaCard />
         <Card>
           <div style={{ fontSize: 15, fontWeight: 600, color: '#e5edf5', marginBottom: 4 }}>Change password</div>
@@ -59,6 +60,60 @@ export default function OwnerSettings() {
         </Card>
       </div>
     </div>
+  )
+}
+
+function EmailCard() {
+  const owner = useOwner((s) => s.owner)
+  const logout = useOwner((s) => s.logout)
+  const [newEmail, setNewEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState('')
+
+  const submit = async (e) => {
+    e.preventDefault()
+    setError(''); setSuccess('')
+    const target = newEmail.trim().toLowerCase()
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(target)) { setError('Enter a valid email.'); return }
+    if (!password) { setError('Current password is required.'); return }
+    setBusy(true)
+    try {
+      await ownerApi('/me/change-email', { method: 'POST', body: { currentPassword: password, newEmail: target } })
+      setSuccess('Login email changed to ' + target + '. Password-reset links will go to this address. You will be signed out in 3 seconds.')
+      setNewEmail(''); setPassword('')
+      setTimeout(() => { logout(); window.location.reload() }, 3000)
+    } catch (err) { setError(err.message) }
+    finally { setBusy(false) }
+  }
+
+  return (
+    <Card>
+      <div style={{ fontSize: 15, fontWeight: 600, color: '#e5edf5', marginBottom: 4 }}>Login email</div>
+      <div style={{ fontSize: 12, color: '#8da2bf', marginBottom: 16 }}>
+        Current: <strong style={{ color: '#c5d2e1' }}>{owner?.user?.email || '—'}</strong>. This is where password-reset links are sent.
+      </div>
+      <form onSubmit={submit} style={{ display: 'grid', gap: 12 }} noValidate>
+        <label style={{ display: 'grid', gap: 4 }}>
+          <span style={{ fontSize: 12, color: '#c5d2e1' }}>New login email</span>
+          <input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} autoComplete="email"
+            placeholder="you@yourdomain.com"
+            style={{ padding: '10px 12px', background: '#111a2b', color: '#e5edf5', border: '1px solid #26324a', borderRadius: 6, fontSize: 14 }} />
+        </label>
+        <label style={{ display: 'grid', gap: 4 }}>
+          <span style={{ fontSize: 12, color: '#c5d2e1' }}>Current password</span>
+          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password"
+            style={{ padding: '10px 12px', background: '#111a2b', color: '#e5edf5', border: '1px solid #26324a', borderRadius: 6, fontSize: 14 }} />
+        </label>
+        {error && <div style={{ background: 'rgba(220,53,69,0.12)', border: '1px solid rgba(220,53,69,0.35)', color: '#fda1aa', padding: 10, borderRadius: 6, fontSize: 13 }}>{error}</div>}
+        {success && <div style={{ background: 'rgba(40,167,69,0.12)', border: '1px solid rgba(40,167,69,0.35)', color: '#95eab0', padding: 10, borderRadius: 6, fontSize: 13 }}>{success}</div>}
+        <button type="submit" disabled={busy}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '10px 14px', background: busy ? '#3b4a62' : '#4f8cff', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, cursor: busy ? 'default' : 'pointer' }}>
+          <AtSign size={16} />{busy ? 'Updating…' : 'Change login email'}
+        </button>
+      </form>
+    </Card>
   )
 }
 

@@ -51,6 +51,16 @@ function Editor({ doc }) {
   const customers = useShop((s) => s.customers)
   const allDocs = useShop((s) => s.documents)
   const saving = useShop((s) => s.saving[doc.id])
+  // Pick up customer-side authorization decisions (approve/decline via the
+  // share link) within ~10s of them happening. Stops polling once the auth
+  // badge has an answer so the editor stays idle for already-decided docs.
+  useEffect(() => {
+    if (doc.authorization?.approved !== undefined) return
+    let alive = true
+    const tick = () => { if (alive) useShop.getState().loadDocuments?.() }
+    const t = setInterval(tick, 10000)
+    return () => { alive = false; clearInterval(t) }
+  }, [doc.id, doc.authorization?.approved])
   const { updateDocument, deleteDocument, createDocument, addItem, updateItem, removeItem, moveItem, addPayment, removePayment, updateCustomer, applyCurrentSettings } = useShop.getState()
   const can = useApp((s) => s.can)
   const features = useApp((s) => s.features)

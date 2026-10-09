@@ -50,6 +50,7 @@ const OwnerPlaceholder = lazy(() => import('./pages/owner/Placeholder'))
 const OwnerSettings = lazy(() => import('./pages/owner/Settings'))
 const OwnerPlatformEmail = lazy(() => import('./pages/owner/PlatformEmail'))
 const OwnerPlatformTemplates = lazy(() => import('./pages/owner/PlatformTemplates'))
+const OwnerAddons = lazy(() => import('./pages/owner/Addons'))
 const OwnerBilling = lazy(() => import('./pages/owner/Billing'))
 const OwnerBackups = lazy(() => import('./pages/owner/Backups'))
 
@@ -131,6 +132,7 @@ export default function App() {
             <Route path="backups" element={<OwnerBackups />} />
             <Route path="email" element={<OwnerPlatformEmail />} />
             <Route path="email-templates" element={<OwnerPlatformTemplates />} />
+            <Route path="addons" element={<OwnerAddons />} />
             <Route path="security" element={<OwnerPlaceholder title="Security" body="MFA is on the login page; broader security settings arrive later." />} />
             <Route path="settings" element={<OwnerSettings />} />
           </Route>
@@ -148,6 +150,7 @@ export default function App() {
             <Route path="backups" element={<OwnerBackups />} />
             <Route path="email" element={<OwnerPlatformEmail />} />
             <Route path="email-templates" element={<OwnerPlatformTemplates />} />
+            <Route path="addons" element={<OwnerAddons />} />
             <Route path="security" element={<OwnerPlaceholder title="Security" body="MFA, session management, and SSO settings are planned for a later phase. For now, owner passwords use Argon2id hashing." />} />
             <Route path="settings" element={<OwnerSettings />} />
           </Route>

@@ -75,6 +75,7 @@ func (s *Server) Handler(staticDir string) http.Handler {
 	s.platformMailRoutes(mux)
 	s.emailJobRoutes(mux)
 	s.emailTemplateRoutes(mux)
+	s.addonRoutes(mux)
 	s.backupRoutes(mux)
 	s.resetRoutes(mux)
 	s.customerRoutes(mux)

@@ -594,6 +594,39 @@ func (s *Server) getCompany(w http.ResponseWriter, r *http.Request) {
 	}
 	rows.Close()
 	c["owners"] = owners
+	// Add-on subscriptions this shop has purchased through the marketplace.
+	addons := []map[string]any{}
+	aRows, _ := s.db.Query(r.Context(), `SELECT s.feature_key, a.name, a.monthly_price::text, a.currency,
+		s.status, s.cancel_at_period_end,
+		coalesce(to_char(s.current_period_end, 'YYYY-MM-DD'), '') AS period_end,
+		coalesce(to_char(s.trial_end,          'YYYY-MM-DD'), '') AS trial_end,
+		s.stripe_subscription_id, s.created_at
+		FROM shop_addon_subscriptions s
+		JOIN addon_catalog a ON a.id = s.addon_id
+		WHERE s.company_id::text = $1
+		ORDER BY s.created_at DESC`, id)
+	for aRows.Next() {
+		var fk, aname, price, cur, st, pe, te, stripeID string
+		var cancel bool
+		var created time.Time
+		if err := aRows.Scan(&fk, &aname, &price, &cur, &st, &cancel, &pe, &te, &stripeID, &created); err != nil {
+			continue
+		}
+		addons = append(addons, map[string]any{
+			"featureKey":           fk,
+			"name":                 aname,
+			"monthlyPrice":         dec(price),
+			"currency":             cur,
+			"status":               st,
+			"cancelAtPeriodEnd":    cancel,
+			"currentPeriodEnd":     pe,
+			"trialEnd":             te,
+			"stripeSubscriptionId": stripeID,
+			"createdAt":            created.UnixMilli(),
+		})
+	}
+	aRows.Close()
+	c["addons"] = addons
 	writeJSON(w, 200, c)
 }
 

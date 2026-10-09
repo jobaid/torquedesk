@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, PauseCircle, PlayCircle, XCircle, Copy, ExternalLink, CalendarPlus, Download, Mail, KeyRound, Check, X } from 'lucide-react'
+import { ArrowLeft, PauseCircle, PlayCircle, XCircle, Copy, ExternalLink, CalendarPlus, Download, Mail, KeyRound, Check, X, Package } from 'lucide-react'
 import { ownerApi, useOwner } from '../../store/useOwner'
 import { Card, PageHeader, Btn, StatusPill, Th, Td, money } from './primitives'
 
@@ -126,6 +126,41 @@ export default function CompanyDetail() {
                 </div>
               </>
             ) : <div style={{ color: '#8da2bf' }}>No subscription on file.</div>}
+          </Card>
+
+          <Card>
+            <h3 style={{ margin: '0 0 10px', fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Package size={14} /> Add-on subscriptions
+              <span style={{ marginLeft: 'auto', fontSize: 11, color: '#8da2bf' }}>
+                {c.addons?.filter((a) => ['trialing', 'active', 'past_due'].includes(a.status)).length || 0} active
+              </span>
+            </h3>
+            {c.addons?.length ? (
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead><tr><Th>Add-on</Th><Th>Status</Th><Th>Price</Th><Th>Trial / renews</Th><Th>Started</Th></tr></thead>
+                <tbody>
+                  {c.addons.map((a) => (
+                    <tr key={a.featureKey}>
+                      <Td>
+                        <div>{a.name}</div>
+                        <code style={{ fontSize: 10, color: '#8da2bf' }}>{a.featureKey}</code>
+                      </Td>
+                      <Td>
+                        <StatusPill status={addonStatusMap(a.status, a.cancelAtPeriodEnd)} />
+                        {a.cancelAtPeriodEnd && <div style={{ fontSize: 10, color: '#fdba74', marginTop: 2 }}>Ends {a.currentPeriodEnd}</div>}
+                      </Td>
+                      <Td>{money(a.monthlyPrice)}/mo</Td>
+                      <Td style={{ color: '#8da2bf', fontSize: 12 }}>
+                        {a.status === 'trialing' && a.trialEnd ? <>Trial ends {a.trialEnd}</>
+                          : a.currentPeriodEnd ? <>Renews {a.currentPeriodEnd}</>
+                          : '—'}
+                      </Td>
+                      <Td style={{ color: '#8da2bf', fontSize: 12 }}>{new Date(a.createdAt).toLocaleDateString()}</Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : <div style={{ color: '#8da2bf' }}>No add-on subscriptions yet.</div>}
           </Card>
 
           <Card>
@@ -275,6 +310,24 @@ function OwnerRow({ companyID, owner, onChanged }) {
 }
 
 const inputStyle = { padding: '6px 10px', borderRadius: 6, border: '1px solid #2a3650', background: '#0b1220', color: '#e5edf5', fontSize: 13 }
+
+// Map Stripe subscription statuses onto the pill palette we already have.
+// Grouping trialing with 'trial' keeps the UI consistent with how the SaaS
+// subscription row renders in the summary card.
+function addonStatusMap(status, cancelAtPeriodEnd) {
+  if (cancelAtPeriodEnd) return 'cancelled'
+  switch (status) {
+    case 'trialing':           return 'trial'
+    case 'active':             return 'active'
+    case 'past_due':           return 'suspended'
+    case 'canceled':
+    case 'incomplete_expired': return 'cancelled'
+    case 'incomplete':
+    case 'unpaid':             return 'suspended'
+    case 'pending':            return 'pending'
+    default:                   return status || 'disabled'
+  }
+}
 
 function FeatureAccess({ companyId }) {
   const [state, setState] = useState(null) // { features: {k:bool}, catalog: [...] }

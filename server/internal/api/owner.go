@@ -657,11 +657,14 @@ func (s *Server) createCompany(w http.ResponseWriter, r *http.Request) {
 	var newCompanyID string
 	err = s.tx(r.Context(), func(tx pgx.Tx) error {
 		adminID, _ := saasAdminIDFromName(r.Context(), tx, u.Name)
+		// New shops start active so the owner the SaaS admin just set up can
+		// sign in immediately. Owners can downgrade to trial, suspend, or
+		// cancel from the company detail page afterward.
 		if err := tx.QueryRow(r.Context(), `INSERT INTO companies
 			(company_code, slug, name, legal_name,
 			 address_street, address_city, address_state, address_zip, address_country,
 			 phone, email, website, industry, timezone, status, application_url, notes, created_by)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'trial',$15,$16,$17::uuid)
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'active',$15,$16,$17::uuid)
 			RETURNING id::text`,
 			in.CompanyCode, in.Slug, in.Name, in.LegalName,
 			in.Address.Street, in.Address.City, in.Address.State, in.Address.Zip, defaultStr(in.Address.Country, "US"),
@@ -684,7 +687,7 @@ func (s *Server) createCompany(w http.ResponseWriter, r *http.Request) {
 		annual, _ := strconv.ParseFloat(in.Subscription.AnnualPrice.String(), 64)
 		if _, err := tx.Exec(r.Context(), `INSERT INTO subscriptions
 			(company_id, plan, status, billing_cycle, monthly_price, annual_price, start_date, end_date, trial_end, auto_renewal)
-			VALUES ($1::uuid, $2, 'trial', $3, $4, $5, $6, $7, $8, $9)`,
+			VALUES ($1::uuid, $2, 'active', $3, $4, $5, $6, $7, $8, $9)`,
 			newCompanyID, in.Subscription.Plan, in.Subscription.BillingCycle,
 			monthly, annual, startD, endD, trialEndD, in.Subscription.AutoRenewal,
 		); err != nil {

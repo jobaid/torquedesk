@@ -157,7 +157,12 @@ export default function CompanyDetail() {
               <Btn onClick={() => changeStatus('active')} disabled={busy || c.status === 'active'}><PlayCircle size={14} />Activate</Btn>
               <Btn variant="secondary" onClick={() => changeStatus('suspended', prompt('Reason? (optional)') || '')} disabled={busy || c.status === 'suspended'}><PauseCircle size={14} />Suspend</Btn>
               <Btn variant="secondary" onClick={() => changeStatus('expired')} disabled={busy || c.status === 'expired'}>Mark expired</Btn>
-              <Btn variant="danger" onClick={() => changeStatus('cancelled', prompt('Reason? (optional)') || '')} disabled={busy || c.status === 'cancelled'}><XCircle size={14} />Cancel</Btn>
+              <Btn variant="danger" onClick={() => {
+                const typed = prompt(`This CANCELS ${c.name} and blocks shop logins. Type the company name to confirm:`)
+                if (typed !== c.name) { alert('Cancellation aborted — company name did not match.'); return }
+                const reason = prompt('Reason? (optional)') || ''
+                changeStatus('cancelled', reason)
+              }} disabled={busy || c.status === 'cancelled'}><XCircle size={14} />Cancel</Btn>
             </div>
           </Card>
 

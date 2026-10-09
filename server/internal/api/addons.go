@@ -39,6 +39,7 @@ func (s *Server) addonRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/addons", s.auth("", s.listShopAddons))
 	mux.HandleFunc("POST /api/addons/{featureKey}/subscribe", s.auth("shop.edit", s.subscribeAddon))
 	mux.HandleFunc("POST /api/addons/{featureKey}/cancel", s.auth("shop.edit", s.cancelAddon))
+	mux.HandleFunc("POST /api/addons/{featureKey}/sync", s.auth("shop.edit", s.syncAddon))
 	// Platform Stripe webhook (addon subscription events)
 	mux.HandleFunc("POST /api/platform-webhooks/stripe", s.platformStripeWebhook)
 }
@@ -317,7 +318,7 @@ func (s *Server) subscribeAddon(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	origin := publicOrigin(r)
-	sessURL, err := stripeCreateSubscriptionCheckout(r.Context(), secret, stripeSubscriptionCheckoutInput{
+	sessURL, sessID, err := stripeCreateSubscriptionCheckoutV2(r.Context(), secret, stripeSubscriptionCheckoutInput{
 		PriceID:   stripePrice,
 		TrialDays: trial,
 		Email:     u.Email,
@@ -335,7 +336,73 @@ func (s *Server) subscribeAddon(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 502, "Could not start checkout: "+err.Error())
 		return
 	}
+	// Store the checkout session id so the success-redirect verify path can
+	// look it up without waiting for the webhook.
+	_, _ = s.db.Exec(r.Context(), `UPDATE shop_addon_subscriptions
+		SET stripe_checkout_session_id = $1, updated_at = now() WHERE id::text = $2`, sessID, subRowID)
 	writeJSON(w, 200, map[string]any{"url": sessURL})
+}
+
+// syncAddon is the self-heal fallback: shop lands on success_url after
+// Stripe Checkout, we actively ask Stripe for the session's subscription
+// (handles the case where the webhook is unreachable). Processes the
+// subscription event inline so the feature flag flips immediately.
+func (s *Server) syncAddon(w http.ResponseWriter, r *http.Request) {
+	cid := companyFrom(r.Context())
+	key := r.PathValue("featureKey")
+	var subRowID, sessID, stripeSubID string
+	err := s.db.QueryRow(r.Context(), `SELECT id::text, stripe_checkout_session_id, stripe_subscription_id
+		FROM shop_addon_subscriptions
+		WHERE company_id::text = $1 AND feature_key = $2 AND status = 'pending'
+		ORDER BY created_at DESC LIMIT 1`, cid, key).Scan(&subRowID, &sessID, &stripeSubID)
+	if err != nil {
+		writeJSON(w, 200, map[string]any{"ok": true, "nothingToSync": true})
+		return
+	}
+	secret, ok := s.platformStripeSecret(r.Context())
+	if !ok {
+		writeErr(w, 503, "Platform payment account not configured.")
+		return
+	}
+	// If we don't yet know the subscription id, retrieve the Checkout Session.
+	if stripeSubID == "" && sessID != "" {
+		resp, cErr := stripeForm(r.Context(), secret, "GET", "https://api.stripe.com/v1/checkout/sessions/"+sessID, nil)
+		if cErr != nil {
+			writeErr(w, 502, "Could not reach Stripe: "+cErr.Error())
+			return
+		}
+		var sess struct {
+			Subscription string `json:"subscription"`
+			Customer     string `json:"customer"`
+		}
+		if jErr := json.Unmarshal(resp, &sess); jErr != nil || sess.Subscription == "" {
+			writeJSON(w, 200, map[string]any{"ok": true, "stillPending": true})
+			return
+		}
+		stripeSubID = sess.Subscription
+		_, _ = s.db.Exec(r.Context(), `UPDATE shop_addon_subscriptions
+			SET stripe_subscription_id = $1, stripe_customer_id = $2, updated_at = now()
+			WHERE id::text = $3`, stripeSubID, sess.Customer, subRowID)
+	}
+	if stripeSubID == "" {
+		writeJSON(w, 200, map[string]any{"ok": true, "stillPending": true})
+		return
+	}
+	// Pull the subscription itself and feed it through the webhook handler
+	// so status + feature flip happen in the same place.
+	subResp, cErr := stripeForm(r.Context(), secret, "GET", "https://api.stripe.com/v1/subscriptions/"+stripeSubID, nil)
+	if cErr != nil {
+		writeErr(w, 502, "Could not reach Stripe: "+cErr.Error())
+		return
+	}
+	// Reshape to the webhook envelope the handler expects.
+	envWrap := map[string]any{"data": map[string]any{"object": json.RawMessage(subResp)}}
+	envBytes, _ := json.Marshal(envWrap)
+	if pErr := s.handlePlatformSubscriptionEvent(r.Context(), envBytes); pErr != nil {
+		writeErr(w, 500, pErr.Error())
+		return
+	}
+	writeJSON(w, 200, map[string]any{"ok": true, "activated": true})
 }
 
 // cancelAddon tells Stripe to cancel at period end so the shop keeps access
@@ -581,6 +648,39 @@ type stripeSubscriptionCheckoutInput struct {
 	SuccessURL string
 	CancelURL  string
 	Metadata   map[string]string
+}
+
+// stripeCreateSubscriptionCheckoutV2 returns both the URL and the session ID
+// so we can store the session id for the self-heal verify path.
+func stripeCreateSubscriptionCheckoutV2(ctx context.Context, secret string, in stripeSubscriptionCheckoutInput) (string, string, error) {
+	form := url.Values{}
+	form.Set("mode", "subscription")
+	form.Set("success_url", in.SuccessURL)
+	form.Set("cancel_url", in.CancelURL)
+	form.Set("line_items[0][price]", in.PriceID)
+	form.Set("line_items[0][quantity]", "1")
+	if in.TrialDays > 0 {
+		form.Set("subscription_data[trial_period_days]", strconv.Itoa(in.TrialDays))
+	}
+	if in.Email != "" {
+		form.Set("customer_email", in.Email)
+	}
+	for k, v := range in.Metadata {
+		form.Set("metadata["+k+"]", v)
+		form.Set("subscription_data[metadata]["+k+"]", v)
+	}
+	resp, err := stripeForm(ctx, secret, "POST", "https://api.stripe.com/v1/checkout/sessions", form)
+	if err != nil {
+		return "", "", err
+	}
+	var out struct {
+		ID  string `json:"id"`
+		URL string `json:"url"`
+	}
+	if err := json.Unmarshal(resp, &out); err != nil || out.URL == "" {
+		return "", "", fmt.Errorf("stripe did not return checkout URL: %s", snippet(resp))
+	}
+	return out.URL, out.ID, nil
 }
 
 func stripeCreateSubscriptionCheckout(ctx context.Context, secret string, in stripeSubscriptionCheckoutInput) (string, error) {

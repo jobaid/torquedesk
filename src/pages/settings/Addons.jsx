@@ -23,12 +23,26 @@ export function Addons() {
   }
   useEffect(() => { load() }, [])
 
-  // Pick up Stripe Checkout success/cancel redirects.
+  // Pick up Stripe Checkout success/cancel redirects. On success, actively
+  // ask the server to verify with Stripe (self-heals the subscription row
+  // even when the webhook is unreachable) and refresh the list.
   useEffect(() => {
     const result = params.get('result')
     const feature = params.get('feature')
-    if (result === 'success') toast.success('Payment completed', (feature ? feature + ': ' : '') + 'Your subscription is being activated. If it does not appear within a minute, refresh.')
-    else if (result === 'cancel') toast.warning('Checkout cancelled', 'No charge was made.')
+    if (result === 'cancel') { toast.warning('Checkout cancelled', 'No charge was made.'); return }
+    if (result !== 'success' || !feature) return
+    let tries = 0
+    const sync = async () => {
+      tries++
+      try {
+        const r = await api(`/addons/${encodeURIComponent(feature)}/sync`, { method: 'POST', body: {} })
+        if (r?.activated) { toast.success('Subscription active', `${feature} is now enabled.`); load(); return }
+        if (tries < 5) setTimeout(sync, 2000)
+      } catch (e) {
+        if (tries < 5) setTimeout(sync, 2000)
+      }
+    }
+    sync()
   }, [params])
 
   const subscribe = async (key) => {

@@ -226,16 +226,32 @@ func (s *Server) companyLogin(w http.ResponseWriter, r *http.Request) {
 	// Dummy hash kept to equalize response times when the user doesn't exist.
 	const dummy = "$argon2id$v=19$m=65536,t=3,p=2$AAAAAAAAAAAAAAAAAAAAAA$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
 	var (
-		ownerID, companyID, firstName, lastName, hash, status, role, cStatus, mfaSecret string
-		mfaEnabled                                                                     bool
+		ownerID, companyID, firstName, lastName, hash, status, role, cStatus, cName, mfaSecret string
+		mfaEnabled                                                                             bool
 	)
+	// When a single email is tied to multiple shops (e.g. a cancelled test
+	// shop and a live production shop) prefer the active one so the user can
+	// still sign in to a working tenant. Status priority: active, trial,
+	// pending, suspended, expired, cancelled.
 	err := s.db.QueryRow(r.Context(), `
-		SELECT o.id::text, o.company_id::text, o.first_name, o.last_name, o.password_hash, o.status, o.role, c.status,
+		SELECT o.id::text, o.company_id::text, o.first_name, o.last_name, o.password_hash, o.status, o.role,
+		       c.status, c.name,
 		       coalesce(o.mfa_secret, ''), coalesce(o.mfa_enabled, false)
 		FROM company_owners o
 		JOIN companies c ON c.id = o.company_id
-		WHERE o.email = $1`, req.Email).
-		Scan(&ownerID, &companyID, &firstName, &lastName, &hash, &status, &role, &cStatus, &mfaSecret, &mfaEnabled)
+		WHERE o.email = $1
+		ORDER BY CASE c.status
+		           WHEN 'active'    THEN 0
+		           WHEN 'trial'     THEN 1
+		           WHEN 'pending'   THEN 2
+		           WHEN 'suspended' THEN 3
+		           WHEN 'expired'   THEN 4
+		           WHEN 'cancelled' THEN 5
+		           ELSE 6
+		         END,
+		         o.created_at DESC
+		LIMIT 1`, req.Email).
+		Scan(&ownerID, &companyID, &firstName, &lastName, &hash, &status, &role, &cStatus, &cName, &mfaSecret, &mfaEnabled)
 	ok := err == nil && status == "active"
 	if !ok {
 		hash = dummy
@@ -254,8 +270,10 @@ func (s *Server) companyLogin(w http.ResponseWriter, r *http.Request) {
 	}
 	if cStatus == "suspended" || cStatus == "expired" || cStatus == "cancelled" {
 		writeJSON(w, 403, map[string]any{
-			"error":         "Your TorqueDesk subscription is currently " + cStatus + ". Please contact your TorqueDesk administrator.",
+			"error":         "The TorqueDesk shop \"" + cName + "\" is currently " + cStatus + ". Ask your TorqueDesk administrator to reactivate it, or sign in with the email of a different active shop.",
 			"companyStatus": cStatus,
+			"companyName":   cName,
+			"companyId":     companyID,
 		})
 		return
 	}

@@ -177,6 +177,16 @@ func (s *Server) processEmailJob(ctx context.Context, id, cid, scope, to, subjec
 	if len(msg) > 2000 {
 		msg = msg[:2000]
 	}
+	// Permanent errors — never retry. Covers SMTP auth failures (530, 535),
+	// no-such-user bounces (550 5.1.1), from-address rejections (553),
+	// invalid-recipient (501, 550 5.1.1), and local config errors we throw
+	// in loadMailer. Users must fix the config and hit Retry in the UI;
+	// burning 5 attempts over ~3 hours just hides the real problem.
+	if isPermanentMailError(msg) {
+		_, _ = s.db.Exec(ctx, `UPDATE email_jobs SET status='failed', attempts=$1, last_error=$2, updated_at=now() WHERE id::text=$3`, attempts, msg, id)
+		log.Printf("email job %s failed permanently (no retry): %v", id, err)
+		return
+	}
 	if attempts >= max {
 		_, _ = s.db.Exec(ctx, `UPDATE email_jobs SET status='failed', attempts=$1, last_error=$2, updated_at=now() WHERE id::text=$3`, attempts, msg, id)
 		log.Printf("email job %s failed permanently after %d attempts: %v", id, attempts, err)
@@ -192,6 +202,30 @@ func (s *Server) processEmailJob(ctx context.Context, id, cid, scope, to, subjec
 		next_attempt_at=now() + ($3 || ' seconds')::interval, updated_at=now()
 		WHERE id::text=$4`, attempts, msg, int(bo.Seconds()), id)
 	log.Printf("email job %s attempt %d/%d failed, retry in %s: %v", id, attempts, max, bo, err)
+}
+
+// isPermanentMailError returns true for errors that will never succeed by
+// retrying — auth rejections, invalid credentials, invalid sender/recipient,
+// and local config problems (mailer not configured). Transient errors
+// (connection reset, 4xx greylisting, DNS flap) still retry.
+func isPermanentMailError(msg string) bool {
+	m := strings.ToLower(msg)
+	needles := []string{
+		"530 ", "535 ", "550 ", "551 ", "553 ", "554 ",     // SMTP 5xx permanent failures
+		"authentication required", "authentication failed",
+		"username and password not accepted",
+		"invalid credentials", "bad credentials",
+		"relay access denied", "no such user",
+		"smtp host and from address are required",
+		"platform mailer is disabled",
+		"unknown scope",
+	}
+	for _, n := range needles {
+		if strings.Contains(m, n) {
+			return true
+		}
+	}
+	return false
 }
 
 // --------------------------- API: log + retry ------------------------------

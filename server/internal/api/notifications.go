@@ -573,9 +573,11 @@ func (s *Server) sendAuthorizationReminder(ctx context.Context, cid, docID, docN
 	if shopName == "" {
 		shopName = "Your shop"
 	}
-	subject := fmt.Sprintf("Reminder: please review %s #%s", docNum, docNum)
-	plain := fmt.Sprintf("Hi,\n\n%s is still waiting on your authorization for document #%s.\n\nOpen it here: %s\n\nThanks.\n", shopName, docNum, url)
-	html := fmt.Sprintf(`<p>Hi,</p><p><b>%s</b> is still waiting on your authorization for document <b>#%s</b>.</p><p><a href="%s">Open the document</a></p>`, shopName, docNum, url)
+	subject, html, plain := s.renderTemplate(ctx, "tenant", cid, "authorization_reminder", map[string]string{
+		"shop_name":  htmlEscape(shopName),
+		"doc_number": "#" + docNum,
+		"share_url":  url,
+	})
 	// Dedupe one reminder per doc per calendar day so a retrying ticker never
 	// double-sends.
 	today := time.Now().UTC().Format("2006-01-02")

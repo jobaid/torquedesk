@@ -154,23 +154,24 @@ func (s *Server) issueResetToken(ctx context.Context, kind resetTargetKind, emai
 	// (Settings → Notifications). Falls back to env-var SMTP / log for the
 	// SaaS admin reset or when the tenant hasn't configured a mailer yet.
 	if kind == kindCompanyOwner && companyID != "" {
-		if cfg, pw, err := s.loadMailer(ctx, companyID); err == nil {
+		if _, _, err := s.loadMailer(ctx, companyID); err == nil {
 			var shopName string
 			_ = s.db.QueryRow(ctx, `SELECT coalesce(shop_name,'') FROM shop_settings WHERE company_id::text = $1`, companyID).Scan(&shopName)
 			if shopName == "" {
 				shopName = "TorqueDesk"
 			}
-			subject := "Reset your " + shopName + " password"
-			plainBody := "You asked to reset your password at " + shopName + ".\r\n\r\n" +
-				"Click the link below (expires in 1 hour):\r\n\r\n" + link + "\r\n\r\n" +
-				"If you didn't ask for this, ignore this email."
-			htmlBody := "<p>You asked to reset your password at <b>" + shopName + "</b>.</p>" +
-				"<p><a href=\"" + link + "\">Reset your password</a> (expires in 1 hour)</p>" +
-				"<p style=\"color:#6b7280;font-size:12px\">If you didn't ask for this, ignore this email.</p>"
-			if sErr := cfg.send(pw, []string{email}, subject, htmlBody, plainBody); sErr == nil {
+			subject, htmlBody, plainBody := s.renderTemplate(ctx, "tenant", companyID, "password_reset", map[string]string{
+				"shop_name": htmlEscape(shopName),
+				"reset_url": link,
+			})
+			if _, qErr := s.enqueueEmail(ctx, emailEnqueue{
+				Scope: "tenant", CompanyID: companyID, To: email,
+				Subject: subject, HTML: htmlBody, Text: plainBody,
+				Kind: "password_reset",
+			}); qErr == nil {
 				return nil
 			} else {
-				log.Printf("reset: tenant SMTP for %s failed (%v); falling back to env SMTP / log", email, sErr)
+				log.Printf("reset: enqueue for %s failed (%v); falling back to env SMTP / log", email, qErr)
 			}
 		}
 	}

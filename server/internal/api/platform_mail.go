@@ -304,20 +304,16 @@ func (s *Server) NotifyCompanyCreated(ctx context.Context, ownerEmail, ownerName
 	if hello == "" {
 		hello = "there"
 	}
-	url := strings.TrimSpace(applicationURL)
-	linkHTML := ""
-	linkText := ""
-	if url != "" {
-		linkHTML = `<p><a href="` + htmlEscape(url) + `" style="display:inline-block;padding:10px 18px;background:#2a6cf0;color:#fff;text-decoration:none;border-radius:8px;font-weight:600">Open your shop</a></p>`
-		linkText = "\n\nOpen your shop: " + url + "\n"
+	vars := map[string]string{
+		"owner_name":      htmlEscape(hello),
+		"company_name":    htmlEscape(companyName),
+		"application_url": htmlEscape(strings.TrimSpace(applicationURL)),
+		"from_name":       htmlEscape(fromName),
 	}
-	body := `<p>Hi ` + htmlEscape(hello) + `,</p>` +
-		`<p>Your TorqueDesk shop account for <strong>` + htmlEscape(companyName) + `</strong> is ready. ` +
-		`Sign in with the credentials you were provided and start setting up your workspace.</p>` + linkHTML
-	text := "Hi " + hello + ",\n\nYour TorqueDesk shop account for " + companyName + " is ready." + linkText
+	subject, html, text := s.renderTemplate(ctx, "platform", "", "welcome", vars)
 	s.SendPlatformEmail(ctx, []string{ownerEmail},
-		"Welcome to TorqueDesk — your shop is ready",
-		platformEmailShell(fromName, "Welcome to TorqueDesk", body, "You are receiving this because your shop was just activated on TorqueDesk."),
+		subject,
+		platformEmailShell(fromName, "Welcome to TorqueDesk", html, "You are receiving this because your shop was just activated on TorqueDesk."),
 		text,
 		"welcome", "welcome:"+strings.ToLower(ownerEmail),
 	)
@@ -340,18 +336,16 @@ func (s *Server) NotifyCompanyStatusChange(ctx context.Context, ownerEmail, comp
 	if phrase == "" {
 		phrase = "has had its status changed to " + newStatus
 	}
-	reasonHTML := ""
-	reasonText := ""
-	if r := strings.TrimSpace(reason); r != "" {
-		reasonHTML = `<p><strong>Reason:</strong> ` + htmlEscape(r) + `</p>`
-		reasonText = "\nReason: " + r + "\n"
+	vars := map[string]string{
+		"company_name":  htmlEscape(companyName),
+		"status":        htmlEscape(newStatus),
+		"status_phrase": htmlEscape(phrase),
+		"reason":        htmlEscape(strings.TrimSpace(reason)),
 	}
-	body := `<p>Your TorqueDesk shop <strong>` + htmlEscape(companyName) + `</strong> ` + htmlEscape(phrase) + `.</p>` + reasonHTML +
-		`<p>If you believe this is a mistake, reply to this email and the TorqueDesk team will look into it.</p>`
-	text := "Your TorqueDesk shop " + companyName + " " + phrase + "." + reasonText
+	subject, html, text := s.renderTemplate(ctx, "platform", "", "status_change", vars)
 	s.SendPlatformEmail(ctx, []string{ownerEmail},
-		"TorqueDesk account status: "+newStatus,
-		platformEmailShell(fromName, "Account status updated", body, ""),
+		subject,
+		platformEmailShell(fromName, "Account status updated", html, ""),
 		text,
 		"status_change", "",
 	)
@@ -393,14 +387,16 @@ func (s *Server) NotifySubscriptionChange(ctx context.Context, ownerEmail, compa
 	if rows.Len() > 0 {
 		table = `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:12px 0 4px">` + rows.String() + `</table>`
 	}
-	body := `<p>` + intro + `</p>` + table
-	text := "Your TorqueDesk subscription for " + companyName + " — " + kind + ".\n"
-	for k, v := range details {
-		text += "  " + k + ": " + v + "\n"
+	vars := map[string]string{
+		"company_name": htmlEscape(companyName),
+		"title":        htmlEscape(title),
+		"intro":        intro,
+		"detail_table": table,
 	}
+	subject, html, text := s.renderTemplate(ctx, "platform", "", "subscription", vars)
 	s.SendPlatformEmail(ctx, []string{ownerEmail},
-		"TorqueDesk: "+title,
-		platformEmailShell(fromName, title, body, ""),
+		subject,
+		platformEmailShell(fromName, title, html, ""),
 		text,
 		"subscription_"+kind, "",
 	)

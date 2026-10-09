@@ -1,7 +1,7 @@
 import { NavLink, Navigate, Outlet, useNavigate } from 'react-router-dom'
 import {
   ShieldCheck, LayoutDashboard, Building2, CreditCard, Users, KeyRound,
-  Globe, Receipt, ScrollText, Lock, Settings, LogOut, HardDrive, Mail,
+  Globe, Receipt, ScrollText, Lock, Settings, LogOut, HardDrive, Mail, FileText,
 } from 'lucide-react'
 import { useOwner } from '../../store/useOwner'
 
@@ -20,6 +20,7 @@ const NAV = [
   { to: `${BASE}/billing`, label: 'Billing', icon: Receipt },
   { to: `${BASE}/backups`, label: 'Backups', icon: HardDrive },
   { to: `${BASE}/email`, label: 'Platform Email', icon: Mail },
+  { to: `${BASE}/email-templates`, label: 'Email Templates', icon: FileText },
   { to: `${BASE}/audit`, label: 'Audit Logs', icon: ScrollText },
   { to: `${BASE}/security`, label: 'Security', icon: Lock },
   { to: `${BASE}/settings`, label: 'Settings', icon: Settings },

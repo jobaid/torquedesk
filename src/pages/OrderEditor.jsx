@@ -51,16 +51,16 @@ function Editor({ doc }) {
   const customers = useShop((s) => s.customers)
   const allDocs = useShop((s) => s.documents)
   const saving = useShop((s) => s.saving[doc.id])
-  // Pick up customer-side authorization decisions (approve/decline via the
-  // share link) within ~10s of them happening. Stops polling once the auth
-  // badge has an answer so the editor stays idle for already-decided docs.
+  // Pick up remote-side updates while the editor is open: customer online
+  // approvals, Stripe webhook payments, void/reopen from another session.
+  // 15s is a reasonable cadence — fast enough that the balance drops to $0
+  // soon after a Stripe success, slow enough that it's not chatty.
   useEffect(() => {
-    if (doc.authorization?.approved !== undefined) return
     let alive = true
     const tick = () => { if (alive) useShop.getState().loadDocuments?.() }
-    const t = setInterval(tick, 10000)
+    const t = setInterval(tick, 15000)
     return () => { alive = false; clearInterval(t) }
-  }, [doc.id, doc.authorization?.approved])
+  }, [doc.id])
   const { updateDocument, deleteDocument, createDocument, addItem, updateItem, removeItem, moveItem, addPayment, removePayment, updateCustomer, applyCurrentSettings } = useShop.getState()
   const can = useApp((s) => s.can)
   const features = useApp((s) => s.features)

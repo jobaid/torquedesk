@@ -183,6 +183,9 @@ func (s *Server) createDocumentPaymentLink(w http.ResponseWriter, r *http.Reques
 }
 
 // getPaymentIntent lets the UI poll for status after the shop sends the link.
+// If the stored status is still 'pending' but Stripe knows the session is
+// complete, we process it inline — this is a self-healing fallback for shops
+// whose webhook isn't reachable (local dev, misconfigured, firewalled).
 func (s *Server) getPaymentIntent(w http.ResponseWriter, r *http.Request) {
 	cid := companyFrom(r.Context())
 	id := r.PathValue("id")
@@ -197,6 +200,21 @@ func (s *Server) getPaymentIntent(w http.ResponseWriter, r *http.Request) {
 		handleErr(w, err)
 		return
 	}
+	// Fallback for shops without a working webhook: ask Stripe directly.
+	if status == "pending" && provider == "stripe" && providerRef != "" {
+		if _, secret, sErr := s.ActiveShopGatewaySecret(r.Context(), cid, "stripe"); sErr == nil {
+			if sess, rErr := stripeRetrieveSession(r.Context(), secret, providerRef); rErr == nil &&
+				sess.PaymentStatus == "paid" {
+				fake := stripeEvent{ID: "retrieve_" + providerRef, Type: "checkout.session.completed"}
+				fake.Data.Object = sess
+				if pErr := s.handleStripeSessionCompleted(r.Context(), cid, fake); pErr == nil {
+					// Re-read the row — status should now be 'succeeded'.
+					_ = s.db.QueryRow(r.Context(), `SELECT status, updated_at FROM shop_payment_intents WHERE id::text = $1`, id).
+						Scan(&status, &updated)
+				}
+			}
+		}
+	}
 	writeJSON(w, 200, map[string]any{
 		"id": id, "provider": provider, "providerRef": providerRef,
 		"status": status, "errorMessage": errMsg,
@@ -204,6 +222,30 @@ func (s *Server) getPaymentIntent(w http.ResponseWriter, r *http.Request) {
 		"documentId": docID,
 		"createdAt":  created.UnixMilli(), "updatedAt": updated.UnixMilli(),
 	})
+}
+
+// stripeRetrieveSession fetches a Checkout Session from Stripe's API. Used by
+// the self-heal path in getPaymentIntent when a webhook never arrived.
+func stripeRetrieveSession(ctx context.Context, secret, sessID string) (stripeCheckoutObject, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", "https://api.stripe.com/v1/checkout/sessions/"+sessID, nil)
+	if err != nil {
+		return stripeCheckoutObject{}, err
+	}
+	req.SetBasicAuth(secret, "")
+	res, err := (&http.Client{Timeout: 15 * time.Second}).Do(req)
+	if err != nil {
+		return stripeCheckoutObject{}, err
+	}
+	defer res.Body.Close()
+	body, _ := io.ReadAll(io.LimitReader(res.Body, 1<<20))
+	if res.StatusCode >= 300 {
+		return stripeCheckoutObject{}, fmt.Errorf("stripe retrieve %d: %s", res.StatusCode, snippet(body))
+	}
+	var sess stripeCheckoutObject
+	if err := json.Unmarshal(body, &sess); err != nil {
+		return stripeCheckoutObject{}, err
+	}
+	return sess, nil
 }
 
 // publicIntentStatus is called by the browser on the success/cancel landing

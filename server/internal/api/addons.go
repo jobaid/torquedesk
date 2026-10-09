@@ -228,9 +228,11 @@ func (s *Server) deleteAddon(w http.ResponseWriter, r *http.Request) {
 }
 
 // listShopAddons returns the published catalog + this shop's active
-// subscriptions for each addon.
+// subscriptions for each addon. Opportunistically reconciles pending rows
+// with Stripe (self-heal when the webhook isn't reachable).
 func (s *Server) listShopAddons(w http.ResponseWriter, r *http.Request) {
 	cid := companyFrom(r.Context())
+	s.reconcilePendingAddons(r.Context(), cid)
 	rows, err := s.db.Query(r.Context(), `SELECT `+addonCols+` FROM addon_catalog WHERE published = true ORDER BY monthly_price`)
 	if err != nil {
 		handleErr(w, err)
@@ -283,15 +285,22 @@ func (s *Server) subscribeAddon(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 403, "This add-on is not available.")
 		return
 	}
-	// Guard: already subscribed?
+	// Guard: already truly active? (Don't block on 'pending' — those are
+	// abandoned checkouts from a prior attempt that we'll clean up below.)
 	var already bool
 	_ = s.db.QueryRow(r.Context(), `SELECT EXISTS (SELECT 1 FROM shop_addon_subscriptions
 		WHERE company_id::text = $1 AND feature_key = $2
-		  AND status IN ('pending','trialing','active','past_due'))`, cid, key).Scan(&already)
+		  AND status IN ('trialing','active','past_due'))`, cid, key).Scan(&already)
 	if already {
 		writeErr(w, 409, "You already have an active subscription for this add-on.")
 		return
 	}
+	// Clean up any stale pending rows for the same (company, feature) so a
+	// user who abandoned Stripe Checkout earlier can resubscribe cleanly.
+	// Keeps the audit trail by marking canceled rather than deleting.
+	_, _ = s.db.Exec(r.Context(), `UPDATE shop_addon_subscriptions
+		SET status = 'canceled', updated_at = now()
+		WHERE company_id::text = $1 AND feature_key = $2 AND status = 'pending'`, cid, key)
 	// Load platform Stripe secret.
 	secret, ok := s.platformStripeSecret(r.Context())
 	if !ok {
@@ -596,6 +605,56 @@ func (s *Server) handlePlatformSubscriptionEvent(ctx context.Context, raw []byte
 }
 
 // --------------------------- stripe helpers --------------------------------
+
+// reconcilePendingAddons sweeps pending subscriptions for this tenant and
+// asks Stripe about any that have a known checkout session id. Fire-and-
+// forget: on any error the pending row just stays pending for the next tick.
+func (s *Server) reconcilePendingAddons(ctx context.Context, cid string) {
+	rows, err := s.db.Query(ctx, `SELECT id::text, stripe_checkout_session_id
+		FROM shop_addon_subscriptions
+		WHERE company_id::text = $1 AND status = 'pending' AND stripe_checkout_session_id <> ''
+		  AND created_at > now() - interval '48 hours'`, cid)
+	if err != nil {
+		return
+	}
+	type pending struct{ id, sess string }
+	var batch []pending
+	for rows.Next() {
+		var p pending
+		if err := rows.Scan(&p.id, &p.sess); err == nil {
+			batch = append(batch, p)
+		}
+	}
+	rows.Close()
+	if len(batch) == 0 {
+		return
+	}
+	secret, ok := s.platformStripeSecret(ctx)
+	if !ok {
+		return
+	}
+	for _, p := range batch {
+		resp, cErr := stripeForm(ctx, secret, "GET", "https://api.stripe.com/v1/checkout/sessions/"+p.sess, nil)
+		if cErr != nil {
+			continue
+		}
+		var sess struct {
+			Subscription string `json:"subscription"`
+			Customer     string `json:"customer"`
+			Status       string `json:"status"`
+		}
+		if jErr := json.Unmarshal(resp, &sess); jErr != nil || sess.Subscription == "" {
+			continue
+		}
+		subResp, sErr := stripeForm(ctx, secret, "GET", "https://api.stripe.com/v1/subscriptions/"+sess.Subscription, nil)
+		if sErr != nil {
+			continue
+		}
+		envWrap := map[string]any{"data": map[string]any{"object": json.RawMessage(subResp)}}
+		envBytes, _ := json.Marshal(envWrap)
+		_ = s.handlePlatformSubscriptionEvent(ctx, envBytes)
+	}
+}
 
 // sendAddonConfirmation emails the shop's primary owner a professional
 // confirmation when their first add-on subscription activates. Pulls the

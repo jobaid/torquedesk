@@ -352,18 +352,29 @@ func (s *Server) createDocAuthorization(w http.ResponseWriter, r *http.Request) 
 			if err := seedAuthItems(r.Context(), tx, activeID, seeds); err != nil {
 				return err
 			}
-			return insertAuthEvent(r, tx, activeID, docID, cid, "resent", u.Name, "shop", in.Note)
+			if err := insertAuthEvent(r, tx, activeID, docID, cid, "resent", u.Name, "shop", in.Note); err != nil {
+				return err
+			}
+		} else {
+			if err := tx.QueryRow(r.Context(), `INSERT INTO document_authorizations
+				(company_id, document_id, status, requested_by, expires_at, scope_hash)
+				VALUES ($1::uuid, $2::uuid, 'pending', $3, $4, $5) RETURNING id::text`,
+				cid, docID, u.Name, expiresArg, hash).Scan(&activeID); err != nil {
+				return err
+			}
+			if err := seedAuthItems(r.Context(), tx, activeID, seeds); err != nil {
+				return err
+			}
+			if err := insertAuthEvent(r, tx, activeID, docID, cid, "requested", u.Name, "shop", in.Note); err != nil {
+				return err
+			}
 		}
-		if err := tx.QueryRow(r.Context(), `INSERT INTO document_authorizations
-			(company_id, document_id, status, requested_by, expires_at, scope_hash)
-			VALUES ($1::uuid, $2::uuid, 'pending', $3, $4, $5) RETURNING id::text`,
-			cid, docID, u.Name, expiresArg, hash).Scan(&activeID); err != nil {
-			return err
-		}
-		if err := seedAuthItems(r.Context(), tx, activeID, seeds); err != nil {
-			return err
-		}
-		return insertAuthEvent(r, tx, activeID, docID, cid, "requested", u.Name, "shop", in.Note)
+		// Reset the badge on the editor: a new (or re-sent) request supersedes
+		// any prior online decision, so the Repair Order / Estimate UI shows
+		// 'Not yet authorized' until the customer responds to THIS request.
+		_, err := tx.Exec(r.Context(), `UPDATE documents SET authorization_info = NULL, updated_at = now()
+			WHERE id::text = $1 AND company_id::text = $2`, docID, cid)
+		return err
 	})
 	if err != nil {
 		handleErr(w, err)

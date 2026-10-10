@@ -56,10 +56,10 @@ services:
     volumes:
       - torquedesk_data:/data
     ports:
-      # Bind to localhost only — the host nginx terminates TLS and
-      # proxies through. Change to "0.0.0.0:8080:8080" if you want a
-      # dedicated containerised nginx (see profiles.proxy below).
-      - "127.0.0.1:8080:8080"
+      # Bind to localhost:8081 — same port the bare-metal server was
+      # using, so the host nginx proxy_pass line keeps working unchanged.
+      # Inside the container the server still listens on 8080.
+      - "127.0.0.1:8081:8080"
     # No HTTP healthcheck here — distroless has no shell / curl. The server
     # will restart on crash via restart: unless-stopped, and nginx /
     # Monit / uptime-kuma do app-level health probes against /api/health.

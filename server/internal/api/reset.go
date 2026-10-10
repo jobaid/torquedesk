@@ -1,7 +1,6 @@
 package api
 
 import (
-	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
@@ -80,11 +79,17 @@ func sendResetEmail(toEmail, link string) error {
 	return smtp.SendMail(host+":"+port, auth, from, []string{toEmail}, msg)
 }
 
-// resetBaseURL is used to build the reset link. Set RESET_BASE_URL=https://apps.2set.com
-// so the email link goes to your real deployment; defaults to a localhost URL.
-func resetBaseURL() string {
+// resetBaseURL builds the reset link base. Preference order:
+//   1. RESET_BASE_URL env var (explicit override)
+//   2. The incoming request's public origin (honours nginx X-Forwarded-*),
+//      so production emails naturally link to https://apps.2set.com
+//   3. http://localhost:5173 (dev fallback for scripted / background jobs)
+func resetBaseURL(r *http.Request) string {
 	if u := strings.TrimSpace(os.Getenv("RESET_BASE_URL")); u != "" {
 		return strings.TrimRight(u, "/")
+	}
+	if r != nil {
+		return publicOrigin(r)
 	}
 	return "http://localhost:5173"
 }
@@ -120,11 +125,12 @@ func (s *Server) requestPasswordReset(w http.ResponseWriter, r *http.Request) {
 	}
 	// Always return 200 so an attacker can't enumerate accounts via timing.
 	// If the email exists, issue a token and email/log the link.
-	_ = s.issueResetToken(r.Context(), kind, req.Email, pathHint)
+	_ = s.issueResetToken(r, kind, req.Email, pathHint)
 	writeJSON(w, 200, map[string]any{"ok": true, "message": "If that email exists, a reset link has been sent."})
 }
 
-func (s *Server) issueResetToken(ctx context.Context, kind resetTargetKind, email, pathHint string) error {
+func (s *Server) issueResetToken(r *http.Request, kind resetTargetKind, email, pathHint string) error {
+	ctx := r.Context()
 	var userID, companyID string
 	var err error
 	switch kind {
@@ -148,7 +154,7 @@ func (s *Server) issueResetToken(ctx context.Context, kind resetTargetKind, emai
 		VALUES ($1, $2::uuid, $3, $4)`, kind, userID, hash, expires); err != nil {
 		return err
 	}
-	link := fmt.Sprintf("%s/%s?token=%s&email=%s", resetBaseURL(), pathHint, plain, email)
+	link := fmt.Sprintf("%s/%s?token=%s&email=%s", resetBaseURL(r), pathHint, plain, email)
 
 	// Preferred paths:
 	//   - saas_admin  → platform mailer (noreply@torquedesk.com), queued

@@ -109,7 +109,11 @@ export function Addons() {
                 ) : null}
                 <div style={{ marginTop: 'auto', paddingTop: 4 }}>
                   {active ? (
-                    !sub.cancelAtPeriodEnd && (
+                    sub.cancelAtPeriodEnd ? (
+                      <button className="btn btn-primary" onClick={() => subscribe(a.featureKey)} disabled={!!busy}>
+                        <CreditCard size={14} />{busy === a.featureKey ? 'Redirecting…' : 'Resubscribe'}
+                      </button>
+                    ) : (
                       <button className="btn btn-secondary" onClick={() => cancel(a.featureKey)} disabled={busy === a.featureKey} style={{ color: '#991b1b', fontSize: 12 }}>
                         <X size={13} /> Cancel subscription
                       </button>

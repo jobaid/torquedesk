@@ -1055,10 +1055,24 @@ func (s *Server) updateSubscription(w http.ResponseWriter, r *http.Request) {
 		kind = "extended"
 	case p.Plan != nil:
 		kind = "plan_changed"
-	case p.Status != nil && *p.Status == "active":
-		kind = "renewed"
-	case p.Status != nil && *p.Status == "expired":
-		kind = "expired"
+	case p.Status != nil:
+		// Email on every status change the owner makes so the shop always
+		// hears about it. Each status maps to a kind the template layer
+		// knows how to phrase.
+		switch *p.Status {
+		case "active":
+			kind = "renewed"
+		case "trial":
+			kind = "trial_set"
+		case "pending":
+			kind = "pending_set"
+		case "suspended":
+			kind = "suspended_set"
+		case "expired":
+			kind = "expired"
+		case "cancelled":
+			kind = "cancelled_set"
+		}
 	}
 	if kind != "" {
 		var cid, cname, plan, cycle, endStr string

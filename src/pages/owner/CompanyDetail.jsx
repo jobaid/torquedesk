@@ -65,6 +65,20 @@ export default function CompanyDetail() {
     }
   }
 
+  const setSubStatus = async (status) => {
+    if (!c?.subscription?.id) return
+    if (!confirm(`Change subscription status to "${status}"? The shop owner will be emailed.`)) return
+    setBusy(true)
+    try {
+      await ownerApi(`/subscriptions/${c.subscription.id}`, { method: 'PATCH', body: { status } })
+      await load()
+    } catch (e) {
+      alert(e.message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
   if (error) return <Card style={{ color: '#ffb3b8' }}>{error}</Card>
   if (!c) return <Card>Loading…</Card>
 
@@ -119,7 +133,15 @@ export default function CompanyDetail() {
                   <KV k="Auto-renew" v={c.subscription.autoRenewal ? 'Yes' : 'No'} />
                   <KV k="Payment status" v={<span style={{ textTransform: 'capitalize' }}>{c.subscription.paymentStatus}</span>} />
                 </Grid>
-                <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+                <div style={{ fontSize: 11, color: '#8da2bf', marginTop: 12, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '.06em' }}>Change status (emails the shop owner)</div>
+                <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
+                  <Btn variant="secondary" onClick={() => setSubStatus('active')}  disabled={busy || c.subscription.status === 'active'}>Mark active</Btn>
+                  <Btn variant="secondary" onClick={() => setSubStatus('trial')}   disabled={busy || c.subscription.status === 'trial'}>Set to trial</Btn>
+                  <Btn variant="secondary" onClick={() => setSubStatus('pending')} disabled={busy || c.subscription.status === 'pending'}>Set to pending</Btn>
+                  <Btn variant="secondary" onClick={() => setSubStatus('expired')} disabled={busy || c.subscription.status === 'expired'}>Mark expired</Btn>
+                </div>
+                <div style={{ fontSize: 11, color: '#8da2bf', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '.06em' }}>Extend subscription</div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   <Btn variant="secondary" onClick={() => extend(30)} disabled={busy}><CalendarPlus size={13} />Extend 30 days</Btn>
                   <Btn variant="secondary" onClick={() => extend(90)} disabled={busy}><CalendarPlus size={13} />Extend 90 days</Btn>
                   <Btn variant="secondary" onClick={() => extend(365)} disabled={busy}><CalendarPlus size={13} />Extend 1 year</Btn>

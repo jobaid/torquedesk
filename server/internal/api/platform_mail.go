@@ -376,6 +376,18 @@ func (s *Server) NotifySubscriptionChange(ctx context.Context, ownerEmail, compa
 	case "plan_changed":
 		title = "Subscription plan changed"
 		intro = "Your TorqueDesk subscription plan for <strong>" + htmlEscape(companyName) + "</strong> has been changed."
+	case "trial_set":
+		title = "Trial period started"
+		intro = "Your TorqueDesk subscription for <strong>" + htmlEscape(companyName) + "</strong> has been placed into a trial period."
+	case "pending_set":
+		title = "Subscription pending"
+		intro = "Your TorqueDesk subscription for <strong>" + htmlEscape(companyName) + "</strong> is now pending — the TorqueDesk team is reviewing the account."
+	case "suspended_set":
+		title = "Subscription suspended"
+		intro = "Your TorqueDesk subscription for <strong>" + htmlEscape(companyName) + "</strong> has been suspended. Contact support for details."
+	case "cancelled_set":
+		title = "Subscription cancelled"
+		intro = "Your TorqueDesk subscription for <strong>" + htmlEscape(companyName) + "</strong> has been cancelled."
 	}
 	var rows strings.Builder
 	for _, k := range []string{"plan", "billingCycle", "endDate", "monthlyPrice", "annualPrice"} {

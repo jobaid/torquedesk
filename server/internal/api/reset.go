@@ -176,16 +176,29 @@ func (s *Server) issueResetToken(r *http.Request, kind resetTargetKind, email, p
 		}
 	}
 	if kind == kindCompanyOwner && companyID != "" {
+		var shopName string
+		_ = s.db.QueryRow(ctx, `SELECT coalesce(shop_name,'') FROM shop_settings WHERE company_id::text = $1`, companyID).Scan(&shopName)
+		if shopName == "" {
+			shopName = "TorqueDesk"
+		}
+		subject, htmlBody, plainBody := s.renderTemplate(ctx, "tenant", companyID, "password_reset", map[string]string{
+			"shop_name": htmlEscape(shopName),
+			"reset_url": link,
+		})
+		// Primary: platform mailer (SaaS owner's noreply). Always configured
+		// when the SaaS owner has set up Platform Email, works even if the
+		// shop never configured their own SMTP or configured bad credentials.
+		if _, _, err := s.loadPlatformMailer(ctx); err == nil {
+			s.SendPlatformEmail(ctx, []string{email},
+				subject,
+				platformEmailShell(s.platformFromName(ctx), "Reset your password", htmlBody, "You received this because someone requested a password reset for "+shopName+"."),
+				plainBody,
+				"password_reset", "")
+			return nil
+		}
+		// Secondary: tenant SMTP (if the shop configured it). Still useful
+		// when the SaaS owner hasn't set up Platform Email yet.
 		if _, _, err := s.loadMailer(ctx, companyID); err == nil {
-			var shopName string
-			_ = s.db.QueryRow(ctx, `SELECT coalesce(shop_name,'') FROM shop_settings WHERE company_id::text = $1`, companyID).Scan(&shopName)
-			if shopName == "" {
-				shopName = "TorqueDesk"
-			}
-			subject, htmlBody, plainBody := s.renderTemplate(ctx, "tenant", companyID, "password_reset", map[string]string{
-				"shop_name": htmlEscape(shopName),
-				"reset_url": link,
-			})
 			if _, qErr := s.enqueueEmail(ctx, emailEnqueue{
 				Scope: "tenant", CompanyID: companyID, To: email,
 				Subject: subject, HTML: htmlBody, Text: plainBody,

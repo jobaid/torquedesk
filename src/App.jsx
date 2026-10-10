@@ -67,6 +67,8 @@ const ResetPassword = lazy(() => import('./pages/ResetPassword'))
 const PayReturn = lazy(() => import('./pages/PayReturn'))
 const ShareView = lazy(() => import('./pages/ShareView'))
 const TechnicianInspection = lazy(() => import('./pages/TechnicianInspection'))
+const Signup = lazy(() => import('./pages/Signup'))
+const SignupComplete = lazy(() => import('./pages/SignupComplete'))
 
 export default function App() {
   useThemeSync()
@@ -101,6 +103,22 @@ export default function App() {
     return (
       <Suspense fallback={null}>
         <TechnicianInspection />
+      </Suspense>
+    )
+  }
+  // Self-serve signup — public (no auth). Lands here from the marketing
+  // site's pricing CTA. Stripe redirects back to /signup/complete.
+  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/signup/complete')) {
+    return (
+      <Suspense fallback={null}>
+        <SignupComplete />
+      </Suspense>
+    )
+  }
+  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/signup')) {
+    return (
+      <Suspense fallback={null}>
+        <Signup />
       </Suspense>
     )
   }

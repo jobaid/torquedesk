@@ -507,6 +507,52 @@ func (s *Server) platformStripeWebhook(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		_, _ = s.db.Exec(r.Context(), `UPDATE webhook_events SET status='processed', processed_at=now() WHERE provider='stripe' AND event_id=$1`, env.ID)
+	case "checkout.session.completed":
+		// Signup checkouts are the only Checkout we create at the platform
+		// level (addons use their own metadata handled by subscription.*).
+		var pkt struct {
+			Data struct {
+				Object struct {
+					Subscription any `json:"subscription"`
+					Metadata     struct {
+						Signup       string `json:"torquedesk_signup"`
+						CompanyID    string `json:"torquedesk_company_id"`
+						Subscription string `json:"torquedesk_subscription"`
+						Plan         string `json:"torquedesk_plan"`
+						BillingCycle string `json:"torquedesk_billing_cycle"`
+					} `json:"metadata"`
+				} `json:"object"`
+			} `json:"data"`
+		}
+		if err := json.Unmarshal(body, &pkt); err != nil {
+			_, _ = s.db.Exec(r.Context(), `UPDATE webhook_events SET status='failed', error_message=$1, processed_at=now() WHERE provider='stripe' AND event_id=$2`, err.Error(), env.ID)
+			writeErr(w, 500, err.Error())
+			return
+		}
+		if pkt.Data.Object.Metadata.Signup != "true" {
+			_, _ = s.db.Exec(r.Context(), `UPDATE webhook_events SET status='skipped', processed_at=now() WHERE provider='stripe' AND event_id=$1`, env.ID)
+			break
+		}
+		stripeSubID := ""
+		switch v := pkt.Data.Object.Subscription.(type) {
+		case string:
+			stripeSubID = v
+		case map[string]any:
+			if id, ok := v["id"].(string); ok {
+				stripeSubID = id
+			}
+		}
+		if err := s.activateSignup(r.Context(),
+			pkt.Data.Object.Metadata.CompanyID,
+			pkt.Data.Object.Metadata.Subscription,
+			pkt.Data.Object.Metadata.Plan,
+			pkt.Data.Object.Metadata.BillingCycle,
+			stripeSubID); err != nil {
+			_, _ = s.db.Exec(r.Context(), `UPDATE webhook_events SET status='failed', error_message=$1, processed_at=now() WHERE provider='stripe' AND event_id=$2`, err.Error(), env.ID)
+			writeErr(w, 500, err.Error())
+			return
+		}
+		_, _ = s.db.Exec(r.Context(), `UPDATE webhook_events SET status='processed', processed_at=now() WHERE provider='stripe' AND event_id=$1`, env.ID)
 	default:
 		_, _ = s.db.Exec(r.Context(), `UPDATE webhook_events SET status='skipped', processed_at=now() WHERE provider='stripe' AND event_id=$1`, env.ID)
 	}
@@ -826,6 +872,42 @@ func (s *Server) platformStripeSecret(ctx context.Context) (string, bool) {
 
 // stripeCreateProductAndPrice creates a recurring Price (monthly) attached to
 // a new Product. Returns product_id and price_id.
+func stripeCreateProductAndPriceWithInterval(ctx context.Context, secret, name, desc string, amount float64, currency, interval string) (string, string, error) {
+	// Product
+	form := url.Values{}
+	form.Set("name", name)
+	if desc != "" {
+		form.Set("description", desc)
+	}
+	prodResp, err := stripeForm(ctx, secret, "POST", "https://api.stripe.com/v1/products", form)
+	if err != nil {
+		return "", "", err
+	}
+	var prod struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(prodResp, &prod); err != nil || prod.ID == "" {
+		return "", "", fmt.Errorf("could not parse product: %s", snippet(prodResp))
+	}
+	cents := int64(amount*100 + 0.5)
+	form = url.Values{}
+	form.Set("unit_amount", strconv.FormatInt(cents, 10))
+	form.Set("currency", currency)
+	form.Set("recurring[interval]", interval)
+	form.Set("product", prod.ID)
+	priceResp, err := stripeForm(ctx, secret, "POST", "https://api.stripe.com/v1/prices", form)
+	if err != nil {
+		return prod.ID, "", err
+	}
+	var price struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(priceResp, &price); err != nil || price.ID == "" {
+		return prod.ID, "", fmt.Errorf("could not parse price: %s", snippet(priceResp))
+	}
+	return prod.ID, price.ID, nil
+}
+
 func stripeCreateProductAndPrice(ctx context.Context, secret, name, desc string, amount float64, currency string) (string, string, error) {
 	// Product
 	form := url.Values{}

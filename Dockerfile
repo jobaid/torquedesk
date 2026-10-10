@@ -26,15 +26,24 @@ COPY server/ ./
 RUN GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/torquedesk-server .
 
 # ---- 3. Runtime image --------------------------------------------------------
-FROM gcr.io/distroless/base-debian12:nonroot
+# Alpine (not distroless) so we can create the data directories with the
+# right ownership BEFORE declaring VOLUME. Volume content inherits directory
+# ownership from the image on first mount, so uploads + backups are writable
+# by the server process without a wrapper script.
+FROM alpine:3.20
+RUN apk add --no-cache ca-certificates tzdata \
+ && addgroup -S torquedesk \
+ && adduser -S -G torquedesk -u 10001 torquedesk \
+ && mkdir -p /data/uploads /data/backups /app/dist \
+ && chown -R torquedesk:torquedesk /data /app
 WORKDIR /app
 ENV STATIC_DIR=/app/dist \
     UPLOAD_DIR=/data/uploads \
     BACKUP_DIR=/data/backups \
     ADDR=:8080
-COPY --from=server    /out/torquedesk-server /app/torquedesk-server
-COPY --from=frontend  /app/dist              /app/dist
-USER nonroot:nonroot
+COPY --from=server    --chown=torquedesk:torquedesk /out/torquedesk-server /app/torquedesk-server
+COPY --from=frontend  --chown=torquedesk:torquedesk /app/dist              /app/dist
+USER torquedesk:torquedesk
 EXPOSE 8080
 VOLUME ["/data"]
 ENTRYPOINT ["/app/torquedesk-server"]

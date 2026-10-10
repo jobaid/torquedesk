@@ -40,6 +40,8 @@ func (s *Server) addonRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/addons/{featureKey}/subscribe", s.auth("shop.edit", s.subscribeAddon))
 	mux.HandleFunc("POST /api/addons/{featureKey}/cancel", s.auth("shop.edit", s.cancelAddon))
 	mux.HandleFunc("POST /api/addons/{featureKey}/sync", s.auth("shop.edit", s.syncAddon))
+	// Owner can manually override a shop's add-on subscription status.
+	mux.HandleFunc("PATCH /api/owner/companies/{id}/addons/{featureKey}", s.ownerAuth(s.ownerUpdateShopAddon))
 	// Platform Stripe webhook (addon subscription events)
 	mux.HandleFunc("POST /api/platform-webhooks/stripe", s.platformStripeWebhook)
 }
@@ -605,6 +607,98 @@ func (s *Server) handlePlatformSubscriptionEvent(ctx context.Context, raw []byte
 }
 
 // --------------------------- stripe helpers --------------------------------
+
+// ownerUpdateShopAddon lets the SaaS owner manually set an add-on
+// subscription's status for a shop. Useful for comped accounts, trial
+// extensions, or when a Stripe lifecycle event got stuck. Only touches the
+// DB — does NOT reach back into Stripe to cancel/pause the subscription
+// there, so the owner should also handle Stripe-side if the shop is
+// genuinely being terminated. Flips the matching feature flag to match.
+type ownerAddonPatch struct {
+	Status         *string `json:"status"`         // trialing|active|past_due|canceled|pending
+	ExtendTrialDays *int   `json:"extendTrialDays"`
+}
+
+func (s *Server) ownerUpdateShopAddon(w http.ResponseWriter, r *http.Request) {
+	cid := r.PathValue("id")
+	key := r.PathValue("featureKey")
+	u := userFrom(r.Context())
+	var p ownerAddonPatch
+	if err := readJSON(r, &p); err != nil {
+		writeErr(w, 400, "Invalid request.")
+		return
+	}
+	var subID string
+	err := s.db.QueryRow(r.Context(), `SELECT id::text FROM shop_addon_subscriptions
+		WHERE company_id::text = $1 AND feature_key = $2
+		ORDER BY created_at DESC LIMIT 1`, cid, key).Scan(&subID)
+	if err != nil {
+		writeErr(w, 404, "No add-on subscription found for this shop.")
+		return
+	}
+	sets := []string{"updated_at = now()"}
+	args := []any{}
+	add := func(c string, v any) { args = append(args, v); sets = append(sets, fmt.Sprintf("%s = $%d", c, len(args))) }
+	featureOn := false
+	changed := false
+	if p.Status != nil {
+		st := *p.Status
+		valid := map[string]bool{"trialing": true, "active": true, "past_due": true, "canceled": true, "pending": true}
+		if !valid[st] {
+			writeErr(w, 400, "Invalid status.")
+			return
+		}
+		add("status", st)
+		if st == "canceled" {
+			add("cancel_at_period_end", false)
+		}
+		featureOn = st == "trialing" || st == "active" || st == "past_due"
+		changed = true
+	}
+	if p.ExtendTrialDays != nil && *p.ExtendTrialDays > 0 {
+		d := *p.ExtendTrialDays
+		if d > 365 {
+			d = 365
+		}
+		sets = append(sets, fmt.Sprintf("trial_end = coalesce(trial_end, now()) + interval '%d days'", d))
+		changed = true
+	}
+	if !changed {
+		writeErr(w, 400, "Nothing to update.")
+		return
+	}
+	args = append(args, subID)
+	err = s.tx(r.Context(), func(tx pgx.Tx) error {
+		if _, err := tx.Exec(r.Context(),
+			fmt.Sprintf("UPDATE shop_addon_subscriptions SET %s WHERE id::text = $%d", strings.Join(sets, ", "), len(args)),
+			args...); err != nil {
+			return err
+		}
+		// Mirror onto feature flag when the owner changed status.
+		if p.Status != nil {
+			if featureOn {
+				if _, err := tx.Exec(r.Context(), `INSERT INTO company_features (company_id, features)
+					VALUES ($1::uuid, jsonb_build_object($2::text, true))
+					ON CONFLICT (company_id) DO UPDATE SET features = company_features.features || jsonb_build_object($2::text, true), updated_at = now()`, cid, key); err != nil {
+					return err
+				}
+			} else {
+				if _, err := tx.Exec(r.Context(), `UPDATE company_features
+					SET features = features || jsonb_build_object($2::text, false), updated_at = now()
+					WHERE company_id::text = $1`, cid, key); err != nil {
+					return err
+				}
+			}
+		}
+		return s.recordSaasAuditTx(r.Context(), tx, nil, u.Name, "shop_addon_updated", "shop_addon", subID, &cid,
+			map[string]any{"featureKey": key, "status": p.Status, "extendTrialDays": p.ExtendTrialDays}, clientIP(r))
+	})
+	if err != nil {
+		handleErr(w, err)
+		return
+	}
+	writeJSON(w, 200, map[string]any{"ok": true})
+}
 
 // reconcilePendingAddons sweeps pending subscriptions for this tenant and
 // asks Stripe about any that have a known checkout session id. Fire-and-

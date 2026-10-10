@@ -159,26 +159,10 @@ export default function CompanyDetail() {
             </h3>
             {c.addons?.length ? (
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead><tr><Th>Add-on</Th><Th>Status</Th><Th>Price</Th><Th>Trial / renews</Th><Th>Started</Th></tr></thead>
+                <thead><tr><Th>Add-on</Th><Th>Status</Th><Th>Price</Th><Th>Trial / renews</Th><Th>Actions</Th></tr></thead>
                 <tbody>
                   {c.addons.map((a) => (
-                    <tr key={a.featureKey}>
-                      <Td>
-                        <div>{a.name}</div>
-                        <code style={{ fontSize: 10, color: '#8da2bf' }}>{a.featureKey}</code>
-                      </Td>
-                      <Td>
-                        <StatusPill status={addonStatusMap(a.status, a.cancelAtPeriodEnd)} />
-                        {a.cancelAtPeriodEnd && <div style={{ fontSize: 10, color: '#fdba74', marginTop: 2 }}>Ends {a.currentPeriodEnd}</div>}
-                      </Td>
-                      <Td>{money(a.monthlyPrice)}/mo</Td>
-                      <Td style={{ color: '#8da2bf', fontSize: 12 }}>
-                        {a.status === 'trialing' && a.trialEnd ? <>Trial ends {a.trialEnd}</>
-                          : a.currentPeriodEnd ? <>Renews {a.currentPeriodEnd}</>
-                          : '—'}
-                      </Td>
-                      <Td style={{ color: '#8da2bf', fontSize: 12 }}>{new Date(a.createdAt).toLocaleDateString()}</Td>
-                    </tr>
+                    <AddonRow key={a.featureKey} companyID={id} addon={a} onChanged={load} />
                   ))}
                 </tbody>
               </table>
@@ -332,6 +316,50 @@ function OwnerRow({ companyID, owner, onChanged }) {
 }
 
 const inputStyle = { padding: '6px 10px', borderRadius: 6, border: '1px solid #2a3650', background: '#0b1220', color: '#e5edf5', fontSize: 13 }
+
+// AddonRow renders one shop_addon_subscription with status controls so the
+// SaaS owner can override state (comp an account, extend a trial, mark
+// canceled) without going through Stripe. Changes write directly to the DB
+// via PATCH /api/owner/companies/{id}/addons/{featureKey}.
+function AddonRow({ companyID, addon, onChanged }) {
+  const [busy, setBusy] = useState(false)
+  const call = async (patch, confirmMsg) => {
+    if (confirmMsg && !confirm(confirmMsg)) return
+    setBusy(true)
+    try {
+      await ownerApi(`/companies/${companyID}/addons/${encodeURIComponent(addon.featureKey)}`, { method: 'PATCH', body: patch })
+      onChanged()
+    } catch (e) { alert(e.message) }
+    finally { setBusy(false) }
+  }
+  return (
+    <tr>
+      <Td>
+        <div>{addon.name}</div>
+        <code style={{ fontSize: 10, color: '#8da2bf' }}>{addon.featureKey}</code>
+      </Td>
+      <Td>
+        <StatusPill status={addonStatusMap(addon.status, addon.cancelAtPeriodEnd)} />
+        {addon.cancelAtPeriodEnd && <div style={{ fontSize: 10, color: '#fdba74', marginTop: 2 }}>Ends {addon.currentPeriodEnd}</div>}
+      </Td>
+      <Td>{money(addon.monthlyPrice)}/mo</Td>
+      <Td style={{ color: '#8da2bf', fontSize: 12 }}>
+        {addon.status === 'trialing' && addon.trialEnd ? <>Trial ends {addon.trialEnd}</>
+          : addon.currentPeriodEnd ? <>Renews {addon.currentPeriodEnd}</>
+          : '—'}
+      </Td>
+      <Td>
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+          <Btn variant="secondary" onClick={() => call({ status: 'active' })} disabled={busy || addon.status === 'active'} style={{ padding: '2px 8px', fontSize: 11 }}>Active</Btn>
+          <Btn variant="secondary" onClick={() => call({ status: 'trialing' })} disabled={busy || addon.status === 'trialing'} style={{ padding: '2px 8px', fontSize: 11 }}>Trial</Btn>
+          <Btn variant="secondary" onClick={() => call({ status: 'pending' })} disabled={busy || addon.status === 'pending'} style={{ padding: '2px 8px', fontSize: 11 }}>Pending</Btn>
+          <Btn variant="secondary" onClick={() => call({ extendTrialDays: 7 })} disabled={busy} style={{ padding: '2px 8px', fontSize: 11 }}>+7 trial</Btn>
+          <Btn variant="danger" onClick={() => call({ status: 'canceled' }, 'Cancel this add-on immediately and disable the feature? (Does NOT cancel in Stripe — do that too if the shop is being terminated.)')} disabled={busy || addon.status === 'canceled'} style={{ padding: '2px 8px', fontSize: 11 }}>Cancel</Btn>
+        </div>
+      </Td>
+    </tr>
+  )
+}
 
 // Map Stripe subscription statuses onto the pill palette we already have.
 // Grouping trialing with 'trial' keeps the UI consistent with how the SaaS

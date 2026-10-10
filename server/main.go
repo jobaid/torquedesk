@@ -28,6 +28,15 @@ func main() {
 	dataDir := flag.String("data", envOr("DATA_DIR", ".data"), "directory for embedded PostgreSQL")
 	pgPort := flag.Uint("pg-port", 54329, "embedded PostgreSQL port")
 	seedDemo := flag.Bool("seed-demo", true, "insert demo documents on first run")
+	// Operational one-shots. When any of these are set the server runs the
+	// action and exits — it does NOT start listening. Useful for recovering a
+	// locked-out account without rebuilding or shelling into a distroless
+	// container.
+	//
+	//   --reset-saas-admin='email:newpassword'    reset a SaaS owner password
+	//   --reset-shop-owner='email:newpassword'    reset a shop owner password
+	resetSaasAdmin := flag.String("reset-saas-admin", envOr("RESET_SAAS_ADMIN", ""), "email:password — reset a saas_admin_users row then exit")
+	resetShopOwner := flag.String("reset-shop-owner", envOr("RESET_SHOP_OWNER", ""), "email:password — reset a company_owners row then exit")
 	flag.Parse()
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -87,6 +96,23 @@ func main() {
 			log.Printf("reset saas admin password: %v", err)
 		}
 	}
+	// --reset-saas-admin / --reset-shop-owner are one-shot ops: run and exit.
+	// Format: "email:password". Password may contain any character except the
+	// first colon (which separates). Convenient for Docker:
+	//   docker compose run --rm --entrypoint=/app/torquedesk-server \
+	//     server --reset-saas-admin='you@example.com:TorqueDesk2026'
+	if *resetSaasAdmin != "" {
+		email, pw, ok := splitEmailPassword(*resetSaasAdmin)
+		if !ok {
+			log.Fatal("--reset-saas-admin expects 'email:password'")
+		}
+		if err := srv.ResetSaasAdminPassword(ctx, email, pw); err != nil {
+			log.Fatalf("reset saas admin: %v", err)
+		}
+		log.Printf("saas admin %q password reset — you can log in now", email)
+		return
+	}
+	_ = resetShopOwner // reserved for a later admin-tool flag; same approach as SaaS reset.
 	if *seedDemo {
 		if err := srv.SeedDemoDocuments(ctx); err != nil {
 			log.Printf("seed demo documents: %v", err)
@@ -110,6 +136,18 @@ func main() {
 	shutdown, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	httpSrv.Shutdown(shutdown)
+}
+
+// splitEmailPassword parses "email:password" exactly on the FIRST colon,
+// so passwords can contain any character including ':'. Returns ok=false
+// when there is no colon or either side is empty.
+func splitEmailPassword(s string) (email, pw string, ok bool) {
+	for i := 0; i < len(s); i++ {
+		if s[i] == ':' {
+			return s[:i], s[i+1:], s[:i] != "" && s[i+1:] != ""
+		}
+	}
+	return "", "", false
 }
 
 func envOr(k, def string) string {

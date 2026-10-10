@@ -1,7 +1,7 @@
 import { NavLink, Navigate, Route, Routes } from 'react-router-dom'
 import {
   Palette, Store, BadgeCheck, UserCog, Wrench, DollarSign, Percent, TrendingUp, Receipt, Hash, Printer, ToggleRight,
-  PanelsTopLeft, CalendarClock, History, Database, KeyRound, Archive, ShieldCheck, CreditCard, Plug, FileText, Package,
+  PanelsTopLeft, CalendarClock, History, Database, KeyRound, Archive, ShieldCheck, CreditCard, Plug, FileText, Package, Receipt as ReceiptIcon,
 } from 'lucide-react'
 import { ShopDetails, Licenses, StaffPage } from './ShopSettings'
 import { LaborRates, TaxRates, Markups, ShopFees } from './FinancialSettings'
@@ -14,6 +14,7 @@ import { NotificationSettings } from './Notifications'
 import { Integrations } from './Integrations'
 import { EmailTemplates } from './EmailTemplates'
 import { Addons } from './Addons'
+import { Billing } from './Billing'
 import { useApp } from '../../store/useApp'
 
 // Adding a settings page = one entry here + its component.
@@ -42,6 +43,7 @@ export const SETTINGS_NAV = [
     { path: 'general/appearance', label: 'Appearance', icon: Palette, el: <Appearance /> },
     { path: 'general/integrations', label: 'Integrations', icon: Plug, el: <Integrations /> },
     { path: 'general/addons', label: 'Add-ons', icon: Package, el: <Addons /> },
+    { path: 'general/billing', label: 'Billing', icon: ReceiptIcon, el: <Billing /> },
     { path: 'general/notifications', label: 'Notifications', icon: KeyRound, el: <NotificationSettings />, feature: 'notifications' },
     { path: 'general/email-templates', label: 'Email Templates', icon: FileText, el: <EmailTemplates />, feature: 'notifications' },
     { path: 'general/password', label: 'Change Password', icon: KeyRound, el: <ChangePassword /> },

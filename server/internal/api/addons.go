@@ -514,6 +514,7 @@ func (s *Server) platformStripeWebhook(w http.ResponseWriter, r *http.Request) {
 			Data struct {
 				Object struct {
 					Subscription any `json:"subscription"`
+					Customer     any `json:"customer"`
 					Metadata     struct {
 						Signup       string `json:"torquedesk_signup"`
 						CompanyID    string `json:"torquedesk_company_id"`
@@ -542,12 +543,21 @@ func (s *Server) platformStripeWebhook(w http.ResponseWriter, r *http.Request) {
 				stripeSubID = id
 			}
 		}
-		if err := s.activateSignup(r.Context(),
+		stripeCustID := ""
+		switch v := pkt.Data.Object.Customer.(type) {
+		case string:
+			stripeCustID = v
+		case map[string]any:
+			if id, ok := v["id"].(string); ok {
+				stripeCustID = id
+			}
+		}
+		if err := s.activateSignupV2(r.Context(),
 			pkt.Data.Object.Metadata.CompanyID,
 			pkt.Data.Object.Metadata.Subscription,
 			pkt.Data.Object.Metadata.Plan,
 			pkt.Data.Object.Metadata.BillingCycle,
-			stripeSubID); err != nil {
+			stripeSubID, stripeCustID); err != nil {
 			_, _ = s.db.Exec(r.Context(), `UPDATE webhook_events SET status='failed', error_message=$1, processed_at=now() WHERE provider='stripe' AND event_id=$2`, err.Error(), env.ID)
 			writeErr(w, 500, err.Error())
 			return

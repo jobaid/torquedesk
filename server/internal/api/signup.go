@@ -338,6 +338,7 @@ func (s *Server) publicSignupSync(w http.ResponseWriter, r *http.Request) {
 			BillingCycle  string `json:"torquedesk_billing_cycle"`
 		} `json:"metadata"`
 		SubscriptionID any `json:"subscription"`
+		CustomerID     any `json:"customer"`
 	}
 	if err := json.Unmarshal(resp, &dto); err != nil {
 		writeErr(w, 502, "Could not parse Stripe response.")
@@ -351,8 +352,8 @@ func (s *Server) publicSignupSync(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 200, map[string]any{"ok": true, "status": dto.Status, "ready": false})
 		return
 	}
-	// Extract the Stripe subscription id regardless of whether Stripe
-	// expanded it to an object or just returned the id string.
+	// Extract the Stripe subscription + customer ids regardless of whether
+	// Stripe expanded them to objects or just returned the id strings.
 	stripeSubID := ""
 	switch v := dto.SubscriptionID.(type) {
 	case string:
@@ -362,8 +363,17 @@ func (s *Server) publicSignupSync(w http.ResponseWriter, r *http.Request) {
 			stripeSubID = id
 		}
 	}
-	if err := s.activateSignup(r.Context(), dto.Metadata.CompanyID, dto.Metadata.Subscription,
-		dto.Metadata.Plan, dto.Metadata.BillingCycle, stripeSubID); err != nil {
+	stripeCustID := ""
+	switch v := dto.CustomerID.(type) {
+	case string:
+		stripeCustID = v
+	case map[string]any:
+		if id, ok := v["id"].(string); ok {
+			stripeCustID = id
+		}
+	}
+	if err := s.activateSignupV2(r.Context(), dto.Metadata.CompanyID, dto.Metadata.Subscription,
+		dto.Metadata.Plan, dto.Metadata.BillingCycle, stripeSubID, stripeCustID); err != nil {
 		writeErr(w, 500, err.Error())
 		return
 	}
@@ -374,7 +384,15 @@ func (s *Server) publicSignupSync(w http.ResponseWriter, r *http.Request) {
 // an active state and records the Stripe subscription id. Idempotent: if the
 // company is already active, nothing changes. Returns a welcome email through
 // the platform mailer the first time it activates.
+//
+// stripeCustomerID is optional — passed from the Checkout session so the
+// customer-portal link works later without a round-trip. If empty the
+// subscription row keeps whatever's there (usually '').
 func (s *Server) activateSignup(ctx context.Context, companyID, subID, planKey, cycle, stripeSubID string) error {
+	return s.activateSignupV2(ctx, companyID, subID, planKey, cycle, stripeSubID, "")
+}
+
+func (s *Server) activateSignupV2(ctx context.Context, companyID, subID, planKey, cycle, stripeSubID, stripeCustomerID string) error {
 	if companyID == "" {
 		return errors.New("missing company id")
 	}
@@ -407,14 +425,20 @@ func (s *Server) activateSignup(ctx context.Context, companyID, subID, planKey, 
 		}
 		if subID != "" {
 			if _, err := tx.Exec(ctx, `UPDATE subscriptions
-				SET status = $1, notes = coalesce(notes,'') || $2, updated_at = now()
-				WHERE id::text = $3`, subStatus, notePart, subID); err != nil {
+				SET status = $1, notes = coalesce(notes,'') || $2,
+				    stripe_subscription_id = CASE WHEN $4 <> '' THEN $4 ELSE stripe_subscription_id END,
+				    stripe_customer_id     = CASE WHEN $5 <> '' THEN $5 ELSE stripe_customer_id END,
+				    updated_at = now()
+				WHERE id::text = $3`, subStatus, notePart, subID, stripeSubID, stripeCustomerID); err != nil {
 				return err
 			}
 		} else {
 			if _, err := tx.Exec(ctx, `UPDATE subscriptions
-				SET status = $1, notes = coalesce(notes,'') || $2, updated_at = now()
-				WHERE company_id::text = $3`, subStatus, notePart, companyID); err != nil {
+				SET status = $1, notes = coalesce(notes,'') || $2,
+				    stripe_subscription_id = CASE WHEN $4 <> '' THEN $4 ELSE stripe_subscription_id END,
+				    stripe_customer_id     = CASE WHEN $5 <> '' THEN $5 ELSE stripe_customer_id END,
+				    updated_at = now()
+				WHERE company_id::text = $3`, subStatus, notePart, companyID, stripeSubID, stripeCustomerID); err != nil {
 				return err
 			}
 		}

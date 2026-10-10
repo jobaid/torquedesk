@@ -1,0 +1,16 @@
+**/node_modules
+**/.data
+**/dist
+**/.git
+**/.github
+**/.vscode
+**/.idea
+**/*.log
+**/.env
+**/.env.*
+server/torquedesk-server
+server/.data
+uploads
+backups
+coverage
+.graphify

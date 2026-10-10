@@ -1,0 +1,69 @@
+# Production docker-compose for apps.2set.com
+#
+# Preserves data across restarts and rebuilds via two named volumes:
+#   torquedesk_db   → Postgres data directory (every table, every row)
+#   torquedesk_data → uploaded photos + weekly ZIP backups + anything
+#                     the Go server writes under /data
+#
+# To migrate from the current bare-metal setup WITHOUT losing data, see
+# docs/DOCKER_MIGRATION.md — the short version is: pg_dump the running DB,
+# tar the uploads/backups dirs, keep the TORQUEDESK_SECRET_KEY env var,
+# then restore into the containers before switching nginx to port 8080.
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: torquedesk
+      POSTGRES_USER: torquedesk
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+    volumes:
+      - torquedesk_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U torquedesk -d torquedesk"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    # Only exposed to the server container — not to the host.
+    expose:
+      - "5432"
+
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Database — the server reads this and runs migrations at startup.
+      DATABASE_URL: postgres://torquedesk:${DB_PASSWORD}@db:5432/torquedesk?sslmode=disable
+      # Encrypts stored SMTP passwords, OAuth refresh tokens, Stripe
+      # secret keys. MUST match what the pre-Docker server was using,
+      # otherwise encrypted rows in the DB become unreadable.
+      TORQUEDESK_SECRET_KEY: ${TORQUEDESK_SECRET_KEY:?set TORQUEDESK_SECRET_KEY in .env}
+      APP_ENV: production
+      # OAuth (optional — leave empty to disable Google/Microsoft sign-in
+      # for shop email; app-password flow still works).
+      GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID:-}
+      GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET:-}
+      MICROSOFT_OAUTH_CLIENT_ID: ${MICROSOFT_OAUTH_CLIENT_ID:-}
+      MICROSOFT_OAUTH_CLIENT_SECRET: ${MICROSOFT_OAUTH_CLIENT_SECRET:-}
+      OAUTH_REDIRECT_BASE: ${OAUTH_REDIRECT_BASE:-https://apps.2set.com}
+      RESET_BASE_URL: ${RESET_BASE_URL:-https://apps.2set.com}
+    volumes:
+      - torquedesk_data:/data
+    ports:
+      # Bind to localhost only — the host nginx terminates TLS and
+      # proxies through. Change to "0.0.0.0:8080:8080" if you want a
+      # dedicated containerised nginx (see profiles.proxy below).
+      - "127.0.0.1:8080:8080"
+    # No HTTP healthcheck here — distroless has no shell / curl. The server
+    # will restart on crash via restart: unless-stopped, and nginx /
+    # Monit / uptime-kuma do app-level health probes against /api/health.
+
+volumes:
+  torquedesk_db:
+  torquedesk_data:

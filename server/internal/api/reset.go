@@ -123,10 +123,26 @@ func (s *Server) requestPasswordReset(w http.ResponseWriter, r *http.Request) {
 		kind = kindSaasAdmin
 		pathHint = "owner-reset-password"
 	}
-	// Always return 200 so an attacker can't enumerate accounts via timing.
-	// If the email exists, issue a token and email/log the link.
-	_ = s.issueResetToken(r, kind, req.Email, pathHint)
-	writeJSON(w, 200, map[string]any{"ok": true, "message": "If that email exists, a reset link has been sent."})
+	// Check whether this email is actually in our system first — the UX
+	// requested verifies the address so the user knows if they typo'd it.
+	// (This gives up anti-enumeration protection in exchange for a clearer
+	// forgot-password flow; the SaaS owner accepted that trade-off.)
+	var exists bool
+	switch kind {
+	case kindSaasAdmin:
+		_ = s.db.QueryRow(r.Context(), `SELECT EXISTS (SELECT 1 FROM saas_admin_users WHERE lower(email) = $1 AND active)`, req.Email).Scan(&exists)
+	case kindCompanyOwner:
+		_ = s.db.QueryRow(r.Context(), `SELECT EXISTS (SELECT 1 FROM company_owners WHERE lower(email) = $1 AND status = 'active')`, req.Email).Scan(&exists)
+	}
+	if !exists {
+		writeErr(w, 404, "That email is not registered. Check the address and try again.")
+		return
+	}
+	if err := s.issueResetToken(r, kind, req.Email, pathHint); err != nil {
+		writeErr(w, 500, "Could not send the reset email. Please try again.")
+		return
+	}
+	writeJSON(w, 200, map[string]any{"ok": true, "message": "A reset link has been sent to " + req.Email + "."})
 }
 
 func (s *Server) issueResetToken(r *http.Request, kind resetTargetKind, email, pathHint string) error {

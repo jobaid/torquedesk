@@ -8,28 +8,70 @@ import Logo from '../components/layout/Logo'
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 
 function ForgotPasswordLink({ email }) {
-  const [sent, setSent] = useState(false)
-  const [err, setErr] = useState('')
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <div style={{ textAlign: 'center' }}>
+        <button type="button" onClick={() => setOpen(true)} className="btn btn-link xs" style={{ color: 'var(--text-3)' }}>
+          Forgot password?
+        </button>
+      </div>
+      {open && <ForgotPasswordModal initialEmail={email} onClose={() => setOpen(false)} />}
+    </>
+  )
+}
+
+function ForgotPasswordModal({ initialEmail, onClose }) {
+  const [email, setEmail] = useState(initialEmail || '')
   const [busy, setBusy] = useState(false)
-  const send = async () => {
-    setErr('')
-    if (!EMAIL_RE.test(email || '')) { setErr('Enter your email above first.'); return }
+  const [err, setErr] = useState('')
+  const [success, setSuccess] = useState('')
+
+  const submit = async (e) => {
+    e?.preventDefault()
+    setErr(''); setSuccess('')
+    const addr = email.trim().toLowerCase()
+    if (!EMAIL_RE.test(addr)) { setErr('Enter a valid email address.'); return }
     setBusy(true)
     try {
-      await fetch('/api/password-reset/request', {
+      const res = await fetch('/api/password-reset/request', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim(), kind: 'shop' }),
+        body: JSON.stringify({ email: addr, kind: 'shop' }),
       })
-      setSent(true)
-    } catch { setErr('Could not send reset email.') } finally { setBusy(false) }
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setErr(body?.error || 'That email is not registered. Check the address and try again.')
+        return
+      }
+      setSuccess(body?.message || 'A reset link has been sent to ' + addr + '.')
+    } catch { setErr('Could not reach the server. Please try again.') }
+    finally { setBusy(false) }
   }
-  if (sent) return <div className="xs" style={{ color: 'var(--text-3)', textAlign: 'center' }}>If that email exists, a reset link has been sent.</div>
+
   return (
-    <div style={{ textAlign: 'center' }}>
-      <button type="button" onClick={send} disabled={busy} className="btn btn-link xs" style={{ color: 'var(--text-3)' }}>
-        {busy ? 'Sending…' : 'Forgot password?'}
-      </button>
-      {err && <div className="xs" style={{ color: 'var(--danger)' }}>{err}</div>}
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'grid', placeItems: 'center', padding: 16 }}>
+      <form onSubmit={submit} onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 12, padding: 24, maxWidth: 400, width: '100%', boxShadow: '0 20px 50px rgba(0,0,0,0.25)' }}>
+        <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 6 }}>Reset your password</div>
+        <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>
+          Enter your shop account email. If it's in our system we'll send you a link to reset your password.
+        </div>
+        <label style={{ display: 'block', marginBottom: 10 }}>
+          <div style={{ fontSize: 12, color: '#374151', marginBottom: 4 }}>Email address</div>
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus
+            placeholder="you@yourshop.com"
+            style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14 }} />
+        </label>
+        {err && <div style={{ padding: 10, background: '#fee2e2', border: '1px solid #fca5a5', color: '#991b1b', borderRadius: 6, fontSize: 13, marginBottom: 10 }}>{err}</div>}
+        {success && <div style={{ padding: 10, background: '#dcfce7', border: '1px solid #86efac', color: '#065f46', borderRadius: 6, fontSize: 13, marginBottom: 10 }}>{success}</div>}
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button type="button" onClick={onClose} className="btn btn-ghost">{success ? 'Close' : 'Cancel'}</button>
+          {!success && (
+            <button type="submit" disabled={busy || !email.trim()} className="btn btn-primary">
+              {busy ? 'Sending…' : 'Send reset link'}
+            </button>
+          )}
+        </div>
+      </form>
     </div>
   )
 }

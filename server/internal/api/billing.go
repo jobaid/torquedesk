@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -23,20 +24,29 @@ func (s *Server) billingRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/me/billing/portal",     s.auth("shop.edit",     s.openStripePortal))
 	mux.HandleFunc("POST /api/me/billing/setup",      s.auth("shop.edit",     s.setupBilling))
 	mux.HandleFunc("POST /api/me/billing/setup/sync/{session}", s.auth("shop.edit", s.setupBillingSync))
+	mux.HandleFunc("POST /api/me/billing/cancel",     s.auth("shop.edit",     s.cancelMySubscription))
+	mux.HandleFunc("POST /api/me/billing/resume",     s.auth("shop.edit",     s.resumeMySubscription))
 }
 
 type myBillingDTO struct {
-	Plan             string  `json:"plan"`
-	Status           string  `json:"status"`
-	BillingCycle     string  `json:"billingCycle"`
-	MonthlyPrice     float64 `json:"monthlyPrice"`
-	AnnualPrice      float64 `json:"annualPrice"`
-	StartDate        string  `json:"startDate,omitempty"`
-	EndDate          string  `json:"endDate,omitempty"`
-	TrialEnd         string  `json:"trialEnd,omitempty"`
-	AutoRenewal      bool    `json:"autoRenewal"`
-	PaymentStatus    string  `json:"paymentStatus"`
-	HasStripeCustomer bool   `json:"hasStripeCustomer"`
+	Plan               string  `json:"plan"`
+	Status             string  `json:"status"`
+	BillingCycle       string  `json:"billingCycle"`
+	MonthlyPrice       float64 `json:"monthlyPrice"`
+	AnnualPrice        float64 `json:"annualPrice"`
+	StartDate          string  `json:"startDate,omitempty"`
+	EndDate            string  `json:"endDate,omitempty"`
+	TrialEnd           string  `json:"trialEnd,omitempty"`
+	AutoRenewal        bool    `json:"autoRenewal"`
+	PaymentStatus      string  `json:"paymentStatus"`
+	HasStripeCustomer  bool    `json:"hasStripeCustomer"`
+	// From the live Stripe subscription (if linked):
+	AutoPay            bool    `json:"autoPay"`              // charge_automatically → true, send_invoice → false
+	CancelAtPeriodEnd  bool    `json:"cancelAtPeriodEnd"`
+	StripeStatus       string  `json:"stripeStatus,omitempty"`   // 'active'|'trialing'|'past_due'|'canceled'…
+	CurrentPeriodEnd   string  `json:"currentPeriodEnd,omitempty"`
+	DefaultMethodBrand string  `json:"defaultMethodBrand,omitempty"` // 'visa' / 'us_bank_account' / etc.
+	DefaultMethodLast4 string  `json:"defaultMethodLast4,omitempty"`
 }
 
 func (s *Server) getMyBilling(w http.ResponseWriter, r *http.Request) {
@@ -67,7 +77,95 @@ func (s *Server) getMyBilling(w http.ResponseWriter, r *http.Request) {
 		dto.TrialEnd = trialD.Format("2006-01-02")
 	}
 	dto.HasStripeCustomer = stripeCust != ""
+	// Enrich from live Stripe when we have a subscription id — one HTTP
+	// call expands the default payment method so the UI can show
+	// 'Visa •••• 4242' or 'Bank •••• 6789' and the exact Stripe status.
+	var stripeSubID string
+	_ = s.db.QueryRow(r.Context(), `SELECT coalesce(stripe_subscription_id,'') FROM subscriptions WHERE company_id::text = $1`, cid).Scan(&stripeSubID)
+	if stripeSubID != "" {
+		if secret, ok := s.platformStripeSecret(r.Context()); ok {
+			if raw, err := stripeForm(r.Context(), secret, "GET",
+				"https://api.stripe.com/v1/subscriptions/"+stripeSubID+"?expand[]=default_payment_method", nil); err == nil {
+				var sub struct {
+					Status             string `json:"status"`
+					CollectionMethod   string `json:"collection_method"`
+					CancelAtPeriodEnd  bool   `json:"cancel_at_period_end"`
+					CurrentPeriodEnd   int64  `json:"current_period_end"`
+					DefaultPaymentMethod any  `json:"default_payment_method"`
+				}
+				_ = json.Unmarshal(raw, &sub)
+				dto.StripeStatus = sub.Status
+				dto.AutoPay = sub.CollectionMethod != "send_invoice" // default 'charge_automatically' → auto-pay on
+				dto.CancelAtPeriodEnd = sub.CancelAtPeriodEnd
+				if sub.CurrentPeriodEnd > 0 {
+					dto.CurrentPeriodEnd = time.Unix(sub.CurrentPeriodEnd, 0).UTC().Format("2006-01-02")
+				}
+				if pm, ok := sub.DefaultPaymentMethod.(map[string]any); ok {
+					if card, ok := pm["card"].(map[string]any); ok {
+						if b, ok := card["brand"].(string); ok { dto.DefaultMethodBrand = b }
+						if l, ok := card["last4"].(string); ok { dto.DefaultMethodLast4 = l }
+					}
+					if bank, ok := pm["us_bank_account"].(map[string]any); ok {
+						dto.DefaultMethodBrand = "us_bank_account"
+						if l, ok := bank["last4"].(string); ok { dto.DefaultMethodLast4 = l }
+					}
+				}
+			}
+		}
+	}
 	writeJSON(w, 200, dto)
+}
+
+// cancelMySubscription schedules the Stripe subscription to end at the
+// current period end (shop keeps access until the paid period runs out).
+// We don't force an immediate cancel from here — the Billing portal has
+// that option for shops that want it.
+func (s *Server) cancelMySubscription(w http.ResponseWriter, r *http.Request) {
+	cid := companyFrom(r.Context())
+	stripeSubID := s.lookupMyStripeSubID(r.Context(), cid)
+	if stripeSubID == "" {
+		writeErr(w, 409, "This shop isn't linked to Stripe billing yet.")
+		return
+	}
+	secret, ok := s.platformStripeSecret(r.Context())
+	if !ok {
+		writeErr(w, 503, "Platform payment account not configured.")
+		return
+	}
+	if err := stripeCancelAtPeriodEnd(r.Context(), secret, stripeSubID); err != nil {
+		writeErr(w, 502, "Could not cancel in Stripe: "+err.Error())
+		return
+	}
+	writeJSON(w, 200, map[string]any{"ok": true})
+}
+
+// resumeMySubscription undoes a cancel_at_period_end so the subscription
+// renews on its next cycle instead of ending.
+func (s *Server) resumeMySubscription(w http.ResponseWriter, r *http.Request) {
+	cid := companyFrom(r.Context())
+	stripeSubID := s.lookupMyStripeSubID(r.Context(), cid)
+	if stripeSubID == "" {
+		writeErr(w, 409, "This shop isn't linked to Stripe billing yet.")
+		return
+	}
+	secret, ok := s.platformStripeSecret(r.Context())
+	if !ok {
+		writeErr(w, 503, "Platform payment account not configured.")
+		return
+	}
+	form := url.Values{}
+	form.Set("cancel_at_period_end", "false")
+	if _, err := stripeForm(r.Context(), secret, "POST", "https://api.stripe.com/v1/subscriptions/"+stripeSubID, form); err != nil {
+		writeErr(w, 502, "Could not resume in Stripe: "+err.Error())
+		return
+	}
+	writeJSON(w, 200, map[string]any{"ok": true})
+}
+
+func (s *Server) lookupMyStripeSubID(ctx context.Context, cid string) string {
+	var id string
+	_ = s.db.QueryRow(ctx, `SELECT coalesce(stripe_subscription_id,'') FROM subscriptions WHERE company_id::text = $1`, cid).Scan(&id)
+	return id
 }
 
 // openStripePortal creates a short-lived Stripe Customer Portal session so

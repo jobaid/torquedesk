@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Receipt, CreditCard, ExternalLink, AlertCircle, CalendarClock, Loader2, Check, RefreshCw } from 'lucide-react'
+import { Receipt, CreditCard, ExternalLink, AlertCircle, CalendarClock, Loader2, Check, RefreshCw, X, RotateCcw, Zap, Building2 } from 'lucide-react'
 import { SectionHead } from './kit'
 import { api } from '../../lib/api'
 import { toast } from '../../store/useApp'
@@ -78,6 +78,27 @@ export function Billing() {
     } catch (e) { toast.error('Could not start setup', e.message); setBusy(false) }
   }
 
+  const cancel = async () => {
+    if (!confirm('Cancel your subscription at the end of the current billing period? You will keep access until then.')) return
+    setBusy(true)
+    try {
+      await api('/me/billing/cancel', { method: 'POST', body: {} })
+      toast.success('Cancellation scheduled', 'You keep access until the end of the current period.')
+      load()
+    } catch (e) { toast.error('Could not cancel', e.message) }
+    finally { setBusy(false) }
+  }
+
+  const resume = async () => {
+    setBusy(true)
+    try {
+      await api('/me/billing/resume', { method: 'POST', body: {} })
+      toast.success('Subscription resumed', 'Auto-renew is back on.')
+      load()
+    } catch (e) { toast.error('Could not resume', e.message) }
+    finally { setBusy(false) }
+  }
+
   if (loading) return <div><SectionHead title="Billing" /><div className="muted">Loading…</div></div>
   if (err) return <div><SectionHead title="Billing" /><div className="callout callout-danger"><AlertCircle size={18} /><div>{err}</div></div></div>
   if (!data) return null
@@ -121,12 +142,7 @@ export function Billing() {
           <SetupSection data={data} plans={plans} busy={busy} onStart={startSetup}
             open={showPlanPicker} setOpen={setShowPlanPicker} />
         ) : (
-          <div className="row gap-8" style={{ marginTop: 14 }}>
-            <button className="btn btn-primary" onClick={openPortal} disabled={busy}>
-              {busy ? <><Loader2 size={14} className="spin" /> Opening…</> : <><ExternalLink size={14} /> Open billing portal</>}
-            </button>
-            <button className="btn btn-secondary" onClick={load}><RefreshCw size={14} /> Refresh</button>
-          </div>
+          <LinkedSection data={data} busy={busy} onPortal={openPortal} onCancel={cancel} onResume={resume} onRefresh={load} />
         )}
       </div>
 
@@ -210,6 +226,76 @@ function SetupSection({ data, plans, busy, onStart, open, setOpen }) {
         </div>
       )}
     </>
+  )
+}
+
+// LinkedSection: shop IS connected to Stripe. Shows live subscription state
+// (auto-pay on/off, cancellation scheduled, payment method summary) and the
+// in-app actions Cancel / Resubscribe / Open portal.
+function LinkedSection({ data, busy, onPortal, onCancel, onResume, onRefresh }) {
+  const brand = (data.defaultMethodBrand || '').toLowerCase()
+  const methodLabel = brand === 'us_bank_account'
+    ? <>🏦 Bank account {data.defaultMethodLast4 && <>·  <code>{data.defaultMethodLast4}</code></>}</>
+    : brand ? <>💳 {brand.charAt(0).toUpperCase() + brand.slice(1)} {data.defaultMethodLast4 && <>·  <code>{data.defaultMethodLast4}</code></>}</>
+            : <span style={{ color: '#6b7280' }}>No default payment method on file</span>
+
+  return (
+    <>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 10, marginTop: 12 }}>
+        <StatusChip icon={<Zap size={14} />} label="Auto-pay"
+          value={data.autoPay ? 'On' : 'Off'}
+          sub={data.autoPay ? 'Charges your default method on renewal' : 'Invoices will be emailed; you pay manually'}
+          color={data.autoPay ? 'green' : 'amber'} />
+        <StatusChip icon={<CreditCard size={14} />} label="Payment method" value={methodLabel} sub="Managed in the Stripe portal" />
+        <StatusChip icon={<CalendarClock size={14} />} label={data.cancelAtPeriodEnd ? 'Access ends' : 'Next charge'}
+          value={data.currentPeriodEnd || data.endDate || '—'}
+          sub={data.cancelAtPeriodEnd ? 'Subscription scheduled to end' : (data.autoPay ? 'Auto-renew' : 'Manual pay')}
+          color={data.cancelAtPeriodEnd ? 'red' : undefined} />
+      </div>
+
+      {data.cancelAtPeriodEnd && (
+        <div className="callout" style={{ marginTop: 14, background: '#fef3c7', border: '1px solid #fde68a' }}>
+          <AlertCircle size={16} />
+          <div>
+            Your subscription is <strong>scheduled to cancel</strong> on {data.currentPeriodEnd || data.endDate}.
+            Click Resubscribe to keep it going.
+          </div>
+        </div>
+      )}
+
+      <div className="row gap-8 wrap" style={{ marginTop: 14 }}>
+        <button className="btn btn-primary" onClick={onPortal} disabled={busy}>
+          {busy ? <><Loader2 size={14} className="spin" /> Opening…</> : <><ExternalLink size={14} /> Open Stripe portal</>}
+        </button>
+        {data.cancelAtPeriodEnd ? (
+          <button className="btn btn-secondary" onClick={onResume} disabled={busy} style={{ background: '#dcfce7', borderColor: '#86efac', color: '#065f46' }}>
+            <RotateCcw size={14} /> Resubscribe
+          </button>
+        ) : (
+          <button className="btn btn-secondary" onClick={onCancel} disabled={busy} style={{ color: '#991b1b' }}>
+            <X size={14} /> Cancel subscription
+          </button>
+        )}
+        <button className="btn btn-secondary" onClick={onRefresh}><RefreshCw size={14} /> Refresh</button>
+      </div>
+      <div className="muted" style={{ fontSize: 11, marginTop: 10 }}>
+        <strong>Change plan, add/update card or bank, download invoices</strong> → Open Stripe portal.
+      </div>
+    </>
+  )
+}
+
+function StatusChip({ icon, label, value, sub, color }) {
+  const bg = color === 'green' ? '#dcfce7' : color === 'red' ? '#fee2e2' : color === 'amber' ? '#fef3c7' : '#f9fafb'
+  const fg = color === 'green' ? '#065f46' : color === 'red' ? '#991b1b' : color === 'amber' ? '#92400e' : '#374151'
+  return (
+    <div style={{ padding: '10px 12px', background: bg, borderRadius: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, textTransform: 'uppercase', letterSpacing: '.05em', color: fg, fontWeight: 600 }}>
+        {icon} {label}
+      </div>
+      <div style={{ fontSize: 15, fontWeight: 700, marginTop: 4, color: fg }}>{value}</div>
+      {sub && <div style={{ fontSize: 11, marginTop: 2, color: fg, opacity: 0.75 }}>{sub}</div>}
+    </div>
   )
 }
 

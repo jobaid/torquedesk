@@ -157,8 +157,9 @@ function SetupSection({ data, plans, busy, onStart, open, setOpen }) {
         <AlertCircle size={16} />
         <div>
           Your shop isn't connected to Stripe for self-service billing yet.
-          Set it up now to pay dues, enable auto-pay, change plan, download invoices,
-          or add/update your bank card — all without emailing support.
+          Set it up now with a <strong>credit card or ACH bank account</strong> to
+          pay dues, enable auto-pay, change plan, download invoices, or update your
+          card / bank — all without emailing support.
         </div>
       </div>
       <div style={{ marginTop: 14 }}>
@@ -204,7 +205,7 @@ function SetupSection({ data, plans, busy, onStart, open, setOpen }) {
             <button className="btn btn-primary" disabled={busy || !selected} onClick={() => onStart(plan, cycle)}>
               {busy ? <><Loader2 size={14} className="spin" /> Redirecting…</> : <><ExternalLink size={14} /> Continue to Stripe</>}
             </button>
-            <span style={{ fontSize: 11, color: '#6b7280' }}>Secure checkout — card never touches TorqueDesk.</span>
+            <span style={{ fontSize: 11, color: '#6b7280' }}>Secure checkout — pay by card or US bank account (ACH). Card / bank details never touch TorqueDesk.</span>
           </div>
         </div>
       )}

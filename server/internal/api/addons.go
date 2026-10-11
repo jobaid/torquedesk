@@ -962,6 +962,11 @@ type stripeSubscriptionCheckoutInput struct {
 	SuccessURL string
 	CancelURL  string
 	Metadata   map[string]string
+	// PaymentMethods lets a caller opt into additional payment rails.
+	// Default (empty) uses Stripe's automatic payment methods for the
+	// account. Pass ["card", "us_bank_account"] to allow ACH alongside
+	// cards for subscription checkouts.
+	PaymentMethods []string
 }
 
 // stripeCreateSubscriptionCheckoutV2 returns both the URL and the session ID
@@ -978,6 +983,9 @@ func stripeCreateSubscriptionCheckoutV2(ctx context.Context, secret string, in s
 	}
 	if in.Email != "" {
 		form.Set("customer_email", in.Email)
+	}
+	for i, pm := range in.PaymentMethods {
+		form.Set(fmt.Sprintf("payment_method_types[%d]", i), pm)
 	}
 	for k, v := range in.Metadata {
 		form.Set("metadata["+k+"]", v)

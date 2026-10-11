@@ -124,9 +124,10 @@ func (s *Server) setupBilling(w http.ResponseWriter, r *http.Request) {
 	var in setupBillingReq
 	_ = readJSON(r, &in)
 
-	var subID, curPlan, curCycle, stripeCust string
-	_ = s.db.QueryRow(r.Context(), `SELECT id::text, plan, billing_cycle, coalesce(stripe_customer_id,'')
-		FROM subscriptions WHERE company_id::text = $1`, cid).Scan(&subID, &curPlan, &curCycle, &stripeCust)
+	var subID, curPlan, curCycle, stripeCust, pendingSess string
+	_ = s.db.QueryRow(r.Context(), `SELECT id::text, plan, billing_cycle,
+		coalesce(stripe_customer_id,''), coalesce(stripe_setup_session_id,'')
+		FROM subscriptions WHERE company_id::text = $1`, cid).Scan(&subID, &curPlan, &curCycle, &stripeCust, &pendingSess)
 	if subID == "" {
 		writeErr(w, 404, "No subscription on file.")
 		return
@@ -158,6 +159,28 @@ func (s *Server) setupBilling(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 503, "Platform payment account not configured.")
 		return
 	}
+
+	// Idempotency: if there's a pending Stripe Checkout session for this
+	// shop that hasn't been completed or expired, return the same URL so
+	// a refresh / double-click can't open a second session (and therefore
+	// can't double-charge).
+	if pendingSess != "" {
+		if resp, err := stripeForm(r.Context(), secret, "GET", "https://api.stripe.com/v1/checkout/sessions/"+pendingSess, nil); err == nil {
+			var cur struct {
+				Status     string `json:"status"`
+				URL        string `json:"url"`
+				ExpiresAt  int64  `json:"expires_at"`
+			}
+			_ = json.Unmarshal(resp, &cur)
+			// 'open' means the customer hasn't paid yet; URL is still live.
+			if cur.Status == "open" && cur.URL != "" && (cur.ExpiresAt == 0 || cur.ExpiresAt > time.Now().Unix()) {
+				writeJSON(w, 200, map[string]any{"url": cur.URL, "reused": true})
+				return
+			}
+			// Any other status (complete/expired) — fall through and start a new one.
+		}
+	}
+
 	priceID, pErr := signupStripePriceFor(r.Context(), s, secret, planDef, cycle)
 	if pErr != nil {
 		writeErr(w, 502, "Could not reach Stripe: "+pErr.Error())
@@ -165,12 +188,16 @@ func (s *Server) setupBilling(w http.ResponseWriter, r *http.Request) {
 	}
 
 	origin := publicOrigin(r)
-	sessURL, _, cErr := stripeCreateSubscriptionCheckoutV2(r.Context(), secret, stripeSubscriptionCheckoutInput{
+	sessURL, sessID, cErr := stripeCreateSubscriptionCheckoutV2(r.Context(), secret, stripeSubscriptionCheckoutInput{
 		PriceID:   priceID,
-		TrialDays: 0, // no trial on billing-setup — this is a paying shop filling in missing Stripe details
+		TrialDays: 0, // this shop is already active — adding Stripe profile only
 		Email:     u.Email,
 		SuccessURL: origin + "/settings/general/billing?setup=success&session={CHECKOUT_SESSION_ID}",
 		CancelURL:  origin + "/settings/general/billing?setup=cancel",
+		// Card + ACH (US bank account) available on the hosted page. Stripe
+		// shows the ACH tab when the amount + account support it; cards
+		// always show.
+		PaymentMethods: []string{"card", "us_bank_account"},
 		Metadata: map[string]string{
 			"torquedesk_signup":        "true", // reuse signup activation path
 			"torquedesk_company_id":    cid,
@@ -183,6 +210,11 @@ func (s *Server) setupBilling(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 502, "Could not start checkout: "+cErr.Error())
 		return
 	}
+	// Remember this session so a refresh returns the SAME URL instead of
+	// starting a second Checkout + potentially a second charge.
+	_, _ = s.db.Exec(r.Context(),
+		`UPDATE subscriptions SET stripe_setup_session_id = $1, updated_at = now() WHERE id::text = $2`,
+		sessID, subID)
 	writeJSON(w, 200, map[string]any{"url": sessURL})
 }
 
@@ -249,6 +281,11 @@ func (s *Server) setupBillingSync(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 500, err.Error())
 		return
 	}
+	// Clear the pending-session marker so a future Set up Stripe billing
+	// click (unlikely — we hide the button once a customer is linked) can
+	// start fresh.
+	_, _ = s.db.Exec(r.Context(),
+		`UPDATE subscriptions SET stripe_setup_session_id = '' WHERE company_id::text = $1`, cid)
 	writeJSON(w, 200, map[string]any{"ok": true, "ready": true})
 }
 

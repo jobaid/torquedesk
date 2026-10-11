@@ -19,8 +19,10 @@ import (
 // ----------------------------------------------------------------------------
 
 func (s *Server) billingRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("GET /api/me/billing",         s.auth("settings.view", s.getMyBilling))
-	mux.HandleFunc("POST /api/me/billing/portal", s.auth("shop.edit",     s.openStripePortal))
+	mux.HandleFunc("GET /api/me/billing",             s.auth("settings.view", s.getMyBilling))
+	mux.HandleFunc("POST /api/me/billing/portal",     s.auth("shop.edit",     s.openStripePortal))
+	mux.HandleFunc("POST /api/me/billing/setup",      s.auth("shop.edit",     s.setupBilling))
+	mux.HandleFunc("POST /api/me/billing/setup/sync/{session}", s.auth("shop.edit", s.setupBillingSync))
 }
 
 type myBillingDTO struct {
@@ -103,6 +105,155 @@ func (s *Server) openStripePortal(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, 200, map[string]any{"url": out.URL})
 }
+
+// setupBilling creates a Stripe Checkout session (subscription mode) for a
+// shop that was activated manually and has no stripe_customer_id yet.
+// Lets the shop manager attach their card without the SaaS owner having to
+// touch Stripe. On completion the session's customer + subscription ids are
+// written to subscriptions and the Billing Portal link becomes available
+// for all the usual self-service actions (plan change, cancel, auto-pay,
+// invoice history, update bank).
+type setupBillingReq struct {
+	Plan         string `json:"plan"`         // optional override — defaults to current plan
+	BillingCycle string `json:"billingCycle"` // optional override — defaults to current cycle
+}
+
+func (s *Server) setupBilling(w http.ResponseWriter, r *http.Request) {
+	cid := companyFrom(r.Context())
+	u := userFrom(r.Context())
+	var in setupBillingReq
+	_ = readJSON(r, &in)
+
+	var subID, curPlan, curCycle, stripeCust string
+	_ = s.db.QueryRow(r.Context(), `SELECT id::text, plan, billing_cycle, coalesce(stripe_customer_id,'')
+		FROM subscriptions WHERE company_id::text = $1`, cid).Scan(&subID, &curPlan, &curCycle, &stripeCust)
+	if subID == "" {
+		writeErr(w, 404, "No subscription on file.")
+		return
+	}
+	if stripeCust != "" {
+		writeErr(w, 409, "This shop already has a Stripe profile — use Open billing portal instead.")
+		return
+	}
+
+	plan := strings.ToLower(strings.TrimSpace(in.Plan))
+	if plan == "" {
+		plan = curPlan
+	}
+	cycle := strings.ToLower(strings.TrimSpace(in.BillingCycle))
+	if cycle == "" {
+		cycle = curCycle
+	}
+	if cycle == "" {
+		cycle = "monthly"
+	}
+	planDef, ok := signupPlans[plan]
+	if !ok {
+		writeErr(w, 400, "Unknown plan.")
+		return
+	}
+
+	secret, ok := s.platformStripeSecret(r.Context())
+	if !ok {
+		writeErr(w, 503, "Platform payment account not configured.")
+		return
+	}
+	priceID, pErr := signupStripePriceFor(r.Context(), s, secret, planDef, cycle)
+	if pErr != nil {
+		writeErr(w, 502, "Could not reach Stripe: "+pErr.Error())
+		return
+	}
+
+	origin := publicOrigin(r)
+	sessURL, _, cErr := stripeCreateSubscriptionCheckoutV2(r.Context(), secret, stripeSubscriptionCheckoutInput{
+		PriceID:   priceID,
+		TrialDays: 0, // no trial on billing-setup — this is a paying shop filling in missing Stripe details
+		Email:     u.Email,
+		SuccessURL: origin + "/settings/general/billing?setup=success&session={CHECKOUT_SESSION_ID}",
+		CancelURL:  origin + "/settings/general/billing?setup=cancel",
+		Metadata: map[string]string{
+			"torquedesk_signup":        "true", // reuse signup activation path
+			"torquedesk_company_id":    cid,
+			"torquedesk_subscription":  subID,
+			"torquedesk_plan":          plan,
+			"torquedesk_billing_cycle": cycle,
+		},
+	})
+	if cErr != nil {
+		writeErr(w, 502, "Could not start checkout: "+cErr.Error())
+		return
+	}
+	writeJSON(w, 200, map[string]any{"url": sessURL})
+}
+
+// setupBillingSync is the browser self-heal after the Stripe return — same
+// shape as the signup sync but constrained to the signed-in company so a
+// malicious user can't attach their session to someone else's row.
+func (s *Server) setupBillingSync(w http.ResponseWriter, r *http.Request) {
+	cid := companyFrom(r.Context())
+	sess := r.PathValue("session")
+	secret, ok := s.platformStripeSecret(r.Context())
+	if !ok {
+		writeErr(w, 503, "Platform payment account not configured.")
+		return
+	}
+	resp, cErr := stripeForm(r.Context(), secret, "GET", "https://api.stripe.com/v1/checkout/sessions/"+sess+"?expand[]=subscription", nil)
+	if cErr != nil {
+		writeErr(w, 502, cErr.Error())
+		return
+	}
+	var dto struct {
+		Status   string `json:"status"`
+		Metadata struct {
+			CompanyID    string `json:"torquedesk_company_id"`
+			Subscription string `json:"torquedesk_subscription"`
+			Plan         string `json:"torquedesk_plan"`
+			BillingCycle string `json:"torquedesk_billing_cycle"`
+		} `json:"metadata"`
+		SubscriptionID any `json:"subscription"`
+		CustomerID     any `json:"customer"`
+	}
+	if err := json.Unmarshal(resp, &dto); err != nil {
+		writeErr(w, 502, "Could not parse Stripe response.")
+		return
+	}
+	// Tenant scope: the session's metadata must point at the signed-in company.
+	if dto.Metadata.CompanyID != cid {
+		writeErr(w, 403, "This Checkout session doesn't belong to this shop.")
+		return
+	}
+	if dto.Status != "complete" {
+		writeJSON(w, 200, map[string]any{"ok": true, "ready": false, "status": dto.Status})
+		return
+	}
+	stripeSubID := ""
+	switch v := dto.SubscriptionID.(type) {
+	case string:
+		stripeSubID = v
+	case map[string]any:
+		if id, ok := v["id"].(string); ok {
+			stripeSubID = id
+		}
+	}
+	stripeCustID := ""
+	switch v := dto.CustomerID.(type) {
+	case string:
+		stripeCustID = v
+	case map[string]any:
+		if id, ok := v["id"].(string); ok {
+			stripeCustID = id
+		}
+	}
+	if err := s.activateSignupV2(r.Context(), cid, dto.Metadata.Subscription,
+		dto.Metadata.Plan, dto.Metadata.BillingCycle, stripeSubID, stripeCustID); err != nil {
+		writeErr(w, 500, err.Error())
+		return
+	}
+	writeJSON(w, 200, map[string]any{"ok": true, "ready": true})
+}
+
+// Guard: errors import kept for callers that may still reference it.
+var _ = errors.New
 
 // parseFloat is a tiny helper that mirrors the Phase A plans.go format
 // (numeric → text in the DB, parse back to float64 in the response).

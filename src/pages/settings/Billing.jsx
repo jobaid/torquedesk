@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Receipt, CreditCard, ExternalLink, AlertCircle, CalendarClock, Loader2 } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
+import { Receipt, CreditCard, ExternalLink, AlertCircle, CalendarClock, Loader2, Check, RefreshCw } from 'lucide-react'
 import { SectionHead } from './kit'
 import { api } from '../../lib/api'
 import { toast } from '../../store/useApp'
@@ -9,18 +10,54 @@ import { toast } from '../../store/useApp'
 // can update their card, change plan, download invoices, or cancel.
 
 export function Billing() {
+  const [params, setParams] = useSearchParams()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
+  const [plans, setPlans] = useState([])
+  const [showPlanPicker, setShowPlanPicker] = useState(false)
 
   const load = async () => {
     setLoading(true); setErr('')
-    try { setData(await api('/me/billing')) }
-    catch (e) { setErr(e.message) }
+    try {
+      const [d, p] = await Promise.all([
+        api('/me/billing'),
+        api('/public/signup/plans').catch(() => []),
+      ])
+      setData(d); setPlans(p || [])
+    } catch (e) { setErr(e.message) }
     finally { setLoading(false) }
   }
   useEffect(() => { load() }, [])
+
+  // Handle Stripe return after setup — poll sync until the row is linked.
+  useEffect(() => {
+    const result = params.get('setup')
+    const session = params.get('session')
+    if (!result) return
+    if (result === 'cancel') {
+      toast.warning('Setup cancelled', 'No charge was made.')
+      setParams({}, { replace: true })
+      return
+    }
+    if (result !== 'success' || !session) return
+    let tries = 0
+    const sync = async () => {
+      tries++
+      try {
+        const r = await api(`/me/billing/setup/sync/${encodeURIComponent(session)}`, { method: 'POST', body: {} })
+        if (r?.ready) {
+          toast.success('Billing linked', 'You can now manage your subscription from here.')
+          setParams({}, { replace: true })
+          load()
+          return
+        }
+      } catch { /* retry */ }
+      if (tries < 10) setTimeout(sync, 2000)
+    }
+    sync()
+  }, [params])
 
   const openPortal = async () => {
     setBusy(true)
@@ -30,6 +67,15 @@ export function Billing() {
       else throw new Error('No portal URL returned.')
     } catch (e) { toast.error('Could not open billing portal', e.message) }
     finally { setBusy(false) }
+  }
+
+  const startSetup = async (plan, cycle) => {
+    setBusy(true)
+    try {
+      const r = await api('/me/billing/setup', { method: 'POST', body: { plan, billingCycle: cycle } })
+      if (r?.url) window.location.href = r.url
+      else throw new Error('No checkout URL returned.')
+    } catch (e) { toast.error('Could not start setup', e.message); setBusy(false) }
   }
 
   if (loading) return <div><SectionHead title="Billing" /><div className="muted">Loading…</div></div>
@@ -71,21 +117,17 @@ export function Billing() {
           Change your plan, update your payment method, download invoices, or cancel — all through our secure Stripe portal.
           The portal opens in a new tab.
         </div>
-        {!data.hasStripeCustomer && (
-          <div className="callout" style={{ marginTop: 12, background: '#fef3c7', border: '1px solid #fde68a' }}>
-            <AlertCircle size={16} />
-            <div>
-              Your account was activated manually and doesn't have a self-service Stripe profile yet.
-              Contact support and we'll link it so you can manage billing from here.
-            </div>
+        {!data.hasStripeCustomer ? (
+          <SetupSection data={data} plans={plans} busy={busy} onStart={startSetup}
+            open={showPlanPicker} setOpen={setShowPlanPicker} />
+        ) : (
+          <div className="row gap-8" style={{ marginTop: 14 }}>
+            <button className="btn btn-primary" onClick={openPortal} disabled={busy}>
+              {busy ? <><Loader2 size={14} className="spin" /> Opening…</> : <><ExternalLink size={14} /> Open billing portal</>}
+            </button>
+            <button className="btn btn-secondary" onClick={load}><RefreshCw size={14} /> Refresh</button>
           </div>
         )}
-        <div className="row gap-8" style={{ marginTop: 14 }}>
-          <button className="btn btn-primary" onClick={openPortal} disabled={busy || !data.hasStripeCustomer}>
-            {busy ? <><Loader2 size={14} className="spin" /> Opening…</> : <><ExternalLink size={14} /> Open billing portal</>}
-          </button>
-          <button className="btn btn-secondary" onClick={load}>Refresh</button>
-        </div>
       </div>
 
       <div className="card card-pad" style={{ marginTop: 16 }}>
@@ -96,6 +138,77 @@ export function Billing() {
         </div>
       </div>
     </div>
+  )
+}
+
+// SetupSection shows up when the shop has no Stripe customer linked yet
+// (manually-activated accounts). Picks a plan + cycle and redirects to a
+// Stripe Checkout that attaches a real Stripe customer + subscription, so
+// after return the shop can pay, enable auto-pay, add/update bank info,
+// cancel, and change plan through the portal.
+function SetupSection({ data, plans, busy, onStart, open, setOpen }) {
+  const [plan, setPlan] = useState(data.plan || 'professional')
+  const [cycle, setCycle] = useState(data.billingCycle || 'monthly')
+  const selected = plans.find((p) => p.key === plan)
+
+  return (
+    <>
+      <div className="callout" style={{ marginTop: 12, background: '#fffbeb', border: '1px solid #fde68a' }}>
+        <AlertCircle size={16} />
+        <div>
+          Your shop isn't connected to Stripe for self-service billing yet.
+          Set it up now to pay dues, enable auto-pay, change plan, download invoices,
+          or add/update your bank card — all without emailing support.
+        </div>
+      </div>
+      <div style={{ marginTop: 14 }}>
+        <button className="btn btn-primary" onClick={() => setOpen((v) => !v)} disabled={busy}>
+          <CreditCard size={14} /> {open ? 'Hide setup' : 'Set up Stripe billing'}
+        </button>
+      </div>
+
+      {open && (
+        <div className="card" style={{ marginTop: 14, padding: 16, background: '#f9fafb', border: '1px solid #e5e7eb' }}>
+          <div style={{ fontSize: 13, color: '#374151', marginBottom: 10 }}>
+            Choose a plan + billing cycle. You'll be redirected to Stripe to enter your card.
+            Nothing is charged until you confirm, and you can change the plan later from the Billing portal.
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10 }}>
+            {plans.map((p) => (
+              <label key={p.key}
+                style={{ padding: 12, borderRadius: 10, border: '1px solid ' + (plan === p.key ? '#2563eb' : '#e5e7eb'),
+                         background: plan === p.key ? '#eff6ff' : '#fff', cursor: 'pointer' }}>
+                <input type="radio" name="plan" value={p.key} checked={plan === p.key}
+                  onChange={() => setPlan(p.key)} style={{ display: 'none' }} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontWeight: 700 }}>{p.name}</span>
+                  {plan === p.key && <Check size={14} color="#2563eb" />}
+                </div>
+                <div style={{ fontSize: 20, fontWeight: 700, marginTop: 4 }}>${cycle === 'annual' ? (p.annualPrice / 12).toFixed(0) : p.monthlyPrice}
+                  <span style={{ fontSize: 11, color: '#6b7280', fontWeight: 500 }}>/mo</span>
+                </div>
+                <div style={{ fontSize: 11, color: '#6b7280' }}>{cycle === 'annual' ? `Billed $${p.annualPrice}/year` : 'Billed monthly'}</div>
+              </label>
+            ))}
+          </div>
+
+          <div style={{ display: 'inline-flex', gap: 4, marginTop: 12, padding: 3, background: '#e5e7eb', borderRadius: 999 }}>
+            <button type="button" onClick={() => setCycle('monthly')}
+              style={{ padding: '5px 14px', borderRadius: 999, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600, background: cycle === 'monthly' ? '#fff' : 'transparent', color: cycle === 'monthly' ? '#111' : '#6b7280' }}>Monthly</button>
+            <button type="button" onClick={() => setCycle('annual')}
+              style={{ padding: '5px 14px', borderRadius: 999, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600, background: cycle === 'annual' ? '#fff' : 'transparent', color: cycle === 'annual' ? '#111' : '#6b7280' }}>Annual — save ~20%</button>
+          </div>
+
+          <div style={{ marginTop: 14, display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button className="btn btn-primary" disabled={busy || !selected} onClick={() => onStart(plan, cycle)}>
+              {busy ? <><Loader2 size={14} className="spin" /> Redirecting…</> : <><ExternalLink size={14} /> Continue to Stripe</>}
+            </button>
+            <span style={{ fontSize: 11, color: '#6b7280' }}>Secure checkout — card never touches TorqueDesk.</span>
+          </div>
+        </div>
+      )}
+    </>
   )
 }
 

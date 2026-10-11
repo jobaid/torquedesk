@@ -1,8 +1,11 @@
 # ---- 1. Build the frontend ---------------------------------------------------
 FROM node:20-alpine AS frontend
 WORKDIR /app
+# Build-time stage: force dev deps so vite/tailwind/etc. are present even
+# if the host environment has NODE_ENV=production set.
+ENV NODE_ENV=development
 COPY package.json package-lock.json* ./
-RUN npm ci --no-audit --no-fund
+RUN npm ci --no-audit --no-fund --include=dev
 COPY index.html vite.config.* ./
 COPY public ./public
 COPY src ./src

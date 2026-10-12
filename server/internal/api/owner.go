@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"net/mail"
 	"regexp"
@@ -89,14 +90,21 @@ func (s *Server) deleteCompany(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 404, "Company not found.")
 		return
 	}
-	// Sudo-style confirm: the signed-in SaaS owner types their own username
-	// (or email) to approve a destructive action. The matching is
-	// case-insensitive and accepts either the display name or the email so
-	// we match whatever the owner remembers typing to log in.
+	// Sudo-style confirm: the signed-in SaaS owner types their own username,
+	// email, or email local-part to approve a destructive action.
+	// Case-insensitive. Logs what came in on mismatch so operators can see
+	// what was expected without surfacing the admin's identity to the UI.
 	typed := strings.ToLower(strings.TrimSpace(p.Confirm))
-	ok := typed == strings.ToLower(u.Name) || typed == strings.ToLower(u.Email)
+	expectName := strings.ToLower(strings.TrimSpace(u.Name))
+	expectEmail := strings.ToLower(strings.TrimSpace(u.Email))
+	expectLocal := expectEmail
+	if at := strings.Index(expectEmail, "@"); at > 0 {
+		expectLocal = expectEmail[:at]
+	}
+	ok := typed != "" && (typed == expectName || typed == expectEmail || typed == expectLocal)
 	if !ok {
-		writeErr(w, 400, "Confirmation username does not match your admin account.")
+		log.Printf("deleteCompany: confirm mismatch — got %q, expected one of (%q, %q, %q)", typed, expectName, expectEmail, expectLocal)
+		writeErr(w, 400, fmt.Sprintf("Confirmation didn't match. Type your admin email (%s) or display name (%s).", u.Email, u.Name))
 		return
 	}
 	// Audit BEFORE the delete so the trail survives the cascade.

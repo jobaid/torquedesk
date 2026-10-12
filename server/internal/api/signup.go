@@ -405,23 +405,31 @@ func (s *Server) activateSignupV2(ctx context.Context, companyID, subID, planKey
 	if err != nil {
 		return err
 	}
-	if prevStatus == "active" || prevStatus == "trial" {
-		return nil // already activated — webhook/sync race won
-	}
+	// Always proceed to attach / refresh the Stripe IDs even when the shop
+	// is already active (manual activation path, re-attach after dashboard
+	// delete, etc.). The welcome email at the end is still gated on a
+	// pending→active transition.
+	wasPending := prevStatus != "active" && prevStatus != "trial"
 	notePart := ""
 	if stripeSubID != "" {
 		notePart = "\nStripe subscription: " + stripeSubID
 	}
 	err = s.tx(ctx, func(tx pgx.Tx) error {
-		if _, err := tx.Exec(ctx, `UPDATE companies SET status = 'active', updated_at = now() WHERE id::text = $1`, companyID); err != nil {
-			return err
-		}
-		if _, err := tx.Exec(ctx, `UPDATE company_owners SET status = 'active', updated_at = now() WHERE company_id::text = $1`, companyID); err != nil {
-			return err
+		if wasPending {
+			if _, err := tx.Exec(ctx, `UPDATE companies SET status = 'active', updated_at = now() WHERE id::text = $1`, companyID); err != nil {
+				return err
+			}
+			if _, err := tx.Exec(ctx, `UPDATE company_owners SET status = 'active', updated_at = now() WHERE company_id::text = $1`, companyID); err != nil {
+				return err
+			}
 		}
 		subStatus := "trial"
 		if plan.TrialDays == 0 {
 			subStatus = "active"
+		}
+		// On a status-already-active path, keep whatever status is there.
+		if !wasPending {
+			_ = s.db.QueryRow(ctx, `SELECT status FROM subscriptions WHERE company_id::text = $1`, companyID).Scan(&subStatus)
 		}
 		if subID != "" {
 			if _, err := tx.Exec(ctx, `UPDATE subscriptions
@@ -455,6 +463,10 @@ func (s *Server) activateSignupV2(ctx context.Context, companyID, subID, planKey
 		return err
 	}
 	invalidateCompanyStatus(companyID)
+	// Welcome email only on the first activation — not every re-attach.
+	if !wasPending {
+		return nil
+	}
 	// Welcome email through the platform mailer.
 	var ownerEmail, ownerName, companyName string
 	_ = s.db.QueryRow(ctx, `SELECT lower(email), trim(coalesce(first_name,'') || ' ' || coalesce(last_name,''))

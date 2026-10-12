@@ -107,11 +107,89 @@ func (s *Server) deleteCompany(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 400, fmt.Sprintf("Confirmation didn't match. Type your admin email (%s) or display name (%s).", u.Email, u.Name))
 		return
 	}
-	// Audit BEFORE the delete so the trail survives the cascade.
+	// Audit BEFORE the delete so the trail survives.
 	_ = s.recordSaasAudit(r.Context(), nil, u.Name, "company_deleted", "company", id, &id,
 		map[string]any{"name": name, "slug": slug}, clientIP(r))
-	// ON DELETE CASCADE on company_id FKs handles the rest.
-	if _, err := s.db.Exec(r.Context(), `DELETE FROM companies WHERE id::text = $1`, id); err != nil {
+	// Explicit cascade: several tables (documents, payments, inspections,
+	// etc.) point at companies(id) without ON DELETE CASCADE, so Postgres
+	// refuses the delete with 'referenced by existing records'. Purge
+	// every known child in dependency order inside one transaction.
+	//
+	// Also runs a last-resort sweep across pg_catalog to find any other
+	// table that still has a row for this company_id and deletes it, so
+	// future tables added without CASCADE don't break deletion.
+	err := s.tx(r.Context(), func(tx pgx.Tx) error {
+		// Document children (reference document_id which references company_id).
+		for _, t := range []string{
+			"document_lines", "document_line_items",
+			"document_messages", "document_share_tokens",
+			"document_auth_items", "document_auth_events", "document_authorizations",
+		} {
+			_, _ = tx.Exec(r.Context(), fmt.Sprintf(
+				`DELETE FROM %s WHERE document_id IN (SELECT id FROM documents WHERE company_id::text = $1)`, t), id)
+		}
+		// Inspection children (reference inspection_id which references company_id).
+		for _, t := range []string{
+			"inspection_item_photos", "inspection_photos", "inspection_items", "inspection_tokens",
+		} {
+			_, _ = tx.Exec(r.Context(), fmt.Sprintf(
+				`DELETE FROM %s WHERE inspection_id IN (SELECT id FROM inspections WHERE company_id::text = $1)`, t), id)
+		}
+		// Vehicle children.
+		_, _ = tx.Exec(r.Context(), `DELETE FROM customer_vehicles WHERE customer_id IN (SELECT id FROM customers WHERE company_id::text = $1)`, id)
+		// Everything with a direct company_id. Order so parents go after children.
+		for _, t := range []string{
+			"email_jobs", "webhook_events",
+			"shop_addon_subscriptions",
+			"email_templates",
+			"email_oauth_tokens",
+			"company_features",
+			"inspections",
+			"payments", "shop_payment_intents",
+			"documents",
+			"customers",
+			"shop_service_writers", "shop_technicians", "shop_licenses",
+			"notification_settings",
+			"shop_settings",
+			"labor_rates", "tax_rates", "markup_settings", "shop_fees",
+			"document_number_settings",
+			"shop_payment_gateways",
+			"authorization_reminders",
+			"settings_audit_log",
+			"shop_backups", "shop_mfa_enrollments",
+			"subscriptions",
+			"company_owners",
+		} {
+			_, _ = tx.Exec(r.Context(), fmt.Sprintf(`DELETE FROM %s WHERE company_id::text = $1`, t), id)
+		}
+		// Final sweep: any OTHER user table with a company_id column that
+		// we didn't name above. Dynamically discovered so new tables added
+		// without CASCADE don't block delete.
+		rows, qErr := tx.Query(r.Context(),
+			`SELECT c.table_schema, c.table_name
+			 FROM information_schema.columns c
+			 WHERE c.column_name = 'company_id'
+			   AND c.table_schema = 'public'
+			   AND c.table_name <> 'companies'`)
+		if qErr == nil {
+			type pair struct{ Schema, Name string }
+			var tables []pair
+			for rows.Next() {
+				var p pair
+				if err := rows.Scan(&p.Schema, &p.Name); err == nil {
+					tables = append(tables, p)
+				}
+			}
+			rows.Close()
+			for _, p := range tables {
+				_, _ = tx.Exec(r.Context(), fmt.Sprintf(`DELETE FROM %q.%q WHERE company_id::text = $1`, p.Schema, p.Name), id)
+			}
+		}
+		// Finally the company row.
+		_, err := tx.Exec(r.Context(), `DELETE FROM companies WHERE id::text = $1`, id)
+		return err
+	})
+	if err != nil {
 		handleErr(w, err)
 		return
 	}

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"net/mail"
 	"os"
@@ -396,9 +397,13 @@ func (s *Server) activateSignupV2(ctx context.Context, companyID, subID, planKey
 	if companyID == "" {
 		return errors.New("missing company id")
 	}
-	plan, ok := signupPlans[planKey]
-	if !ok {
-		return errors.New("unknown plan: " + planKey)
+	// Unknown plan is not fatal — still link Stripe IDs. This covers shops
+	// manually created on legacy plans ('enterprise', custom) that aren't
+	// in the hardcoded signupPlans catalog. Features stay at whatever the
+	// Owner Portal already has toggled.
+	plan, known := signupPlans[planKey]
+	if !known {
+		log.Printf("activateSignupV2: unknown plan %q for company %s — writing Stripe IDs only", planKey, companyID)
 	}
 	var prevStatus string
 	err := s.db.QueryRow(ctx, `SELECT status FROM companies WHERE id::text = $1`, companyID).Scan(&prevStatus)
@@ -423,13 +428,18 @@ func (s *Server) activateSignupV2(ctx context.Context, companyID, subID, planKey
 				return err
 			}
 		}
-		subStatus := "trial"
-		if plan.TrialDays == 0 {
-			subStatus = "active"
+		subStatus := "active"
+		if known && plan.TrialDays > 0 {
+			subStatus = "trial"
 		}
 		// On a status-already-active path, keep whatever status is there.
 		if !wasPending {
 			_ = s.db.QueryRow(ctx, `SELECT status FROM subscriptions WHERE company_id::text = $1`, companyID).Scan(&subStatus)
+			// If the shop was expired/cancelled before, force reactivation
+			// since Stripe just confirmed a successful payment.
+			if subStatus == "expired" || subStatus == "cancelled" {
+				subStatus = "active"
+			}
 		}
 		if subID != "" {
 			if _, err := tx.Exec(ctx, `UPDATE subscriptions
@@ -452,12 +462,18 @@ func (s *Server) activateSignupV2(ctx context.Context, companyID, subID, planKey
 		}
 		// Make sure the plan features are enabled (they were seeded at
 		// signup but a prior admin override could have disabled them).
-		b, _ := json.Marshal(featuresFromPlan(plan))
-		_, err := tx.Exec(ctx, `INSERT INTO company_features (company_id, features)
-			VALUES ($1::uuid, $2::jsonb)
-			ON CONFLICT (company_id) DO UPDATE SET features = EXCLUDED.features, updated_at = now()`,
-			companyID, string(b))
-		return err
+		// Only re-apply when the plan is in our catalog; legacy / custom
+		// plans keep whatever features the Owner Portal has set.
+		if known {
+			b, _ := json.Marshal(featuresFromPlan(plan))
+			if _, err := tx.Exec(ctx, `INSERT INTO company_features (company_id, features)
+				VALUES ($1::uuid, $2::jsonb)
+				ON CONFLICT (company_id) DO UPDATE SET features = EXCLUDED.features, updated_at = now()`,
+				companyID, string(b)); err != nil {
+				return err
+			}
+		}
+		return nil
 	})
 	if err != nil {
 		return err

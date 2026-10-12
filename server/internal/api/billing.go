@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"net/url"
 	"strings"
@@ -376,6 +377,7 @@ func (s *Server) setupBillingSync(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := s.activateSignupV2(r.Context(), cid, dto.Metadata.Subscription,
 		dto.Metadata.Plan, dto.Metadata.BillingCycle, stripeSubID, stripeCustID); err != nil {
+		log.Printf("setupBillingSync: activateSignupV2 failed for cid=%s plan=%s: %v", cid, dto.Metadata.Plan, err)
 		writeErr(w, 500, err.Error())
 		return
 	}

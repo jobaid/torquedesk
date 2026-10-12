@@ -254,7 +254,14 @@ function LinkedSection({ data, busy, onPortal, onCancel, onResume, onRefresh }) 
           : data.cancelAtPeriodEnd      ? 'Access ends'
           :                               'Next charge'
           }
-          value={data.currentPeriodEnd || data.endDate || '—'}
+          // For expired / cancelled, use the DB end_date (set by the owner
+          // when marking the shop expired). For active shops the live Stripe
+          // next-charge date is more accurate so it wins.
+          value={
+            (data.status === 'expired' || data.status === 'cancelled')
+              ? (data.endDate || data.currentPeriodEnd || '—')
+              : (data.currentPeriodEnd || data.endDate || '—')
+          }
           sub={
             data.status === 'expired'   ? 'Renew to restore access'
           : data.status === 'cancelled' ? 'Resubscribe to restore access'

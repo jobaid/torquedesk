@@ -153,6 +153,21 @@ func (s *Server) getMyFeatures(w http.ResponseWriter, r *http.Request) {
 		handleErr(w, err)
 		return
 	}
+	// Payment-expired shops get every feature flipped off so the UI nav
+	// collapses to the Billing / renewal page. Suspended is treated the
+	// same for safety even though those sessions are blocked at login.
+	var cStatus string
+	_ = s.db.QueryRow(r.Context(), `SELECT status FROM companies WHERE id::text = $1`, cid).Scan(&cStatus)
+	if cStatus == "expired" || cStatus == "cancelled" || cStatus == "suspended" {
+		for k := range out {
+			out[k] = false
+		}
+		// Keep Settings reachable so the shop manager can hit the Billing
+		// / renewal page. Also expose a signal flag the UI reads to show
+		// the big 'Subscription expired' banner.
+		out["settings"] = true
+		out["__subscription_expired"] = true
+	}
 	writeJSON(w, 200, out)
 }
 

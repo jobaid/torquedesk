@@ -150,7 +150,7 @@ func (s *Server) auth(perm string, h http.HandlerFunc) http.HandlerFunc {
 		// Any main-app session is only accepted while its company is active.
 		if u.CompanyID != "" {
 			status, err := s.companyStatus(r.Context(), u.CompanyID)
-			if err == nil && (status == "suspended" || status == "expired" || status == "cancelled") {
+			if err == nil && status == "suspended" {
 				writeJSON(w, 403, map[string]any{
 					"error":         "Your TorqueDesk subscription is currently " + status + ". Please contact your TorqueDesk administrator.",
 					"companyStatus": status,
@@ -268,9 +268,13 @@ func (s *Server) companyLogin(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 401, "Invalid email or password.")
 		return
 	}
-	if cStatus == "suspended" || cStatus == "expired" || cStatus == "cancelled" {
+	// Only 'suspended' blocks login outright — that's a SaaS-owner admin
+	// action. 'expired' and 'cancelled' let the shop manager sign in but
+	// land on a feature-disabled app with a prominent 'Renew' banner so
+	// they can self-serve payment.
+	if cStatus == "suspended" {
 		writeJSON(w, 403, map[string]any{
-			"error":         "The TorqueDesk shop \"" + cName + "\" is currently " + cStatus + ". Ask your TorqueDesk administrator to reactivate it, or sign in with the email of a different active shop.",
+			"error":         "The TorqueDesk shop \"" + cName + "\" is currently suspended. Contact your TorqueDesk administrator.",
 			"companyStatus": cStatus,
 			"companyName":   cName,
 			"companyId":     companyID,

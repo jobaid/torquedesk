@@ -66,15 +66,12 @@ export default function CompanyDetail() {
   }
 
   const deleteCompany = async () => {
-    const typed = prompt(`⚠ PERMANENT DELETE for ${c.name}\n\nThis removes the company and ALL its data: customers, vehicles, documents, inspections, payments, add-on subscriptions, backups.\n\nType the EXACT company name to confirm:`)
-    if (typed !== c.name) {
-      if (typed !== null) alert('Deletion aborted — name did not match.')
-      return
-    }
+    const typed = prompt(`⚠ PERMANENT DELETE for ${c.name}\n\nThis removes the company and ALL its data: customers, vehicles, documents, inspections, payments, add-on subscriptions, backups.\n\nType YOUR admin username (or email) to confirm:`)
+    if (typed === null || !typed.trim()) return
     if (!confirm(`Last chance — delete ${c.name} FOREVER?`)) return
     setBusy(true)
     try {
-      await ownerApi(`/companies/${id}`, { method: 'DELETE', body: { confirm: c.name } })
+      await ownerApi(`/companies/${id}`, { method: 'DELETE', body: { confirm: typed.trim() } })
       alert(c.name + ' deleted.')
       navigate(window.location.pathname.startsWith('/owner') ? '/owner/companies' : '/p/admin/companies')
     } catch (e) { alert(e.message); setBusy(false) }

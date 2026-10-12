@@ -89,8 +89,14 @@ func (s *Server) deleteCompany(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 404, "Company not found.")
 		return
 	}
-	if strings.TrimSpace(p.Confirm) != name {
-		writeErr(w, 400, "Confirmation name does not match. Type the exact company name to delete.")
+	// Sudo-style confirm: the signed-in SaaS owner types their own username
+	// (or email) to approve a destructive action. The matching is
+	// case-insensitive and accepts either the display name or the email so
+	// we match whatever the owner remembers typing to log in.
+	typed := strings.ToLower(strings.TrimSpace(p.Confirm))
+	ok := typed == strings.ToLower(u.Name) || typed == strings.ToLower(u.Email)
+	if !ok {
+		writeErr(w, 400, "Confirmation username does not match your admin account.")
 		return
 	}
 	// Audit BEFORE the delete so the trail survives the cascade.

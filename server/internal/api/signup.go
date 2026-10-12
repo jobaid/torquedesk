@@ -251,7 +251,7 @@ func (s *Server) publicSignup(w http.ResponseWriter, r *http.Request) {
 		}
 		if err := tx.QueryRow(r.Context(), `INSERT INTO subscriptions
 			(company_id, plan, status, billing_cycle, monthly_price, annual_price, start_date, trial_end, auto_renewal)
-			VALUES ($1::uuid, $2, 'pending', $3, $4, $5, current_date, current_date + ($6 || ' days')::interval, true)
+			VALUES ($1::uuid, $2, 'pending', $3, $4, $5, current_date, current_date + ($6 * interval '1 day'), true)
 			RETURNING id::text`,
 			companyID, plan.Key, cycle, plan.MonthlyPrice, plan.AnnualPrice, plan.TrialDays,
 		).Scan(&subscriptionID); err != nil {

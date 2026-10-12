@@ -92,18 +92,12 @@ func (s *Server) signupRoutes(mux *http.ServeMux) {
 }
 
 func (s *Server) publicSignupPlans(w http.ResponseWriter, r *http.Request) {
-	out := []map[string]any{}
-	// Deterministic order so the UI stays stable.
-	for _, key := range []string{"starter", "professional", "business"} {
-		p := signupPlans[key]
-		out = append(out, map[string]any{
-			"key": p.Key, "name": p.Name,
-			"monthlyPrice": p.MonthlyPrice, "annualPrice": p.AnnualPrice,
-			"trialDays": p.TrialDays,
-			"features":  p.Features,
-		})
+	plans, err := s.loadAllPlans(r.Context(), true /* publishedOnly */)
+	if err != nil {
+		handleErr(w, err)
+		return
 	}
-	writeJSON(w, 200, out)
+	writeJSON(w, 200, plans)
 }
 
 type signupReq struct {
@@ -137,7 +131,11 @@ func (s *Server) publicSignup(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 400, "Invalid request.")
 		return
 	}
-	plan, ok := signupPlans[strings.ToLower(strings.TrimSpace(in.Plan))]
+	// Prefer DB (owner-managed) over hardcoded fallback.
+	plan, ok := s.loadPlan(r.Context(), strings.ToLower(strings.TrimSpace(in.Plan)))
+	if !ok {
+		plan, ok = signupPlans[strings.ToLower(strings.TrimSpace(in.Plan))]
+	}
 	if !ok {
 		writeErr(w, 400, "That plan is not available.")
 		return
@@ -401,7 +399,11 @@ func (s *Server) activateSignupV2(ctx context.Context, companyID, subID, planKey
 	// manually created on legacy plans ('enterprise', custom) that aren't
 	// in the hardcoded signupPlans catalog. Features stay at whatever the
 	// Owner Portal already has toggled.
-	plan, known := signupPlans[planKey]
+	// Prefer DB (owner-managed) over hardcoded fallback.
+	plan, known := s.loadPlan(ctx, planKey)
+	if !known {
+		plan, known = signupPlans[planKey]
+	}
 	if !known {
 		log.Printf("activateSignupV2: unknown plan %q for company %s — writing Stripe IDs only", planKey, companyID)
 	}

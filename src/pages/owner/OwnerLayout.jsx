@@ -14,6 +14,7 @@ const NAV = [
   { to: `${BASE}`, end: true, label: 'Dashboard', icon: LayoutDashboard },
   { to: `${BASE}/companies`, label: 'Companies', icon: Building2 },
   { to: `${BASE}/subscriptions`, label: 'Subscriptions', icon: CreditCard },
+  { to: `${BASE}/plans`, label: 'Plans', icon: CreditCard },
   { to: `${BASE}/users`, label: 'Users', icon: Users },
   { to: `${BASE}/access`, label: 'Access Management', icon: KeyRound },
   { to: `${BASE}/urls`, label: 'Application URLs', icon: Globe },

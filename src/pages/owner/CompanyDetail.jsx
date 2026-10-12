@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, PauseCircle, PlayCircle, XCircle, Copy, ExternalLink, CalendarPlus, Download, Mail, KeyRound, Check, X, Package } from 'lucide-react'
+import { ArrowLeft, PauseCircle, PlayCircle, XCircle, Copy, ExternalLink, CalendarPlus, Download, Mail, KeyRound, Check, X, Package, Send } from 'lucide-react'
 import { ownerApi, useOwner } from '../../store/useOwner'
 import { Card, PageHeader, Btn, StatusPill, Th, Td, money } from './primitives'
 
@@ -63,6 +63,16 @@ export default function CompanyDetail() {
     } finally {
       setBusy(false)
     }
+  }
+
+  const sendRenewal = async () => {
+    if (!confirm('Send a renewal payment link to the shop owner by email?')) return
+    setBusy(true)
+    try {
+      const r = await ownerApi(`/companies/${id}/send-renewal`, { method: 'POST', body: {} })
+      alert('Renewal link emailed to ' + (r?.sentTo || 'the shop owner') + '.')
+    } catch (e) { alert(e.message) }
+    finally { setBusy(false) }
   }
 
   const setSubStatus = async (status) => {
@@ -195,6 +205,11 @@ export default function CompanyDetail() {
               </strong>
             </div>
             <div style={{ display: 'grid', gap: 6 }}>
+              {(c.status === 'expired' || c.status === 'cancelled') && (
+                <Btn onClick={sendRenewal} disabled={busy} style={{ background: '#1e40af' }}>
+                  <Send size={14} />Email renewal link to owner
+                </Btn>
+              )}
               <Btn onClick={() => changeStatus('active')} disabled={busy || c.status === 'active'}><PlayCircle size={14} />Activate</Btn>
               <Btn variant="secondary" onClick={() => changeStatus('suspended', prompt('Reason? (optional)') || '')} disabled={busy || c.status === 'suspended'}><PauseCircle size={14} />Suspend</Btn>
               <Btn variant="secondary" onClick={() => changeStatus('expired')} disabled={busy || c.status === 'expired'}>Mark expired</Btn>

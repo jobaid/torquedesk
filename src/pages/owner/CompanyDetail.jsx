@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, PauseCircle, PlayCircle, XCircle, Copy, ExternalLink, CalendarPlus, Download, Mail, KeyRound, Check, X, Package, Send } from 'lucide-react'
+import { ArrowLeft, PauseCircle, PlayCircle, XCircle, Copy, ExternalLink, CalendarPlus, Download, Mail, KeyRound, Check, X, Package, Send, Trash2 } from 'lucide-react'
 import { ownerApi, useOwner } from '../../store/useOwner'
 import { Card, PageHeader, Btn, StatusPill, Th, Td, money } from './primitives'
 
@@ -63,6 +63,21 @@ export default function CompanyDetail() {
     } finally {
       setBusy(false)
     }
+  }
+
+  const deleteCompany = async () => {
+    const typed = prompt(`⚠ PERMANENT DELETE for ${c.name}\n\nThis removes the company and ALL its data: customers, vehicles, documents, inspections, payments, add-on subscriptions, backups.\n\nType the EXACT company name to confirm:`)
+    if (typed !== c.name) {
+      if (typed !== null) alert('Deletion aborted — name did not match.')
+      return
+    }
+    if (!confirm(`Last chance — delete ${c.name} FOREVER?`)) return
+    setBusy(true)
+    try {
+      await ownerApi(`/companies/${id}`, { method: 'DELETE', body: { confirm: c.name } })
+      alert(c.name + ' deleted.')
+      navigate(window.location.pathname.startsWith('/owner') ? '/owner/companies' : '/p/admin/companies')
+    } catch (e) { alert(e.message); setBusy(false) }
   }
 
   const sendRenewal = async () => {
@@ -235,6 +250,15 @@ export default function CompanyDetail() {
                 const reason = prompt('Reason? (optional)') || ''
                 changeStatus('cancelled', reason)
               }} disabled={busy || c.status === 'cancelled'}><XCircle size={14} />Cancel</Btn>
+            </div>
+            <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid #1e2a44' }}>
+              <div style={{ fontSize: 11, color: '#fda4af', textTransform: 'uppercase', letterSpacing: '.06em', fontWeight: 700, marginBottom: 6 }}>Danger zone</div>
+              <Btn variant="danger" onClick={deleteCompany} disabled={busy} style={{ width: '100%', background: '#450a0a', borderColor: '#991b1b', color: '#fecaca' }}>
+                <Trash2 size={14} />Delete company permanently
+              </Btn>
+              <div style={{ fontSize: 11, color: '#8da2bf', marginTop: 6 }}>
+                Removes the company and every row scoped to it. Prefer Cancel for soft-delete.
+              </div>
             </div>
           </Card>
 

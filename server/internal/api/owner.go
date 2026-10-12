@@ -62,6 +62,66 @@ func (s *Server) ownerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/owner/audit", s.ownerAuth(s.listSaasAudit))
 	mux.HandleFunc("GET /api/owner/companies/{id}/backup", s.ownerAuth(s.ownerDownloadBackup))
 	mux.HandleFunc("PATCH /api/owner/companies/{id}/owners/{ownerId}", s.ownerAuth(s.updateCompanyOwner))
+	mux.HandleFunc("DELETE /api/owner/companies/{id}", s.ownerAuth(s.deleteCompany))
+	mux.HandleFunc("DELETE /api/owner/subscriptions/{id}", s.ownerAuth(s.deleteSubscription))
+}
+
+// deleteCompany permanently removes a company and every row scoped to its
+// company_id. Caller must send the matching company name in the request
+// body as 'confirm' to prevent fat-fingered deletes. Audited.
+//
+// Dangerous — this cascades through customers, vehicles, documents,
+// inspections, payments, add-on subscriptions, backups, feature flags,
+// settings, and the subscription row. Prefer status='cancelled' for a
+// soft-delete that preserves data.
+func (s *Server) deleteCompany(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	u := userFrom(r.Context())
+	var p struct {
+		Confirm string `json:"confirm"`
+	}
+	if err := readJSON(r, &p); err != nil {
+		writeErr(w, 400, "Invalid request.")
+		return
+	}
+	var name, slug string
+	if err := s.db.QueryRow(r.Context(), `SELECT name, slug FROM companies WHERE id::text = $1`, id).Scan(&name, &slug); err != nil {
+		writeErr(w, 404, "Company not found.")
+		return
+	}
+	if strings.TrimSpace(p.Confirm) != name {
+		writeErr(w, 400, "Confirmation name does not match. Type the exact company name to delete.")
+		return
+	}
+	// Audit BEFORE the delete so the trail survives the cascade.
+	_ = s.recordSaasAudit(r.Context(), nil, u.Name, "company_deleted", "company", id, &id,
+		map[string]any{"name": name, "slug": slug}, clientIP(r))
+	// ON DELETE CASCADE on company_id FKs handles the rest.
+	if _, err := s.db.Exec(r.Context(), `DELETE FROM companies WHERE id::text = $1`, id); err != nil {
+		handleErr(w, err)
+		return
+	}
+	invalidateCompanyStatus(id)
+	writeJSON(w, 200, map[string]any{"ok": true, "deleted": name})
+}
+
+// deleteSubscription removes just a subscription row. Company stays.
+// Audited. Called from the Owner → Subscriptions table's row action.
+func (s *Server) deleteSubscription(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	u := userFrom(r.Context())
+	var companyID string
+	_ = s.db.QueryRow(r.Context(), `SELECT company_id::text FROM subscriptions WHERE id::text = $1`, id).Scan(&companyID)
+	if companyID == "" {
+		writeErr(w, 404, "Subscription not found.")
+		return
+	}
+	if _, err := s.db.Exec(r.Context(), `DELETE FROM subscriptions WHERE id::text = $1`, id); err != nil {
+		handleErr(w, err)
+		return
+	}
+	_ = s.recordSaasAudit(r.Context(), nil, u.Name, "subscription_deleted", "subscription", id, &companyID, nil, clientIP(r))
+	writeJSON(w, 200, map[string]any{"ok": true})
 }
 
 // updateCompanyOwner lets the SaaS owner help a shop that lost its login:

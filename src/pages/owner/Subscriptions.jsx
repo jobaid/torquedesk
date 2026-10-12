@@ -1,13 +1,25 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { Trash2 } from 'lucide-react'
 import { ownerApi } from '../../store/useOwner'
-import { Card, PageHeader, Select, StatusPill, Th, Td, money } from './primitives'
+import { Card, PageHeader, Select, StatusPill, Btn, Th, Td, money } from './primitives'
 
 export default function Subscriptions() {
   const [status, setStatus] = useState('')
   const [plan, setPlan] = useState('')
   const [expiring, setExpiring] = useState('')
   const [rows, setRows] = useState(null)
+  const [busy, setBusy] = useState('')
+
+  const removeSub = async (s) => {
+    if (!confirm(`Delete the subscription for ${s.companyName}? The company stays — only this subscription row is removed.`)) return
+    setBusy(s.id)
+    try {
+      await ownerApi(`/subscriptions/${s.id}`, { method: 'DELETE', body: {} })
+      setRows((old) => (old || []).filter((x) => x.id !== s.id))
+    } catch (e) { alert(e.message) }
+    finally { setBusy('') }
+  }
   const [error, setError] = useState(null)
 
   useEffect(() => {
@@ -50,7 +62,7 @@ export default function Subscriptions() {
               <thead><tr>
                 <Th>Company</Th><Th>Plan</Th><Th>Status</Th><Th>Cycle</Th>
                 <Th right>Monthly</Th><Th right>Annual</Th><Th>End date</Th><Th right>Days left</Th>
-                <Th>Customer</Th><Th>Subscription</Th>
+                <Th>Customer</Th><Th>Subscription</Th><Th></Th>
               </tr></thead>
               <tbody>
                 {rows.map((s) => (
@@ -82,6 +94,11 @@ export default function Subscriptions() {
                           {s.stripeSubscriptionId.slice(0, 10)}…
                         </a>
                       ) : <span style={{ color: '#8da2bf' }}>—</span>}
+                    </Td>
+                    <Td>
+                      <Btn variant="danger" onClick={() => removeSub(s)} disabled={busy === s.id} style={{ padding: '2px 8px', fontSize: 11 }} title="Delete this subscription row">
+                        <Trash2 size={13} />
+                      </Btn>
                     </Td>
                   </tr>
                 ))}

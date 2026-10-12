@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { ownerApi } from '../../store/useOwner'
@@ -12,15 +12,36 @@ export default function AddCompany() {
   const [saving, setSaving] = useState(false)
   const [errors, setErrors] = useState({})
   const [generalError, setGeneralError] = useState(null)
+  const [plans, setPlans] = useState([])
   const [f, setF] = useState({
     name: '', legalName: '', companyCode: '', slug: '',
     phone: '', email: '', website: '', industry: 'Automotive', timezone: 'America/New_York',
     street: '', city: '', state: '', zip: '', country: 'US',
     applicationUrl: '', notes: '',
     ownerFirstName: '', ownerLastName: '', ownerEmail: '', ownerPhone: '', ownerUsername: '', ownerPassword: '',
-    plan: 'starter', billingCycle: 'monthly', monthlyPrice: '', annualPrice: '', endDate: '',
+    plan: '', billingCycle: 'monthly', monthlyPrice: '', annualPrice: '', endDate: '',
   })
   const set = (k, v) => setF((old) => ({ ...old, [k]: v }))
+
+  // Load dynamic plans (owner-managed, from signup_plans table) so the
+  // dropdown always reflects what's actually sellable.
+  useEffect(() => {
+    ownerApi('/plans').then((rows) => {
+      const arr = Array.isArray(rows) ? rows : []
+      setPlans(arr)
+      if (arr.length && !f.plan) {
+        const first = arr[0]
+        setF((old) => ({ ...old, plan: first.key, monthlyPrice: String(first.monthlyPrice), annualPrice: String(first.annualPrice) }))
+      }
+    }).catch(() => { /* ignore — form stays open with blank plan selector */ })
+  }, [])
+
+  // When the chosen plan changes, auto-fill the prices to match (the owner
+  // can still override before saving).
+  const setPlan = (key) => {
+    const p = plans.find((x) => x.key === key)
+    setF((old) => ({ ...old, plan: key, monthlyPrice: p ? String(p.monthlyPrice) : old.monthlyPrice, annualPrice: p ? String(p.annualPrice) : old.annualPrice }))
+  }
 
   const submit = async (e) => {
     e.preventDefault()
@@ -103,7 +124,14 @@ export default function AddCompany() {
 
         <Section title="Subscription">
           <Grid cols={2}>
-            <Field label="Plan"><Select value={f.plan} onChange={(e) => set('plan', e.target.value)}>{['starter', 'professional', 'business', 'enterprise'].map((p) => <option key={p} value={p}>{p[0].toUpperCase() + p.slice(1)}</option>)}</Select></Field>
+            <Field label="Plan" hint={plans.length ? `${plans.length} plan(s) defined in Owner → Plans` : 'Create plans in Owner → Plans'}>
+              <Select value={f.plan} onChange={(e) => setPlan(e.target.value)}>
+                {plans.length === 0 && <option value="">— no plans configured —</option>}
+                {plans.map((p) => (
+                  <option key={p.key} value={p.key}>{p.name} · ${p.monthlyPrice}/mo</option>
+                ))}
+              </Select>
+            </Field>
             <Field label="Billing cycle"><Select value={f.billingCycle} onChange={(e) => set('billingCycle', e.target.value)}><option value="monthly">Monthly</option><option value="annual">Annual</option></Select></Field>
             <Field label="Monthly price"><Input type="number" step="0.01" min="0" value={f.monthlyPrice} onChange={(e) => set('monthlyPrice', e.target.value)} placeholder="0.00" /></Field>
             <Field label="Annual price"><Input type="number" step="0.01" min="0" value={f.annualPrice} onChange={(e) => set('annualPrice', e.target.value)} placeholder="0.00" /></Field>

@@ -702,8 +702,10 @@ func (s *Server) createCompany(w http.ResponseWriter, r *http.Request) {
 	if in.Subscription.Plan == "" {
 		in.Subscription.Plan = "starter"
 	}
-	if !slices.Contains(subscriptionPlans, in.Subscription.Plan) {
-		ve["subscription.plan"] = "Invalid plan."
+	// Accept any plan key defined in Owner → Plans (signup_plans table),
+	// plus the legacy hardcoded set for backward compatibility.
+	if !s.planKeyAcceptable(r.Context(), in.Subscription.Plan) {
+		ve["subscription.plan"] = "Invalid plan — create it in Owner → Plans first."
 	}
 	if in.Subscription.BillingCycle == "" {
 		in.Subscription.BillingCycle = "monthly"
@@ -986,7 +988,7 @@ func (s *Server) updateSubscription(w http.ResponseWriter, r *http.Request) {
 	sets, args := []string{"updated_at = now()"}, []any{}
 	add := func(col string, v any) { args = append(args, v); sets = append(sets, fmt.Sprintf("%s = $%d", col, len(args))) }
 	if p.Plan != nil {
-		if !slices.Contains(subscriptionPlans, *p.Plan) {
+		if !s.planKeyAcceptable(r.Context(), *p.Plan) {
 			writeErr(w, 400, "Invalid plan.")
 			return
 		}

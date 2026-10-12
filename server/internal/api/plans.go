@@ -257,6 +257,25 @@ func (s *Server) deletePlan(w http.ResponseWriter, r *http.Request) {
 	s.listOwnerPlans(w, r)
 }
 
+// planKeyAcceptable returns true when the given plan key exists in the
+// Owner-managed signup_plans table OR in the legacy hardcoded set.
+// Used by owner.go create/update subscription endpoints so admin-created
+// plans don't fail an outdated allowlist.
+func (s *Server) planKeyAcceptable(ctx context.Context, key string) bool {
+	key = strings.ToLower(strings.TrimSpace(key))
+	if key == "" {
+		return false
+	}
+	for _, legacy := range []string{"starter", "professional", "business", "enterprise"} {
+		if key == legacy {
+			return true
+		}
+	}
+	var exists bool
+	_ = s.db.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM signup_plans WHERE key = $1)`, key).Scan(&exists)
+	return exists
+}
+
 // Guards against unused imports when iterating.
 var _ = pgx.ErrNoRows
 var _ = errors.New

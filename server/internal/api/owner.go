@@ -556,14 +556,16 @@ func (s *Server) getCompany(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// Subscription
-	var subID, plan, sstatus, cycle, payStatus string
+	var subID, plan, sstatus, cycle, payStatus, stripeCust, stripeSubscription string
 	var monthly, annual string
 	var start, end, trialStart, trialEnd *time.Time
 	var autoR bool
 	err = s.db.QueryRow(r.Context(), `SELECT id::text, plan, status, billing_cycle, monthly_price::text, annual_price::text,
-		start_date, end_date, trial_start, trial_end, auto_renewal, payment_status
+		start_date, end_date, trial_start, trial_end, auto_renewal, payment_status,
+		coalesce(stripe_customer_id, ''), coalesce(stripe_subscription_id, '')
 		FROM subscriptions WHERE company_id::text = $1`, id).
-		Scan(&subID, &plan, &sstatus, &cycle, &monthly, &annual, &start, &end, &trialStart, &trialEnd, &autoR, &payStatus)
+		Scan(&subID, &plan, &sstatus, &cycle, &monthly, &annual, &start, &end, &trialStart, &trialEnd, &autoR, &payStatus,
+			&stripeCust, &stripeSubscription)
 	if err == nil {
 		c["subscription"] = map[string]any{
 			"id": subID, "plan": plan, "status": sstatus, "billingCycle": cycle,
@@ -571,7 +573,9 @@ func (s *Server) getCompany(w http.ResponseWriter, r *http.Request) {
 			"startDate": fmtDate(start), "endDate": fmtDate(end),
 			"trialStart": fmtDate(trialStart), "trialEnd": fmtDate(trialEnd),
 			"autoRenewal": autoR, "paymentStatus": payStatus,
-			"daysUntilExpiration": daysUntil(end),
+			"daysUntilExpiration":    daysUntil(end),
+			"stripeCustomerId":       stripeCust,
+			"stripeSubscriptionId":   stripeSubscription,
 		}
 	}
 	// Owners
@@ -917,7 +921,8 @@ func (s *Server) listSubscriptions(w http.ResponseWriter, r *http.Request) {
 	}
 	rows, err := s.db.Query(r.Context(), `SELECT s.id::text, s.company_id::text, c.name, s.plan, s.status, s.billing_cycle,
 		s.monthly_price::text, s.annual_price::text, s.start_date, s.end_date,
-		s.trial_end, s.auto_renewal, s.payment_status, s.updated_at
+		s.trial_end, s.auto_renewal, s.payment_status, s.updated_at,
+		coalesce(s.stripe_customer_id, ''), coalesce(s.stripe_subscription_id, '')
 		FROM subscriptions s JOIN companies c ON c.id = s.company_id
 		WHERE `+strings.Join(where, " AND ")+` ORDER BY s.end_date NULLS LAST LIMIT 500`, args...)
 	if err != nil {
@@ -927,12 +932,12 @@ func (s *Server) listSubscriptions(w http.ResponseWriter, r *http.Request) {
 	defer rows.Close()
 	out := []map[string]any{}
 	for rows.Next() {
-		var sid, cid, cname, plan, status, cycle, pay string
+		var sid, cid, cname, plan, status, cycle, pay, stripeCust, stripeSub string
 		var monthly, annual string
 		var start, end, trialEnd *time.Time
 		var autoR bool
 		var updated time.Time
-		rows.Scan(&sid, &cid, &cname, &plan, &status, &cycle, &monthly, &annual, &start, &end, &trialEnd, &autoR, &pay, &updated)
+		rows.Scan(&sid, &cid, &cname, &plan, &status, &cycle, &monthly, &annual, &start, &end, &trialEnd, &autoR, &pay, &updated, &stripeCust, &stripeSub)
 		out = append(out, map[string]any{
 			"id": sid, "companyId": cid, "companyName": cname,
 			"plan": plan, "status": status, "billingCycle": cycle,
@@ -940,6 +945,8 @@ func (s *Server) listSubscriptions(w http.ResponseWriter, r *http.Request) {
 			"startDate": fmtDate(start), "endDate": fmtDate(end), "trialEnd": fmtDate(trialEnd),
 			"autoRenewal": autoR, "paymentStatus": pay,
 			"daysUntilExpiration": daysUntil(end), "updatedAt": updated.UnixMilli(),
+			"stripeCustomerId":    stripeCust,
+			"stripeSubscriptionId": stripeSub,
 		})
 	}
 	writeJSON(w, 200, out)

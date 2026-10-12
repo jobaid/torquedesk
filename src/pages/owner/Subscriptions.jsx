@@ -50,6 +50,7 @@ export default function Subscriptions() {
               <thead><tr>
                 <Th>Company</Th><Th>Plan</Th><Th>Status</Th><Th>Cycle</Th>
                 <Th right>Monthly</Th><Th right>Annual</Th><Th>End date</Th><Th right>Days left</Th>
+                <Th>Customer</Th><Th>Subscription</Th>
               </tr></thead>
               <tbody>
                 {rows.map((s) => (
@@ -63,6 +64,24 @@ export default function Subscriptions() {
                     <Td>{s.endDate || '—'}</Td>
                     <Td right style={{ color: typeof s.daysUntilExpiration === 'number' && s.daysUntilExpiration < 30 ? '#fdba74' : '#8da2bf' }}>
                       {s.daysUntilExpiration ?? '—'}
+                    </Td>
+                    <Td>
+                      {s.stripeCustomerId ? (
+                        <a href={`https://dashboard.stripe.com/customers/${s.stripeCustomerId}`} target="_blank" rel="noreferrer"
+                           title={s.stripeCustomerId}
+                           style={{ color: '#5b8def', fontFamily: 'monospace', fontSize: 11 }}>
+                          {s.stripeCustomerId.slice(0, 10)}…
+                        </a>
+                      ) : <span style={{ color: '#8da2bf' }}>—</span>}
+                    </Td>
+                    <Td>
+                      {s.stripeSubscriptionId ? (
+                        <a href={`https://dashboard.stripe.com/subscriptions/${s.stripeSubscriptionId}`} target="_blank" rel="noreferrer"
+                           title={s.stripeSubscriptionId}
+                           style={{ color: '#5b8def', fontFamily: 'monospace', fontSize: 11 }}>
+                          {s.stripeSubscriptionId.slice(0, 10)}…
+                        </a>
+                      ) : <span style={{ color: '#8da2bf' }}>—</span>}
                     </Td>
                   </tr>
                 ))}

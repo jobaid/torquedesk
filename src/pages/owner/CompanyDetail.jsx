@@ -142,6 +142,22 @@ export default function CompanyDetail() {
                   )}</span>} />
                   <KV k="Auto-renew" v={c.subscription.autoRenewal ? 'Yes' : 'No'} />
                   <KV k="Payment status" v={<span style={{ textTransform: 'capitalize' }}>{c.subscription.paymentStatus}</span>} />
+                  <KV k="Stripe customer ID"
+                    v={c.subscription.stripeCustomerId ? (
+                      <a href={`https://dashboard.stripe.com/customers/${c.subscription.stripeCustomerId}`}
+                         target="_blank" rel="noreferrer"
+                         style={{ fontFamily: 'monospace', fontSize: 12, color: '#5b8def' }}>
+                        {c.subscription.stripeCustomerId}
+                      </a>
+                    ) : <span style={{ color: '#8da2bf' }}>— not linked —</span>} />
+                  <KV k="Stripe subscription ID"
+                    v={c.subscription.stripeSubscriptionId ? (
+                      <a href={`https://dashboard.stripe.com/subscriptions/${c.subscription.stripeSubscriptionId}`}
+                         target="_blank" rel="noreferrer"
+                         style={{ fontFamily: 'monospace', fontSize: 12, color: '#5b8def' }}>
+                        {c.subscription.stripeSubscriptionId}
+                      </a>
+                    ) : <span style={{ color: '#8da2bf' }}>— not linked —</span>} />
                 </Grid>
                 <div style={{ fontSize: 11, color: '#8da2bf', marginTop: 12, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '.06em' }}>Change status (emails the shop owner)</div>
                 <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>

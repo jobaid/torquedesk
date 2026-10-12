@@ -247,10 +247,22 @@ function LinkedSection({ data, busy, onPortal, onCancel, onResume, onRefresh }) 
           sub={data.autoPay ? 'Charges your default method on renewal' : 'Invoices will be emailed; you pay manually'}
           color={data.autoPay ? 'green' : 'amber'} />
         <StatusChip icon={<CreditCard size={14} />} label="Payment method" value={methodLabel} sub="Managed in the Stripe portal" />
-        <StatusChip icon={<CalendarClock size={14} />} label={data.cancelAtPeriodEnd ? 'Access ends' : 'Next charge'}
+        <StatusChip icon={<CalendarClock size={14} />}
+          label={
+            data.status === 'expired'   ? 'Expired on'
+          : data.status === 'cancelled' ? 'Cancelled on'
+          : data.cancelAtPeriodEnd      ? 'Access ends'
+          :                               'Next charge'
+          }
           value={data.currentPeriodEnd || data.endDate || '—'}
-          sub={data.cancelAtPeriodEnd ? 'Subscription scheduled to end' : (data.autoPay ? 'Auto-renew' : 'Manual pay')}
-          color={data.cancelAtPeriodEnd ? 'red' : undefined} />
+          sub={
+            data.status === 'expired'   ? 'Renew to restore access'
+          : data.status === 'cancelled' ? 'Resubscribe to restore access'
+          : data.cancelAtPeriodEnd      ? 'Subscription scheduled to end'
+          : data.autoPay                ? 'Auto-renew'
+          :                               'Manual pay'
+          }
+          color={(data.status === 'expired' || data.status === 'cancelled' || data.cancelAtPeriodEnd) ? 'red' : undefined} />
       </div>
 
       {data.cancelAtPeriodEnd && (

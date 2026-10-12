@@ -882,7 +882,16 @@ func (s *Server) changeCompanyStatus(w http.ResponseWriter, r *http.Request) {
 		// Keep subscription status roughly in sync
 		mirror := map[string]string{"suspended": "suspended", "cancelled": "cancelled", "expired": "expired", "active": "active", "trial": "trial"}
 		if ss, ok := mirror[p.Status]; ok {
-			_, _ = tx.Exec(r.Context(), `UPDATE subscriptions SET status = $1, updated_at = now() WHERE company_id::text = $2`, ss, id)
+			// Mark expired / cancelled with an end_date = today so the shop's
+			// Billing page shows an accurate 'Access ends on <today>' line
+			// instead of a stale future renewal date.
+			if ss == "expired" || ss == "cancelled" {
+				_, _ = tx.Exec(r.Context(), `UPDATE subscriptions
+					SET status = $1, end_date = current_date, auto_renewal = false, updated_at = now()
+					WHERE company_id::text = $2`, ss, id)
+			} else {
+				_, _ = tx.Exec(r.Context(), `UPDATE subscriptions SET status = $1, updated_at = now() WHERE company_id::text = $2`, ss, id)
+			}
 		}
 		action := "company_status_" + p.Status
 		return s.recordSaasAuditTx(r.Context(), tx, nil, u.Name, action, "company", id, &id,

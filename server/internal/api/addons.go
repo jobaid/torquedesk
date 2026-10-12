@@ -574,10 +574,14 @@ type stripeSubscription struct {
 	Status   string `json:"status"`
 	Customer string `json:"customer"`
 	Metadata struct {
-		CompanyID  string `json:"torquedesk_company_id"`
-		FeatureKey string `json:"torquedesk_feature_key"`
-		AddonID    string `json:"torquedesk_addon_id"`
-		SubRowID   string `json:"torquedesk_sub_row_id"`
+		CompanyID    string `json:"torquedesk_company_id"`
+		FeatureKey   string `json:"torquedesk_feature_key"`
+		AddonID      string `json:"torquedesk_addon_id"`
+		SubRowID     string `json:"torquedesk_sub_row_id"`
+		Signup       string `json:"torquedesk_signup"`
+		Subscription string `json:"torquedesk_subscription"`
+		Plan         string `json:"torquedesk_plan"`
+		BillingCycle string `json:"torquedesk_billing_cycle"`
 	} `json:"metadata"`
 	CancelAtPeriodEnd  bool  `json:"cancel_at_period_end"`
 	CurrentPeriodEnd   int64 `json:"current_period_end"`
@@ -595,9 +599,18 @@ func (s *Server) handlePlatformSubscriptionEvent(ctx context.Context, raw []byte
 	}
 	sub := env.Data.Object
 	cid := sub.Metadata.CompanyID
+	if cid == "" {
+		return errors.New("missing company_id in subscription metadata")
+	}
+	// Signup-origin subscriptions (torquedesk_signup=true in metadata)
+	// update the main subscriptions table; add-on subscriptions
+	// (torquedesk_feature_key set) update shop_addon_subscriptions.
+	if sub.Metadata.Signup == "true" {
+		return s.applySignupSubscriptionEvent(ctx, sub)
+	}
 	key := sub.Metadata.FeatureKey
-	if cid == "" || key == "" {
-		return errors.New("missing company_id / feature_key in subscription metadata")
+	if key == "" {
+		return errors.New("missing feature_key in subscription metadata")
 	}
 	// Translate Stripe status to our enum values.
 	status := sub.Status

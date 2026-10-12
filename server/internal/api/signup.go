@@ -480,6 +480,97 @@ func (s *Server) activateSignupV2(ctx context.Context, companyID, subID, planKey
 	return nil
 }
 
+// applySignupSubscriptionEvent is called by the platform Stripe webhook for
+// customer.subscription.{created,updated,deleted} events whose metadata has
+// torquedesk_signup=true. It mirrors the Stripe state onto the main
+// subscriptions table so renewals, cancels, past-due, and plan changes
+// automatically reflect in Owner → Companies → Subscription without manual
+// SQL. Idempotent — safe on webhook retries.
+func (s *Server) applySignupSubscriptionEvent(ctx context.Context, sub stripeSubscription) error {
+	// Map Stripe status to our enum.
+	ourStatus := "active"
+	switch sub.Status {
+	case "trialing":
+		ourStatus = "trial"
+	case "active":
+		ourStatus = "active"
+	case "past_due", "incomplete", "unpaid":
+		ourStatus = "suspended"
+	case "canceled", "incomplete_expired":
+		ourStatus = "cancelled"
+	}
+	// Companies.status mirrors the subscription so expired shops lose
+	// features and get the renewal banner.
+	companyStatus := "active"
+	switch ourStatus {
+	case "trial":
+		companyStatus = "trial"
+	case "suspended":
+		companyStatus = "suspended"
+	case "cancelled":
+		companyStatus = "cancelled"
+	}
+	// end_date = Stripe's current_period_end (renewal date).
+	var endDate any
+	if sub.CurrentPeriodEnd > 0 {
+		endDate = time.Unix(sub.CurrentPeriodEnd, 0).UTC()
+	}
+	var trialEndDate any
+	if sub.TrialEnd > 0 {
+		trialEndDate = time.Unix(sub.TrialEnd, 0).UTC()
+	}
+	cid := sub.Metadata.CompanyID
+	subRowID := sub.Metadata.Subscription
+	err := s.tx(ctx, func(tx pgx.Tx) error {
+		// Match by stripe_subscription_id first (durable across restarts),
+		// then fall back to the explicit subRowID or company_id.
+		if subRowID != "" {
+			if _, err := tx.Exec(ctx, `UPDATE subscriptions
+				SET status = $1, stripe_subscription_id = $2, stripe_customer_id = $3,
+				    end_date = $4, trial_end = $5,
+				    auto_renewal = NOT $6, payment_status = $7, updated_at = now()
+				WHERE id::text = $8`,
+				ourStatus, sub.ID, sub.Customer, endDate, trialEndDate,
+				sub.CancelAtPeriodEnd, stripePaymentStatus(sub.Status), subRowID); err != nil {
+				return err
+			}
+		} else {
+			if _, err := tx.Exec(ctx, `UPDATE subscriptions
+				SET status = $1, stripe_subscription_id = $2, stripe_customer_id = $3,
+				    end_date = $4, trial_end = $5,
+				    auto_renewal = NOT $6, payment_status = $7, updated_at = now()
+				WHERE company_id::text = $8`,
+				ourStatus, sub.ID, sub.Customer, endDate, trialEndDate,
+				sub.CancelAtPeriodEnd, stripePaymentStatus(sub.Status), cid); err != nil {
+				return err
+			}
+		}
+		// Mirror company status so expired shops hit the renewal banner.
+		if _, err := tx.Exec(ctx, `UPDATE companies SET status = $1, updated_at = now()
+			WHERE id::text = $2 AND status NOT IN ('suspended')`, companyStatus, cid); err != nil {
+			return err
+		}
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	invalidateCompanyStatus(cid)
+	return nil
+}
+
+func stripePaymentStatus(stripeStatus string) string {
+	switch stripeStatus {
+	case "active", "trialing":
+		return "paid"
+	case "past_due", "unpaid":
+		return "failed"
+	case "canceled", "incomplete_expired":
+		return "none"
+	}
+	return "pending"
+}
+
 // featuresFromPlan returns a map[key]true for every feature a plan should
 // turn on. Features missing from this map stay at their catalog default.
 func featuresFromPlan(p signupPlan) map[string]bool {

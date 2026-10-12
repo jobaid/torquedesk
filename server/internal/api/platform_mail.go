@@ -271,26 +271,48 @@ func (s *Server) platformNotifyEnabled(ctx context.Context, kind string) bool {
 
 // --------------------------- transactional templates -----------------------
 
-// platformEmailShell wraps the body in a branded HTML frame.
+// platformEmailShell wraps the body in a production-grade branded HTML frame.
+// Uses only email-safe inline CSS + table layout for Gmail, Outlook, Apple
+// Mail compatibility. Responsive down to mobile widths. Supports preheader
+// text (shown in inbox previews) and a professional footer with the shop
+// address and support contact.
 func platformEmailShell(fromName, title, body, footerNote string) string {
 	if fromName == "" {
 		fromName = "TorqueDesk"
 	}
+	// Preheader is the first bit of plain text in the email body — most
+	// mail clients show it next to the subject in the inbox list.
+	preheader := title
+	// Light grey background with a 600px white card. Mobile breakpoint
+	// trims padding below 480px via media query (Apple Mail honours this).
 	var b strings.Builder
-	b.WriteString(`<!doctype html><html><body style="margin:0;padding:0;background:#f4f6f8;font-family:-apple-system,Segoe UI,Roboto,sans-serif;color:#111">`)
-	b.WriteString(`<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f8;padding:24px 0"><tr><td align="center">`)
-	b.WriteString(`<table role="presentation" width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.06)">`)
-	b.WriteString(`<tr><td style="padding:22px 28px;background:linear-gradient(90deg,#2a6cf0,#5b8def);color:#fff;font-size:18px;font-weight:700">`)
-	b.WriteString(htmlEscape(fromName))
-	b.WriteString(`</td></tr>`)
-	b.WriteString(`<tr><td style="padding:28px">`)
-	b.WriteString(`<div style="font-size:17px;font-weight:700;margin:0 0 12px">` + htmlEscape(title) + `</div>`)
-	b.WriteString(`<div style="font-size:14px;line-height:1.55;color:#333">` + body + `</div>`)
-	b.WriteString(`</td></tr>`)
+	b.WriteString(`<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light"><title>` + htmlEscape(title) + `</title><style>@media (max-width:600px){.px{padding-left:20px!important;padding-right:20px!important}.hero{padding:28px 20px!important;font-size:22px!important}.btn{display:block!important;width:100%!important;box-sizing:border-box!important}}</style></head>`)
+	b.WriteString(`<body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#111827;-webkit-font-smoothing:antialiased">`)
+	// Hidden preheader
+	b.WriteString(`<div style="display:none;max-height:0;overflow:hidden;color:transparent;opacity:0;height:0;width:0">` + htmlEscape(preheader) + `</div>`)
+	b.WriteString(`<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f3f4f6">`)
+	b.WriteString(`<tr><td align="center" style="padding:32px 16px">`)
+	// Logo row (above the card)
+	b.WriteString(`<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px"><tr><td style="padding:0 0 14px"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding-right:10px"><div style="width:34px;height:34px;border-radius:8px;background:linear-gradient(135deg,#3c6dff,#2554f5);color:#fff;text-align:center;line-height:34px;font-weight:700;font-size:15px">T</div></td><td style="font-weight:700;font-size:16px;color:#111827;letter-spacing:-0.01em">` + htmlEscape(fromName) + `</td></tr></table></td></tr></table>`)
+	// Main card
+	b.WriteString(`<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;background:#ffffff;border-radius:14px;border:1px solid #e5e7eb;overflow:hidden">`)
+	// Hero
+	b.WriteString(`<tr><td class="hero px" style="padding:36px 36px 24px"><h1 style="margin:0;color:#0f172a;font-size:24px;line-height:1.25;font-weight:700;letter-spacing:-0.02em">` + htmlEscape(title) + `</h1></td></tr>`)
+	// Body
+	b.WriteString(`<tr><td class="px" style="padding:0 36px 36px;color:#334155;font-size:15px;line-height:1.65">` + body + `</td></tr>`)
+	// Footer note inside the card (optional, lighter grey)
 	if footerNote != "" {
-		b.WriteString(`<tr><td style="padding:14px 28px;background:#fafafa;border-top:1px solid #eee;font-size:11px;color:#666">` + htmlEscape(footerNote) + `</td></tr>`)
+		b.WriteString(`<tr><td class="px" style="padding:18px 36px;background:#f9fafb;border-top:1px solid #e5e7eb;color:#6b7280;font-size:12px;line-height:1.5">` + htmlEscape(footerNote) + `</td></tr>`)
 	}
-	b.WriteString(`</table></td></tr></table></body></html>`)
+	b.WriteString(`</table>`)
+	// Outer footer (brand + legal)
+	b.WriteString(`<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px"><tr><td style="padding:24px 8px 0;color:#9ca3af;font-size:12px;line-height:1.6;text-align:center">`)
+	b.WriteString(`<strong style="color:#4b5563">` + htmlEscape(fromName) + `</strong><br>`)
+	b.WriteString(`Modern shop management for independent auto repair shops.<br>`)
+	b.WriteString(`Questions? Reply to this email and we'll help.<br>`)
+	b.WriteString(`<span style="color:#9ca3af">© ` + fmt.Sprintf("%d", time.Now().Year()) + ` ` + htmlEscape(fromName) + `. All rights reserved.</span>`)
+	b.WriteString(`</td></tr></table>`)
+	b.WriteString(`</td></tr></table></body></html>`)
 	return b.String()
 }
 

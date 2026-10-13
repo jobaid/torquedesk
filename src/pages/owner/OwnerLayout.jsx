@@ -37,11 +37,11 @@ export default function OwnerLayout() {
   return (
     <div style={shellStyle}>
       <aside style={asideStyle}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '18px 16px', borderBottom: '1px solid #1e2a44' }}>
-          <div style={{ background: 'linear-gradient(135deg,#5b8def,#8b5cf6)', borderRadius: 8, padding: 6, display: 'flex' }}><ShieldCheck size={18} color="#fff" /></div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '18px 16px', borderBottom: '1px solid #e2e8f0' }}>
+          <div style={{ background: 'linear-gradient(135deg,#2554f5,#7c3aed)', borderRadius: 8, padding: 6, display: 'flex' }}><ShieldCheck size={18} color="#fff" /></div>
           <div>
-            <div style={{ fontSize: 15, fontWeight: 700, lineHeight: 1 }}>TorqueDesk</div>
-            <div style={{ fontSize: 10.5, color: '#8da2bf', marginTop: 2 }}>Admin Portal</div>
+            <div style={{ fontSize: 15, fontWeight: 700, lineHeight: 1, color: '#0f172a' }}>TorqueDesk</div>
+            <div style={{ fontSize: 10.5, color: '#64748b', marginTop: 2 }}>Admin Portal</div>
           </div>
         </div>
         <nav style={{ padding: 10, overflow: 'auto', flex: 1 }}>
@@ -53,10 +53,11 @@ export default function OwnerLayout() {
               style={({ isActive }) => ({
                 display: 'flex', alignItems: 'center', gap: 10,
                 padding: '9px 12px', borderRadius: 8, marginBottom: 2,
-                color: isActive ? '#fff' : '#8da2bf',
-                background: isActive ? 'linear-gradient(90deg, rgba(91,141,239,.18), rgba(139,92,246,.08))' : 'transparent',
+                color: isActive ? '#0f172a' : '#475569',
+                background: isActive ? 'linear-gradient(90deg,#eef2ff,#f5f3ff)' : 'transparent',
                 fontSize: 14, textDecoration: 'none',
-                borderLeft: isActive ? '2px solid #5b8def' : '2px solid transparent',
+                fontWeight: isActive ? 600 : 500,
+                borderLeft: isActive ? '2px solid #2554f5' : '2px solid transparent',
               })}
             >
               <it.icon size={16} />
@@ -64,19 +65,19 @@ export default function OwnerLayout() {
             </NavLink>
           ))}
         </nav>
-        <div style={{ borderTop: '1px solid #1e2a44', padding: 12 }}>
+        <div style={{ borderTop: '1px solid #e2e8f0', padding: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-            <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#1e2a44', display: 'grid', placeItems: 'center', fontSize: 12, fontWeight: 600 }}>
+            <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg,#2554f5,#7c3aed)', color: '#fff', display: 'grid', placeItems: 'center', fontSize: 12, fontWeight: 600 }}>
               {(owner.user?.name || 'O').slice(0, 1).toUpperCase()}
             </div>
             <div style={{ overflow: 'hidden' }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#e5edf5', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{owner.user?.name || 'Owner'}</div>
-              <div style={{ fontSize: 11, color: '#8da2bf', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{owner.user?.email || ''}</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{owner.user?.name || 'Owner'}</div>
+              <div style={{ fontSize: 11, color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{owner.user?.email || ''}</div>
             </div>
           </div>
           <button
             onClick={() => { logout(); navigate(LOGIN_PATH, { replace: true }) }}
-            style={{ width: '100%', background: 'transparent', border: '1px solid #1e2a44', color: '#8da2bf', padding: '8px', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 13 }}
+            style={{ width: '100%', background: '#fff', border: '1px solid #e2e8f0', color: '#475569', padding: '8px', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 13, fontWeight: 500 }}
           >
             <LogOut size={14} /> Log out
           </button>
@@ -92,11 +93,11 @@ export default function OwnerLayout() {
 const shellStyle = {
   display: 'grid', gridTemplateColumns: '240px 1fr',
   minHeight: '100vh',
-  background: '#0b1220', color: '#e5edf5',
+  background: '#f8fafc', color: '#0f172a',
   fontFamily: 'Inter, system-ui, sans-serif',
 }
 
 const asideStyle = {
   display: 'flex', flexDirection: 'column',
-  background: '#0e1627', borderRight: '1px solid #1e2a44',
+  background: '#ffffff', borderRight: '1px solid #e2e8f0',
 }

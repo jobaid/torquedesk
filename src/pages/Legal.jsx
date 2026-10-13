@@ -10,11 +10,12 @@ import { ShieldCheck, Lock, FileText, Handshake, ArrowLeft } from 'lucide-react'
 
 const OPERATOR = 'Web Services LLC'
 const PRODUCT = 'TorqueDesk'
-const SUPPORT_EMAIL = 'support@webservicesllc.com'
-const LEGAL_EMAIL   = 'legal@webservicesllc.com'
+const DOMAIN  = '10corp.com'
+const SUPPORT_EMAIL = 'support@10corp.com'
+const LEGAL_EMAIL   = 'legal@10corp.com'
 const EFFECTIVE     = 'October 13, 2026'
-const JURISDICTION  = '[State], United States'
-const COMPANY_ADDR  = '[Street address], [City], [State] [ZIP], USA'
+const JURISDICTION  = 'New Mexico, United States'
+const COMPANY_ADDR  = '8206 Louisiana Blvd NE, Suite A, Albuquerque, NM 87113, USA'
 
 const SECTIONS = [
   { key: 'about',     label: 'About',             icon: FileText },
@@ -112,7 +113,7 @@ const PAGES = {
         </UL>
 
         <H>Who we are</H>
-        <P>{OPERATOR} is a software company registered in {JURISDICTION}. Our principal office is located at:</P>
+        <P>{OPERATOR} is a software company registered in {JURISDICTION}, operating online at <a href={`https://${DOMAIN}`}>{DOMAIN}</a>. Our principal office is located at:</P>
         <P style={{ fontFamily: 'ui-monospace, monospace', fontSize: 13 }}>{COMPANY_ADDR}</P>
 
         <H>Contact</H>

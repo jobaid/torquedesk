@@ -52,6 +52,7 @@ const OwnerPlatformEmail = lazy(() => import('./pages/owner/PlatformEmail'))
 const OwnerPlatformTemplates = lazy(() => import('./pages/owner/PlatformTemplates'))
 const OwnerSupport = lazy(() => import('./pages/owner/Support'))
 const OwnerUsers = lazy(() => import('./pages/owner/Users'))
+const Legal = lazy(() => import('./pages/Legal'))
 const Support = lazy(() => import('./pages/Support'))
 const OwnerAddons = lazy(() => import('./pages/owner/Addons'))
 const OwnerPlans = lazy(() => import('./pages/owner/Plans'))
@@ -91,6 +92,16 @@ export default function App() {
     return (
       <Suspense fallback={null}>
         <PayReturn outcome={window.location.pathname === '/pay/success' ? 'success' : 'cancel'} />
+      </Suspense>
+    )
+  }
+  // Public legal pages — about / privacy / terms / agreement. No auth.
+  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/legal')) {
+    return (
+      <Suspense fallback={null}>
+        <Routes>
+          <Route path="/legal/*" element={<Legal />} />
+        </Routes>
       </Suspense>
     )
   }

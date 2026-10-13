@@ -6,6 +6,7 @@ import Header from './Header'
 import CommandPalette from '../search/CommandPalette'
 import VehiclePickerModal from '../vehicle/VehiclePickerModal'
 import FloatingChat from '../chat/FloatingChat'
+import AgreementBanner from './AgreementBanner'
 import { ToastRegion } from '../ui'
 import { useApp, useUI } from '../../store/useApp'
 
@@ -64,6 +65,7 @@ export default function AppShell() {
       <CommandPalette />
       <VehiclePickerModal />
       <FloatingChat />
+      <AgreementBanner />
       <ToastRegion />
     </div>
   )

@@ -45,18 +45,17 @@ function OwnerDesk() {
   const [tickets, setTickets] = useState([])
   const [filters, setFilters] = useState({ status: '', priority: '', category: '', q: '' })
   const [loading, setLoading] = useState(true)
+  const [err, setErr] = useState('')
   const navigate = useNavigate()
 
   const load = async () => {
-    setLoading(true)
-    try {
-      const query = Object.entries(filters).filter(([, v]) => v).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&')
-      const [s, t] = await Promise.all([
-        api('/support/stats'),
-        api('/support/tickets' + (query ? '?' + query : '')),
-      ])
-      setStats(s); setTickets(t)
-    } finally { setLoading(false) }
+    setLoading(true); setErr('')
+    const query = Object.entries(filters).filter(([, v]) => v).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&')
+    // Fetch independently so a stats failure doesn't blank the ticket list.
+    try { setStats(await api('/support/stats')) } catch (e) { setErr('Stats: ' + e.message) }
+    try { setTickets(await api('/support/tickets' + (query ? '?' + query : ''))) }
+    catch (e) { setErr((prev) => (prev ? prev + ' | ' : '') + 'Tickets: ' + e.message) }
+    setLoading(false)
   }
   useEffect(() => { load() }, [filters.status, filters.priority, filters.category])
 
@@ -94,11 +93,19 @@ function OwnerDesk() {
         <select value={filters.priority} onChange={(e) => setFilters({ ...filters, priority: e.target.value })} style={inp}><option value="">Any priority</option>{PRIORITIES.map((p) => <option key={p} value={p}>{PRIORITY_META[p].label}</option>)}</select>
         <select value={filters.category} onChange={(e) => setFilters({ ...filters, category: e.target.value })} style={inp}><option value="">Any category</option>{CATEGORY_KEYS.map((k) => <option key={k} value={k}>{CATEGORIES[k]}</option>)}</select>
         <button type="submit" style={btnPrimary}>Search</button>
+        <button type="button" onClick={load} style={btnPrimary} title="Reload">↻</button>
       </form>
+
+      {err && <div style={errBox}>{err}</div>}
 
       <div style={card}>
         {loading ? <div style={{ padding: 32, textAlign: 'center', color: '#000000' }}><Loader2 className="spin" size={18} /></div> :
-         tickets.length === 0 ? <div style={{ padding: 48, textAlign: 'center', color: '#000000' }}>No tickets match the filters.</div> :
+         tickets.length === 0 ? <div style={{ padding: 48, textAlign: 'center', color: '#000000' }}>
+           No tickets found.
+           <div style={{ fontSize: 12, color: '#64748b', marginTop: 6 }}>
+             If the shop just created one, make sure the backend container has been rebuilt from the latest commit.
+           </div>
+         </div> :
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: '#ffffff', fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, color: '#000000' }}>

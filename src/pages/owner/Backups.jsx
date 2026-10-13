@@ -131,9 +131,9 @@ export default function Backups() {
 
       {/* List */}
       <Card style={{ padding: 0, overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', color: '#0f172a', fontSize: 13 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', color: '#000000', fontSize: 13 }}>
           <thead>
-            <tr style={{ background: '#f8fafc' }}>
+            <tr style={{ background: '#ffffff' }}>
               <th style={th}>Type</th>
               <th style={th}>File</th>
               <th style={th}>Date</th>
@@ -142,9 +142,9 @@ export default function Backups() {
             </tr>
           </thead>
           <tbody>
-            {loading && <tr><td colSpan={5} style={{ textAlign: 'center', padding: 20, color: '#64748b' }}>Loading…</td></tr>}
+            {loading && <tr><td colSpan={5} style={{ textAlign: 'center', padding: 20, color: '#000000' }}>Loading…</td></tr>}
             {!loading && list.length === 0 && (
-              <tr><td colSpan={5} style={{ textAlign: 'center', padding: 24, color: '#64748b' }}>
+              <tr><td colSpan={5} style={{ textAlign: 'center', padding: 24, color: '#000000' }}>
                 No backups yet. Click <strong>Create backup</strong> for a manual snapshot, or <strong>Replace auto backup now</strong> to produce the current auto file.
               </td></tr>
             )}
@@ -172,7 +172,7 @@ export default function Backups() {
         </table>
       </Card>
 
-      <div style={{ marginTop: 14, fontSize: 12, color: '#64748b' }}>
+      <div style={{ marginTop: 14, fontSize: 12, color: '#000000' }}>
         <strong>Auto backup</strong> runs weekly (first run 10 minutes after each server boot). It replaces the single current file via safe-swap — the previous backup is only deleted after the new one is verified, so a failed build never leaves the platform without a backup.
         <br />
         <strong>Restore</strong> rebuilds every company's data, SaaS admin users, company owners, subscriptions and feature flags from the backup. Use it to recover from a crash or to migrate the platform to a new server.
@@ -185,7 +185,7 @@ export default function Backups() {
             <AlertTriangle size={16} style={{ verticalAlign: -3, marginRight: 6 }} />
             <strong>This replaces every company's data</strong> with the contents of <code style={{ color: '#fff' }}>{confirmRestore.name}</code>. Documents, payments, inspections, chat and settings currently on the platform will be overwritten. This cannot be undone.
           </div>
-          <div style={{ color: '#64748b', fontSize: 12, marginBottom: 14 }}>Only run this on a crashed or empty server, or after confirming the current state can be lost.</div>
+          <div style={{ color: '#000000', fontSize: 12, marginBottom: 14 }}>Only run this on a crashed or empty server, or after confirming the current state can be lost.</div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
             <Btn variant="ghost" onClick={() => setConfirmRestore(null)}>Cancel</Btn>
             <Btn variant="danger" onClick={doRestore}>Yes, restore</Btn>
@@ -194,7 +194,7 @@ export default function Backups() {
       )}
       {confirmDelete && (
         <Dialog title="Delete this backup?" onClose={() => setConfirmDelete(null)}>
-          <div style={{ color: '#64748b', marginBottom: 14 }}>Permanently delete <code style={{ color: '#fff' }}>{confirmDelete.name}</code>? This cannot be undone.</div>
+          <div style={{ color: '#000000', marginBottom: 14 }}>Permanently delete <code style={{ color: '#fff' }}>{confirmDelete.name}</code>? This cannot be undone.</div>
           <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
             <Btn variant="ghost" onClick={() => setConfirmDelete(null)}>Cancel</Btn>
             <Btn variant="danger" onClick={doDelete}>Delete</Btn>
@@ -208,7 +208,7 @@ export default function Backups() {
 function Dialog({ title, children, onClose }) {
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'grid', placeItems: 'center', padding: 16 }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: '#ffffff', border: '1px solid #e2e8f0', color: '#0f172a', borderRadius: 12, padding: 20, maxWidth: 520, width: '100%', boxShadow: '0 20px 50px rgba(0,0,0,0.5)' }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: '#ffffff', border: '1px solid #e2e8f0', color: '#000000', borderRadius: 12, padding: 20, maxWidth: 520, width: '100%', boxShadow: '0 20px 50px rgba(0,0,0,0.5)' }}>
         <div style={{ fontWeight: 600, fontSize: 15, marginBottom: 10 }}>{title}</div>
         {children}
       </div>
@@ -216,6 +216,6 @@ function Dialog({ title, children, onClose }) {
   )
 }
 
-const th = { textAlign: 'left', padding: '10px 14px', fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', color: '#64748b', fontWeight: 600 }
-const td = { padding: '10px 14px', color: '#0f172a' }
+const th = { textAlign: 'left', padding: '10px 14px', fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', color: '#000000', fontWeight: 600 }
+const td = { padding: '10px 14px', color: '#000000' }
 const pill = (bg, fg) => ({ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 10px', borderRadius: 999, background: bg, color: fg, fontSize: 11, fontWeight: 600 })

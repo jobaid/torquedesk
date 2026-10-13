@@ -114,7 +114,7 @@ export default function PlatformEmail() {
     finally { setBusy(false) }
   }
 
-  if (loading) return <div><PageHeader title="Platform Email" /><div style={{ color: '#64748b' }}>Loading…</div></div>
+  if (loading) return <div><PageHeader title="Platform Email" /><div style={{ color: '#000000' }}>Loading…</div></div>
 
   const connected = (data?.smtpHost || data?.hasPassword)
 
@@ -131,10 +131,10 @@ export default function PlatformEmail() {
       <div style={{ display: 'grid', gap: 16, maxWidth: 760 }}>
         <Card>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-            <Mail size={16} color="#64748b" />
+            <Mail size={16} color="#000000" />
             <div style={{ fontSize: 15, fontWeight: 600 }}>Sender identity</div>
             <div style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
-              <Power size={14} color={enabled ? '#86efac' : '#64748b'} />
+              <Power size={14} color={enabled ? '#86efac' : '#000000'} />
               <label style={{ color: '#c5d2e1' }}>
                 <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} style={{ marginRight: 6 }} />
                 Enabled
@@ -164,7 +164,7 @@ export default function PlatformEmail() {
               </button>
             ))}
           </div>
-          {hint && <div style={{ fontSize: 11, color: '#64748b', marginBottom: 10 }}>{hint}</div>}
+          {hint && <div style={{ fontSize: 11, color: '#000000', marginBottom: 10 }}>{hint}</div>}
           <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12 }}>
             <Field label="Host">
               <Input value={host} onChange={(e) => setHost(e.target.value)} placeholder="smtp.sendgrid.net" />
@@ -180,7 +180,7 @@ export default function PlatformEmail() {
               <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
                 placeholder={data?.hasPassword ? '•••• (keep saved)' : 'SMTP password / API key'} autoComplete="new-password" />
               {data?.hasPassword && (
-                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 6, fontSize: 11, color: '#64748b' }}>
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 6, fontSize: 11, color: '#000000' }}>
                   <input type="checkbox" checked={clearPassword} onChange={(e) => setClearPassword(e.target.checked)} />
                   Clear stored password
                 </label>
@@ -208,7 +208,7 @@ export default function PlatformEmail() {
 
         <Card>
           <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 6 }}>Send a test email</div>
-          <div style={{ fontSize: 12, color: '#64748b', marginBottom: 10 }}>
+          <div style={{ fontSize: 12, color: '#000000', marginBottom: 10 }}>
             Verifies the SMTP settings above. The platform mailer must be enabled and saved first.
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'end' }}>
@@ -278,7 +278,7 @@ function DeliveryLog() {
         </div>
       </div>
       {rows.length === 0 ? (
-        <div style={{ fontSize: 12, color: '#64748b' }}>{loading ? 'Loading…' : 'No emails yet.'}</div>
+        <div style={{ fontSize: 12, color: '#000000' }}>{loading ? 'Loading…' : 'No emails yet.'}</div>
       ) : (
         <div style={{ overflow: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
@@ -318,7 +318,7 @@ function DeliveryLog() {
         </div>
       )}
       {rows.some((r) => r.lastError) && (
-        <details style={{ fontSize: 11, color: '#64748b', marginTop: 10 }}>
+        <details style={{ fontSize: 11, color: '#000000', marginTop: 10 }}>
           <summary style={{ cursor: 'pointer' }}>Recent errors</summary>
           <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>
             {rows.filter((r) => r.lastError).slice(0, 8).map((r) => (
@@ -339,20 +339,20 @@ function StatusChip({ status }) {
     sent:    { bg: '#0d2a1b', fg: '#86efac', label: 'Sent' },
     failed:  { bg: '#3a0d12', fg: '#fda4af', label: 'Failed' },
   }
-  const c = map[status] || { bg: '#1a2237', fg: '#64748b', label: status }
+  const c = map[status] || { bg: '#1a2237', fg: '#000000', label: status }
   return <span style={{ padding: '2px 8px', borderRadius: 999, background: c.bg, color: c.fg, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em' }}>{c.label}</span>
 }
-const ownerTh = { textAlign: 'left', padding: '6px 8px', fontWeight: 600, color: '#64748b', fontSize: 10, textTransform: 'uppercase', letterSpacing: '.05em', borderBottom: '1px solid #e2e8f0' }
+const ownerTh = { textAlign: 'left', padding: '6px 8px', fontWeight: 600, color: '#000000', fontSize: 10, textTransform: 'uppercase', letterSpacing: '.05em', borderBottom: '1px solid #e2e8f0' }
 const ownerTd = { padding: '8px', color: '#c5d2e1', verticalAlign: 'top' }
-const selStyle = { padding: '6px 8px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#f8fafc', color: '#c5d2e1', fontSize: 12 }
+const selStyle = { padding: '6px 8px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#ffffff', color: '#c5d2e1', fontSize: 12 }
 
 function Toggle({ label, sub, checked, onChange }) {
   return (
     <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }}>
       <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} style={{ marginTop: 3 }} />
       <div>
-        <div style={{ fontSize: 13, color: '#0f172a' }}>{label}</div>
-        <div style={{ fontSize: 11, color: '#64748b' }}>{sub}</div>
+        <div style={{ fontSize: 13, color: '#000000' }}>{label}</div>
+        <div style={{ fontSize: 11, color: '#000000' }}>{sub}</div>
       </div>
     </label>
   )

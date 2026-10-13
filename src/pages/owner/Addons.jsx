@@ -37,10 +37,10 @@ export default function Addons() {
       />
       {err && <div style={{ padding: 10, borderRadius: 8, marginBottom: 12, fontSize: 13, background: 'rgba(220,53,69,0.12)', border: '1px solid rgba(220,53,69,0.35)', color: '#fda1aa' }}>{err}</div>}
       {adding && <AddonForm onClose={() => setAdding(false)} onSaved={() => { setAdding(false); load() }} />}
-      {loading ? <div style={{ color: '#64748b' }}>Loading…</div> : (
+      {loading ? <div style={{ color: '#000000' }}>Loading…</div> : (
         <div style={{ display: 'grid', gap: 10 }}>
           {list.length === 0 ? (
-            <Card><div style={{ color: '#64748b' }}>No add-ons yet. Create one so shops have something to subscribe to.</div></Card>
+            <Card><div style={{ color: '#000000' }}>No add-ons yet. Create one so shops have something to subscribe to.</div></Card>
           ) : list.map((a) => <AddonRow key={a.id} addon={a} onChanged={load} />)}
         </div>
       )}
@@ -90,7 +90,7 @@ function AddonForm({ addon, onClose, onSaved }) {
       <div style={{ marginTop: 10 }}>
         <Field label="Description (shown to shops)">
           <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2}
-            style={{ width: '100%', padding: '9px 11px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#f8fafc', color: '#0f172a', fontSize: 13 }} />
+            style={{ width: '100%', padding: '9px 11px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#ffffff', color: '#000000', fontSize: 13 }} />
         </Field>
       </div>
       <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#c5d2e1', marginTop: 10 }}>
@@ -132,9 +132,9 @@ function AddonRow({ addon, onChanged }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <strong style={{ fontSize: 15 }}>{addon.name}</strong>
             <code style={{ padding: '1px 6px', background: '#e2e8f0', color: '#93c5fd', borderRadius: 4, fontSize: 11 }}>{addon.featureKey}</code>
-            {!addon.published && <span style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.05em' }}>Draft</span>}
+            {!addon.published && <span style={{ fontSize: 10, color: '#000000', textTransform: 'uppercase', letterSpacing: '.05em' }}>Draft</span>}
           </div>
-          <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
+          <div style={{ fontSize: 12, color: '#000000', marginTop: 4 }}>
             ${addon.monthlyPrice} / month · {addon.trialDays}-day trial
             {addon.stripePriceId && <> · <code style={{ fontSize: 10 }}>{addon.stripePriceId}</code></>}
           </div>

@@ -111,7 +111,7 @@ export default function CompanyDetail() {
     <div style={{ maxWidth: 1100 }}>
       <PageHeader
         title={c.name}
-        subtitle={<span style={{ display: 'inline-flex', gap: 10, alignItems: 'center' }}><code style={{ color: '#64748b', fontSize: 12 }}>{c.companyCode}</code> · <StatusPill status={c.status} /></span>}
+        subtitle={<span style={{ display: 'inline-flex', gap: 10, alignItems: 'center' }}><code style={{ color: '#000000', fontSize: 12 }}>{c.companyCode}</code> · <StatusPill status={c.status} /></span>}
         actions={<div style={{ display: 'flex', gap: 8 }}>
           <Btn variant="secondary" onClick={downloadBackup} disabled={busy}><Download size={14} />Download data</Btn>
           <Btn variant="secondary" onClick={() => navigate(-1)}><ArrowLeft size={14} />Back</Btn>
@@ -148,7 +148,7 @@ export default function CompanyDetail() {
                   <KV k="Annual price" v={money(c.subscription.annualPrice)} />
                   <KV k="Start" v={c.subscription.startDate || '—'} />
                   <KV k="End" v={<span>{c.subscription.endDate || '—'}{typeof c.subscription.daysUntilExpiration === 'number' && (
-                    <span style={{ color: c.subscription.daysUntilExpiration < 7 ? '#dc2626' : c.subscription.daysUntilExpiration < 30 ? '#fdba74' : '#64748b', marginLeft: 8, fontSize: 11 }}>
+                    <span style={{ color: c.subscription.daysUntilExpiration < 7 ? '#dc2626' : c.subscription.daysUntilExpiration < 30 ? '#fdba74' : '#000000', marginLeft: 8, fontSize: 11 }}>
                       ({c.subscription.daysUntilExpiration} days)
                     </span>
                   )}</span>} />
@@ -161,7 +161,7 @@ export default function CompanyDetail() {
                          style={{ fontFamily: 'monospace', fontSize: 12, color: '#5b8def' }}>
                         {c.subscription.stripeCustomerId}
                       </a>
-                    ) : <span style={{ color: '#64748b' }}>— not linked —</span>} />
+                    ) : <span style={{ color: '#000000' }}>— not linked —</span>} />
                   <KV k="Stripe subscription ID"
                     v={c.subscription.stripeSubscriptionId ? (
                       <a href={`https://dashboard.stripe.com/subscriptions/${c.subscription.stripeSubscriptionId}`}
@@ -169,29 +169,29 @@ export default function CompanyDetail() {
                          style={{ fontFamily: 'monospace', fontSize: 12, color: '#5b8def' }}>
                         {c.subscription.stripeSubscriptionId}
                       </a>
-                    ) : <span style={{ color: '#64748b' }}>— not linked —</span>} />
+                    ) : <span style={{ color: '#000000' }}>— not linked —</span>} />
                 </Grid>
-                <div style={{ fontSize: 11, color: '#64748b', marginTop: 12, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '.06em' }}>Change status (emails the shop owner)</div>
+                <div style={{ fontSize: 11, color: '#000000', marginTop: 12, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '.06em' }}>Change status (emails the shop owner)</div>
                 <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
                   <Btn variant="secondary" onClick={() => setSubStatus('active')}  disabled={busy || c.subscription.status === 'active'}>Mark active</Btn>
                   <Btn variant="secondary" onClick={() => setSubStatus('trial')}   disabled={busy || c.subscription.status === 'trial'}>Set to trial</Btn>
                   <Btn variant="secondary" onClick={() => setSubStatus('pending')} disabled={busy || c.subscription.status === 'pending'}>Set to pending</Btn>
                   <Btn variant="secondary" onClick={() => setSubStatus('expired')} disabled={busy || c.subscription.status === 'expired'}>Mark expired</Btn>
                 </div>
-                <div style={{ fontSize: 11, color: '#64748b', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '.06em' }}>Extend subscription</div>
+                <div style={{ fontSize: 11, color: '#000000', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '.06em' }}>Extend subscription</div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   <Btn variant="secondary" onClick={() => extend(30)} disabled={busy}><CalendarPlus size={13} />Extend 30 days</Btn>
                   <Btn variant="secondary" onClick={() => extend(90)} disabled={busy}><CalendarPlus size={13} />Extend 90 days</Btn>
                   <Btn variant="secondary" onClick={() => extend(365)} disabled={busy}><CalendarPlus size={13} />Extend 1 year</Btn>
                 </div>
               </>
-            ) : <div style={{ color: '#64748b' }}>No subscription on file.</div>}
+            ) : <div style={{ color: '#000000' }}>No subscription on file.</div>}
           </Card>
 
           <Card>
             <h3 style={{ margin: '0 0 10px', fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
               <Package size={14} /> Add-on subscriptions
-              <span style={{ marginLeft: 'auto', fontSize: 11, color: '#64748b' }}>
+              <span style={{ marginLeft: 'auto', fontSize: 11, color: '#000000' }}>
                 {c.addons?.filter((a) => ['trialing', 'active', 'past_due'].includes(a.status)).length || 0} active
               </span>
             </h3>
@@ -204,13 +204,13 @@ export default function CompanyDetail() {
                   ))}
                 </tbody>
               </table>
-            ) : <div style={{ color: '#64748b' }}>No add-on subscriptions yet.</div>}
+            ) : <div style={{ color: '#000000' }}>No add-on subscriptions yet.</div>}
           </Card>
 
           <Card>
             <h3 style={{ margin: '0 0 10px', fontSize: 14 }}>Owners</h3>
             {c.owners?.length === 0 ? (
-              <div style={{ color: '#64748b' }}>No owners.</div>
+              <div style={{ color: '#000000' }}>No owners.</div>
             ) : (
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead><tr><Th>Name</Th><Th>Email</Th><Th>Username</Th><Th>Status</Th><Th>Last login</Th><Th>Actions</Th></tr></thead>
@@ -253,7 +253,7 @@ export default function CompanyDetail() {
               <Btn variant="danger" onClick={deleteCompany} disabled={busy} style={{ width: '100%', background: '#450a0a', borderColor: '#991b1b', color: '#fecaca' }}>
                 <Trash2 size={14} />Delete company permanently
               </Btn>
-              <div style={{ fontSize: 11, color: '#64748b', marginTop: 6 }}>
+              <div style={{ fontSize: 11, color: '#000000', marginTop: 6 }}>
                 Removes the company and every row scoped to it. Prefer Cancel for soft-delete.
               </div>
             </div>
@@ -261,7 +261,7 @@ export default function CompanyDetail() {
 
           <Card>
             <h3 style={{ margin: '0 0 10px', fontSize: 14 }}>Application URL</h3>
-            <div style={{ fontSize: 12, color: '#64748b', marginBottom: 8, wordBreak: 'break-all' }}>{c.applicationUrl || '— not set —'}</div>
+            <div style={{ fontSize: 12, color: '#000000', marginBottom: 8, wordBreak: 'break-all' }}>{c.applicationUrl || '— not set —'}</div>
             <div style={{ display: 'flex', gap: 8 }}>
               <Btn variant="secondary" onClick={() => c.applicationUrl && navigator.clipboard?.writeText(c.applicationUrl)}><Copy size={13} />Copy</Btn>
               {c.applicationUrl && <Btn variant="secondary" onClick={() => window.open(c.applicationUrl, '_blank', 'noopener')}><ExternalLink size={13} />Open</Btn>}
@@ -343,7 +343,7 @@ function OwnerRow({ companyID, owner, onChanged }) {
             {err && <span style={{ color: '#fda4af', fontSize: 12 }}>{err}</span>}
             {ok && <span style={{ color: '#86efac', fontSize: 12 }}>{ok}</span>}
           </div>
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 6 }}>
+          <div style={{ fontSize: 11, color: '#000000', marginTop: 6 }}>
             Give this password to the shop owner over a trusted channel. It overwrites their old password immediately — any active login tokens stay valid until expiry.
           </div>
         </Td>
@@ -356,7 +356,7 @@ function OwnerRow({ companyID, owner, onChanged }) {
       <Td>{owner.email}</Td>
       <Td style={{ fontFamily: 'monospace' }}>{owner.username}</Td>
       <Td><StatusPill status={owner.status} /></Td>
-      <Td style={{ color: '#64748b' }}>{owner.lastLoginAt ? new Date(owner.lastLoginAt).toLocaleString() : 'Never'}</Td>
+      <Td style={{ color: '#000000' }}>{owner.lastLoginAt ? new Date(owner.lastLoginAt).toLocaleString() : 'Never'}</Td>
       <Td>
         <div style={{ display: 'flex', gap: 6 }}>
           <Btn variant="secondary" onClick={() => setMode('email')} title="Change this owner's email"><Mail size={13} /> Email</Btn>
@@ -367,7 +367,7 @@ function OwnerRow({ companyID, owner, onChanged }) {
   )
 }
 
-const inputStyle = { padding: '6px 10px', borderRadius: 6, border: '1px solid #cbd5e1', background: '#f8fafc', color: '#0f172a', fontSize: 13 }
+const inputStyle = { padding: '6px 10px', borderRadius: 6, border: '1px solid #cbd5e1', background: '#ffffff', color: '#000000', fontSize: 13 }
 
 // AddonRow renders one shop_addon_subscription with status controls so the
 // SaaS owner can override state (comp an account, extend a trial, mark
@@ -388,14 +388,14 @@ function AddonRow({ companyID, addon, onChanged }) {
     <tr>
       <Td>
         <div>{addon.name}</div>
-        <code style={{ fontSize: 10, color: '#64748b' }}>{addon.featureKey}</code>
+        <code style={{ fontSize: 10, color: '#000000' }}>{addon.featureKey}</code>
       </Td>
       <Td>
         <StatusPill status={addonStatusMap(addon.status, addon.cancelAtPeriodEnd)} />
         {addon.cancelAtPeriodEnd && <div style={{ fontSize: 10, color: '#fdba74', marginTop: 2 }}>Ends {addon.currentPeriodEnd}</div>}
       </Td>
       <Td>{money(addon.monthlyPrice)}/mo</Td>
-      <Td style={{ color: '#64748b', fontSize: 12 }}>
+      <Td style={{ color: '#000000', fontSize: 12 }}>
         {addon.status === 'trialing' && addon.trialEnd ? <>Trial ends {addon.trialEnd}</>
           : addon.currentPeriodEnd ? <>Renews {addon.currentPeriodEnd}</>
           : '—'}
@@ -475,7 +475,7 @@ function FeatureAccess({ companyId }) {
     <Card style={{ marginTop: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
         <h3 style={{ margin: 0, fontSize: 14, flex: 1 }}>Feature access</h3>
-        <span style={{ fontSize: 12, color: '#64748b' }}>{enabledCount} / {totalCount} enabled</span>
+        <span style={{ fontSize: 12, color: '#000000' }}>{enabledCount} / {totalCount} enabled</span>
         {dirty && (
           <>
             <Btn variant="ghost" onClick={reset} disabled={busy}>Reset</Btn>
@@ -483,7 +483,7 @@ function FeatureAccess({ companyId }) {
           </>
         )}
       </div>
-      <div style={{ fontSize: 12, color: '#64748b', marginBottom: 14 }}>
+      <div style={{ fontSize: 12, color: '#000000', marginBottom: 14 }}>
         Toggle which modules this shop can access. Disabled items disappear from their sidebar at next sign-in or page reload. Server-side enforcement follows in a later update.
       </div>
       {err && <div style={{ color: '#fda4af', fontSize: 12, marginBottom: 10 }}>{err}</div>}
@@ -492,11 +492,11 @@ function FeatureAccess({ companyId }) {
           const allOn = g.items.every((f) => draft[f.key])
           const allOff = g.items.every((f) => !draft[f.key])
           return (
-            <div key={g.name} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: 12 }}>
+            <div key={g.name} style={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 10, padding: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <div style={{ flex: 1, fontSize: 11, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.08em', fontWeight: 600 }}>{g.name}</div>
+                <div style={{ flex: 1, fontSize: 11, color: '#000000', textTransform: 'uppercase', letterSpacing: '.08em', fontWeight: 600 }}>{g.name}</div>
                 <button type="button" onClick={() => groupToggle(g.items.map((f) => f.key), !allOn)}
-                  style={{ background: 'transparent', border: '1px solid #cbd5e1', color: '#64748b', borderRadius: 6, padding: '2px 8px', fontSize: 10, cursor: 'pointer' }}>
+                  style={{ background: 'transparent', border: '1px solid #cbd5e1', color: '#000000', borderRadius: 6, padding: '2px 8px', fontSize: 10, cursor: 'pointer' }}>
                   {allOn ? 'All off' : 'All on'}
                 </button>
               </div>
@@ -514,7 +514,7 @@ function FeatureAccess({ companyId }) {
                           background: '#fff', transition: 'left 0.15s',
                         }} />
                       </span>
-                      <span style={{ fontSize: 13, color: on ? '#0f172a' : '#64748b' }}>{f.label}</span>
+                      <span style={{ fontSize: 13, color: on ? '#000000' : '#000000' }}>{f.label}</span>
                     </label>
                   )
                 })}
@@ -533,7 +533,7 @@ const Grid = ({ children }) => (
 )
 const KV = ({ k, v }) => (
   <div style={{ padding: '6px 0' }}>
-    <div style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.05em' }}>{k}</div>
-    <div style={{ fontSize: 13, color: '#0f172a', marginTop: 2 }}>{v}</div>
+    <div style={{ fontSize: 11, color: '#000000', textTransform: 'uppercase', letterSpacing: '.05em' }}>{k}</div>
+    <div style={{ fontSize: 13, color: '#000000', marginTop: 2 }}>{v}</div>
   </div>
 )

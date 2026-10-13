@@ -47,10 +47,10 @@ export default function MfaCard() {
   return (
     <div style={{ background: '#ffffff', padding: 16, borderRadius: 8, border: '1px solid #26324a' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-        {enabled ? <ShieldCheck size={18} color="#4ade80" /> : <ShieldOff size={18} color="#64748b" />}
-        <div style={{ fontSize: 15, fontWeight: 600, color: '#0f172a' }}>Two-factor authentication (MFA)</div>
+        {enabled ? <ShieldCheck size={18} color="#4ade80" /> : <ShieldOff size={18} color="#000000" />}
+        <div style={{ fontSize: 15, fontWeight: 600, color: '#000000' }}>Two-factor authentication (MFA)</div>
       </div>
-      <div style={{ fontSize: 12, color: '#64748b', marginBottom: 12 }}>
+      <div style={{ fontSize: 12, color: '#000000', marginBottom: 12 }}>
         {enabled
           ? 'MFA is active. On sign-in you will be asked for a 6-digit code from your authenticator app.'
           : 'Add a one-time code to your sign-in. Compatible with Google Authenticator, 1Password, Authy, Microsoft Authenticator.'}
@@ -70,18 +70,18 @@ export default function MfaCard() {
             <div style={{ flex: 1, minWidth: 220 }}>
               <div style={{ fontSize: 12, color: '#c5d2e1', marginBottom: 4 }}>1. Scan the QR code in your authenticator app.</div>
               <div style={{ fontSize: 12, color: '#c5d2e1', marginBottom: 8 }}>Or enter this secret manually:</div>
-              <code style={{ display: 'block', padding: 8, background: '#f8fafc', borderRadius: 4, fontSize: 12, color: '#0f172a', wordBreak: 'break-all' }}>{setupData.secret}</code>
+              <code style={{ display: 'block', padding: 8, background: '#ffffff', borderRadius: 4, fontSize: 12, color: '#000000', wordBreak: 'break-all' }}>{setupData.secret}</code>
             </div>
           </div>
           <div style={{ fontSize: 12, color: '#c5d2e1' }}>2. Enter the 6-digit code the app shows now:</div>
           <input value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} maxLength={6} inputMode="numeric"
             placeholder="123456"
-            style={{ padding: 10, background: '#ffffff', color: '#0f172a', border: '1px solid #26324a', borderRadius: 6, fontSize: 18, letterSpacing: 4, textAlign: 'center' }} />
+            style={{ padding: 10, background: '#ffffff', color: '#000000', border: '1px solid #26324a', borderRadius: 6, fontSize: 18, letterSpacing: 4, textAlign: 'center' }} />
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={enable} disabled={busy || code.length !== 6}
               style={{ padding: '8px 12px', background: '#4f8cff', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, cursor: busy ? 'default' : 'pointer' }}>Confirm & enable</button>
             <button onClick={() => { setSetupData(null); setCode('') }}
-              style={{ padding: '8px 12px', background: 'transparent', color: '#64748b', border: '1px solid #26324a', borderRadius: 6, cursor: 'pointer' }}>Cancel</button>
+              style={{ padding: '8px 12px', background: 'transparent', color: '#000000', border: '1px solid #26324a', borderRadius: 6, cursor: 'pointer' }}>Cancel</button>
           </div>
         </div>
       )}
@@ -91,13 +91,13 @@ export default function MfaCard() {
           <div style={{ fontSize: 12, color: '#c5d2e1' }}>Enter a current code to disable:</div>
           <input value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))} maxLength={6} inputMode="numeric"
             placeholder="123456"
-            style={{ padding: 10, background: '#ffffff', color: '#0f172a', border: '1px solid #26324a', borderRadius: 6, fontSize: 18, letterSpacing: 4, textAlign: 'center' }} />
+            style={{ padding: 10, background: '#ffffff', color: '#000000', border: '1px solid #26324a', borderRadius: 6, fontSize: 18, letterSpacing: 4, textAlign: 'center' }} />
           <button onClick={disable} disabled={busy || code.length !== 6}
             style={{ padding: '8px 12px', background: '#dc3545', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, cursor: busy ? 'default' : 'pointer' }}>Disable MFA</button>
         </div>
       )}
 
-      {msg && <div style={{ marginTop: 10, fontSize: 12, color: '#64748b' }}>{msg}</div>}
+      {msg && <div style={{ marginTop: 10, fontSize: 12, color: '#000000' }}>{msg}</div>}
     </div>
   )
 }

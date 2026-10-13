@@ -38,15 +38,15 @@ export default function OwnerSettings() {
         <EmailCard />
         <MfaCard />
         <Card>
-          <div style={{ fontSize: 15, fontWeight: 600, color: '#0f172a', marginBottom: 4 }}>Change password</div>
-          <div style={{ fontSize: 12, color: '#64748b', marginBottom: 16 }}>
+          <div style={{ fontSize: 15, fontWeight: 600, color: '#000000', marginBottom: 4 }}>Change password</div>
+          <div style={{ fontSize: 12, color: '#000000', marginBottom: 16 }}>
             Rotate your TorqueDesk Owner Portal password. You stay signed in on this device.
           </div>
           <form onSubmit={submit} style={{ display: 'grid', gap: 12 }} noValidate>
             <Pwd label="Current password" value={current} onChange={setCurrent} show={show} autoComplete="current-password" />
             <Pwd label="New password" value={next} onChange={setNext} show={show} autoComplete="new-password" hint="At least 8 characters." />
             <Pwd label="Confirm new password" value={confirm} onChange={setConfirm} show={show} autoComplete="new-password" />
-            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#64748b' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#000000' }}>
               <input type="checkbox" checked={show} onChange={(e) => setShow(e.target.checked)} />
               Show passwords
             </label>
@@ -90,8 +90,8 @@ function EmailCard() {
 
   return (
     <Card>
-      <div style={{ fontSize: 15, fontWeight: 600, color: '#0f172a', marginBottom: 4 }}>Login email</div>
-      <div style={{ fontSize: 12, color: '#64748b', marginBottom: 16 }}>
+      <div style={{ fontSize: 15, fontWeight: 600, color: '#000000', marginBottom: 4 }}>Login email</div>
+      <div style={{ fontSize: 12, color: '#000000', marginBottom: 16 }}>
         Current: <strong style={{ color: '#c5d2e1' }}>{owner?.user?.email || '—'}</strong>. This is where password-reset links are sent.
       </div>
       <form onSubmit={submit} style={{ display: 'grid', gap: 12 }} noValidate>
@@ -99,12 +99,12 @@ function EmailCard() {
           <span style={{ fontSize: 12, color: '#c5d2e1' }}>New login email</span>
           <input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} autoComplete="email"
             placeholder="you@yourdomain.com"
-            style={{ padding: '10px 12px', background: '#ffffff', color: '#0f172a', border: '1px solid #26324a', borderRadius: 6, fontSize: 14 }} />
+            style={{ padding: '10px 12px', background: '#ffffff', color: '#000000', border: '1px solid #26324a', borderRadius: 6, fontSize: 14 }} />
         </label>
         <label style={{ display: 'grid', gap: 4 }}>
           <span style={{ fontSize: 12, color: '#c5d2e1' }}>Current password</span>
           <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password"
-            style={{ padding: '10px 12px', background: '#ffffff', color: '#0f172a', border: '1px solid #26324a', borderRadius: 6, fontSize: 14 }} />
+            style={{ padding: '10px 12px', background: '#ffffff', color: '#000000', border: '1px solid #26324a', borderRadius: 6, fontSize: 14 }} />
         </label>
         {error && <div style={{ background: 'rgba(220,53,69,0.12)', border: '1px solid rgba(220,53,69,0.35)', color: '#fda1aa', padding: 10, borderRadius: 6, fontSize: 13 }}>{error}</div>}
         {success && <div style={{ background: 'rgba(40,167,69,0.12)', border: '1px solid rgba(40,167,69,0.35)', color: '#95eab0', padding: 10, borderRadius: 6, fontSize: 13 }}>{success}</div>}
@@ -126,9 +126,9 @@ function Pwd({ label, value, onChange, show, autoComplete, hint }) {
         value={value}
         onChange={(e) => onChange(e.target.value)}
         autoComplete={autoComplete}
-        style={{ padding: '10px 12px', background: '#ffffff', color: '#0f172a', border: '1px solid #26324a', borderRadius: 6, fontSize: 14 }}
+        style={{ padding: '10px 12px', background: '#ffffff', color: '#000000', border: '1px solid #26324a', borderRadius: 6, fontSize: 14 }}
       />
-      {hint && <span style={{ fontSize: 11, color: '#64748b' }}>{hint}</span>}
+      {hint && <span style={{ fontSize: 11, color: '#000000' }}>{hint}</span>}
     </label>
   )
 }

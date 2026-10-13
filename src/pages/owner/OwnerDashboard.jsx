@@ -13,11 +13,11 @@ export default function OwnerDashboard() {
   const kpi = (label, value, sub, Icon, color = '#5b8def') => (
     <Card>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-        <span style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.06em' }}>{label}</span>
+        <span style={{ fontSize: 11, color: '#000000', textTransform: 'uppercase', letterSpacing: '.06em' }}>{label}</span>
         {Icon && <Icon size={16} color={color} />}
       </div>
       <div style={{ fontSize: 24, fontWeight: 700 }}>{value}</div>
-      {sub && <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>{sub}</div>}
+      {sub && <div style={{ fontSize: 11, color: '#000000', marginTop: 4 }}>{sub}</div>}
     </Card>
   )
 
@@ -43,20 +43,20 @@ export default function OwnerDashboard() {
               {Object.entries(data.companies).filter(([k]) => k !== 'total').map(([k, v]) => (
                 <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #e2e8f0' }}>
                   <StatusPill status={k} />
-                  <span style={{ color: '#0f172a', fontWeight: 500 }}>{v}</span>
+                  <span style={{ color: '#000000', fontWeight: 500 }}>{v}</span>
                 </div>
               ))}
             </Card>
             <Card>
               <h3 style={{ margin: '0 0 10px', fontSize: 14, fontWeight: 600 }}>Expiring within 30 days</h3>
               {data.expiringSoonList.length === 0 ? (
-                <div style={{ color: '#64748b', fontSize: 13 }}>Nothing expiring soon.</div>
+                <div style={{ color: '#000000', fontSize: 13 }}>Nothing expiring soon.</div>
               ) : (
                 data.expiringSoonList.map((c) => (
                   <div key={c.companyId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #e2e8f0' }}>
                     <div>
                       <div style={{ fontSize: 13 }}>{c.name}</div>
-                      <div style={{ fontSize: 11, color: '#64748b', textTransform: 'capitalize' }}>{c.plan}</div>
+                      <div style={{ fontSize: 11, color: '#000000', textTransform: 'capitalize' }}>{c.plan}</div>
                     </div>
                     <div style={{ fontSize: 12, color: '#fdba74' }}>{c.endDate}</div>
                   </div>
@@ -65,14 +65,14 @@ export default function OwnerDashboard() {
             </Card>
             <Card>
               <h3 style={{ margin: '0 0 10px', fontSize: 14, fontWeight: 600 }}>Billing status</h3>
-              <div style={{ color: '#64748b', fontSize: 13 }}>{data.revenue.note}</div>
+              <div style={{ color: '#000000', fontSize: 13 }}>{data.revenue.note}</div>
               <div style={{ marginTop: 10, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                <div style={{ padding: 10, background: '#f8fafc', borderRadius: 8 }}>
-                  <div style={{ fontSize: 11, color: '#64748b' }}>Monthly recurring</div>
+                <div style={{ padding: 10, background: '#ffffff', borderRadius: 8 }}>
+                  <div style={{ fontSize: 11, color: '#000000' }}>Monthly recurring</div>
                   <div style={{ fontSize: 16, fontWeight: 600 }}>{money(data.revenue.mrr)}</div>
                 </div>
-                <div style={{ padding: 10, background: '#f8fafc', borderRadius: 8 }}>
-                  <div style={{ fontSize: 11, color: '#64748b' }}>Annual recurring</div>
+                <div style={{ padding: 10, background: '#ffffff', borderRadius: 8 }}>
+                  <div style={{ fontSize: 11, color: '#000000' }}>Annual recurring</div>
                   <div style={{ fontSize: 16, fontWeight: 600 }}>{money(data.revenue.arr)}</div>
                 </div>
               </div>

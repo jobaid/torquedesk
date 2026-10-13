@@ -39,10 +39,10 @@ export default function Plans() {
       />
       {err && <Card style={{ background: '#2a0d10', borderColor: '#51232a', color: '#fda4af', marginBottom: 14 }}>{err}</Card>}
       {adding && <PlanForm onClose={() => setAdding(false)} onSaved={() => { setAdding(false); load() }} />}
-      {loading ? <div style={{ color: '#64748b' }}>Loading…</div> : (
+      {loading ? <div style={{ color: '#000000' }}>Loading…</div> : (
         <div style={{ display: 'grid', gap: 14 }}>
           {plans.length === 0 ? (
-            <Card><div style={{ color: '#64748b' }}>No plans yet. Create one so shops have something to subscribe to.</div></Card>
+            <Card><div style={{ color: '#000000' }}>No plans yet. Create one so shops have something to subscribe to.</div></Card>
           ) : plans.map((p) => <PlanRow key={p.key} plan={p} onChanged={load} />)}
         </div>
       )}
@@ -106,20 +106,20 @@ function PlanForm({ plan, onClose, onSaved }) {
       </div>
       <Field label="Tagline (short description shown on pricing card)" style={{ marginTop: 10 }}>
         <textarea value={tagline} onChange={(e) => setTagline(e.target.value)} rows={2}
-          style={{ width: '100%', padding: '9px 11px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#f8fafc', color: '#0f172a', fontSize: 13, fontFamily: 'inherit' }} />
+          style={{ width: '100%', padding: '9px 11px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#ffffff', color: '#000000', fontSize: 13, fontFamily: 'inherit' }} />
       </Field>
       <div style={{ marginTop: 14 }}>
-        <div style={{ fontSize: 12, color: '#64748b', marginBottom: 8 }}>Features included in this plan</div>
+        <div style={{ fontSize: 12, color: '#000000', marginBottom: 8 }}>Features included in this plan</div>
         {FEATURE_GROUPS.map((g) => (
           <div key={g.name} style={{ marginBottom: 10 }}>
-            <div style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 4 }}>{g.name}</div>
+            <div style={{ fontSize: 10, color: '#000000', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 4 }}>{g.name}</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {g.keys.map((k) => (
                 <button key={k} type="button" onClick={() => toggle(k)}
                   style={{ padding: '4px 10px', borderRadius: 999, fontSize: 11,
                     border: '1px solid ' + (features.has(k) ? '#5b8def' : '#e2e8f0'),
                     background: features.has(k) ? 'rgba(91,141,239,.15)' : 'transparent',
-                    color: features.has(k) ? '#93c5fd' : '#64748b', cursor: 'pointer' }}>
+                    color: features.has(k) ? '#93c5fd' : '#000000', cursor: 'pointer' }}>
                   {features.has(k) ? '✓ ' : ''}{k.replace(/_/g, ' ')}
                 </button>
               ))}
@@ -169,9 +169,9 @@ function PlanRow({ plan, onChanged }) {
             <strong style={{ fontSize: 16 }}>{plan.name}</strong>
             <code style={{ padding: '2px 6px', background: '#e2e8f0', color: '#93c5fd', borderRadius: 4, fontSize: 10 }}>{plan.key}</code>
             {plan.highlighted && <span title="Most popular"><Star size={13} color="#fbbf24" /></span>}
-            {plan.published ? <Eye size={13} color="#86efac" title="Published" /> : <EyeOff size={13} color="#64748b" title="Draft" />}
+            {plan.published ? <Eye size={13} color="#86efac" title="Published" /> : <EyeOff size={13} color="#000000" title="Draft" />}
           </div>
-          <div style={{ fontSize: 12, color: '#64748b', marginTop: 4 }}>
+          <div style={{ fontSize: 12, color: '#000000', marginTop: 4 }}>
             <strong style={{ color: '#c5d2e1' }}>${plan.monthlyPrice}</strong>/mo · <strong style={{ color: '#c5d2e1' }}>${plan.annualPrice}</strong>/year · {plan.trialDays}-day trial · {plan.features?.length || 0} features
           </div>
           {plan.tagline && <div style={{ fontSize: 12, color: '#c5d2e1', marginTop: 4 }}>{plan.tagline}</div>}

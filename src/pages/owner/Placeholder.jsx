@@ -5,7 +5,7 @@ export default function Placeholder({ title, body }) {
     <div>
       <PageHeader title={title} />
       <Card>
-        <div style={{ color: '#64748b', fontSize: 13, lineHeight: 1.6 }}>{body}</div>
+        <div style={{ color: '#000000', fontSize: 13, lineHeight: 1.6 }}>{body}</div>
       </Card>
     </div>
   )

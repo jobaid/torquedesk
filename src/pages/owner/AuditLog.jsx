@@ -17,7 +17,7 @@ export default function AuditLog() {
       {rows && (
         <Card style={{ padding: 0, overflowX: 'auto' }}>
           {rows.length === 0 ? (
-            <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>No audit entries yet.</div>
+            <div style={{ padding: 40, textAlign: 'center', color: '#000000' }}>No audit entries yet.</div>
           ) : (
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead><tr>
@@ -26,12 +26,12 @@ export default function AuditLog() {
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.id}>
-                    <Td style={{ color: '#64748b', whiteSpace: 'nowrap' }}>{new Date(r.at).toLocaleString()}</Td>
+                    <Td style={{ color: '#000000', whiteSpace: 'nowrap' }}>{new Date(r.at).toLocaleString()}</Td>
                     <Td>{r.adminName}</Td>
                     <Td><span style={{ fontFamily: 'monospace', fontSize: 12, color: '#5b8def' }}>{r.action}</span></Td>
-                    <Td style={{ fontSize: 12, color: '#64748b' }}>{r.targetType}{r.targetId && <> · {r.targetId.slice(0, 8)}…</>}</Td>
-                    <Td style={{ fontSize: 11, color: '#94a3b8' }}>{r.ip || '—'}</Td>
-                    <Td style={{ fontSize: 11, color: '#64748b', fontFamily: 'monospace', maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <Td style={{ fontSize: 12, color: '#000000' }}>{r.targetType}{r.targetId && <> · {r.targetId.slice(0, 8)}…</>}</Td>
+                    <Td style={{ fontSize: 11, color: '#000000' }}>{r.ip || '—'}</Td>
+                    <Td style={{ fontSize: 11, color: '#000000', fontFamily: 'monospace', maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {r.details ? JSON.stringify(r.details) : ''}
                     </Td>
                   </tr>

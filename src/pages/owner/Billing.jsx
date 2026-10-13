@@ -140,8 +140,8 @@ function ProcessorCard({ provider, row, loading, onChanged }) {
           <CreditCard size={20} />
         </div>
         <div style={{ flex: 1, minWidth: 200 }}>
-          <div style={{ fontWeight: 600, fontSize: 16, color: '#0f172a' }}>{provider.name}</div>
-          <div style={{ fontSize: 12.5, color: '#64748b', marginTop: 2 }}>{provider.description}</div>
+          <div style={{ fontWeight: 600, fontSize: 16, color: '#000000' }}>{provider.name}</div>
+          <div style={{ fontSize: 12.5, color: '#000000', marginTop: 2 }}>{provider.description}</div>
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
           {verified && <StatusPill status="active" />}
@@ -194,13 +194,13 @@ function ProcessorCard({ provider, row, loading, onChanged }) {
                    disabled={busy || loading} autoComplete="off" />
           </Field>
           {row?.hasWebhookSecret && (
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 6, fontSize: 12, color: '#64748b' }}>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 6, fontSize: 12, color: '#000000' }}>
               <input type="checkbox" checked={clearWebhook} onChange={(e) => setClearWebhook(e.target.checked)} />
               Remove the saved webhook secret
             </label>
           )}
         </div>
-        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, color: '#0f172a', fontSize: 13 }}>
+        <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, color: '#000000', fontSize: 13 }}>
           <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} disabled={busy || loading} />
           Active — CuraNex can charge subscriptions through {provider.name}
         </label>

@@ -40,8 +40,8 @@ export default function OwnerLayout() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '18px 16px', borderBottom: '1px solid #e2e8f0' }}>
           <div style={{ background: 'linear-gradient(135deg,#2554f5,#7c3aed)', borderRadius: 8, padding: 6, display: 'flex' }}><ShieldCheck size={18} color="#fff" /></div>
           <div>
-            <div style={{ fontSize: 15, fontWeight: 700, lineHeight: 1, color: '#0f172a' }}>TorqueDesk</div>
-            <div style={{ fontSize: 10.5, color: '#64748b', marginTop: 2 }}>Admin Portal</div>
+            <div style={{ fontSize: 15, fontWeight: 700, lineHeight: 1, color: '#000000' }}>TorqueDesk</div>
+            <div style={{ fontSize: 10.5, color: '#000000', marginTop: 2 }}>Admin Portal</div>
           </div>
         </div>
         <nav style={{ padding: 10, overflow: 'auto', flex: 1 }}>
@@ -53,7 +53,7 @@ export default function OwnerLayout() {
               style={({ isActive }) => ({
                 display: 'flex', alignItems: 'center', gap: 10,
                 padding: '9px 12px', borderRadius: 8, marginBottom: 2,
-                color: isActive ? '#0f172a' : '#475569',
+                color: isActive ? '#000000' : '#000000',
                 background: isActive ? 'linear-gradient(90deg,#eef2ff,#f5f3ff)' : 'transparent',
                 fontSize: 14, textDecoration: 'none',
                 fontWeight: isActive ? 600 : 500,
@@ -71,13 +71,13 @@ export default function OwnerLayout() {
               {(owner.user?.name || 'O').slice(0, 1).toUpperCase()}
             </div>
             <div style={{ overflow: 'hidden' }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{owner.user?.name || 'Owner'}</div>
-              <div style={{ fontSize: 11, color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{owner.user?.email || ''}</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#000000', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{owner.user?.name || 'Owner'}</div>
+              <div style={{ fontSize: 11, color: '#000000', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{owner.user?.email || ''}</div>
             </div>
           </div>
           <button
             onClick={() => { logout(); navigate(LOGIN_PATH, { replace: true }) }}
-            style={{ width: '100%', background: '#fff', border: '1px solid #e2e8f0', color: '#475569', padding: '8px', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 13, fontWeight: 500 }}
+            style={{ width: '100%', background: '#fff', border: '1px solid #e2e8f0', color: '#000000', padding: '8px', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, fontSize: 13, fontWeight: 500 }}
           >
             <LogOut size={14} /> Log out
           </button>
@@ -93,7 +93,7 @@ export default function OwnerLayout() {
 const shellStyle = {
   display: 'grid', gridTemplateColumns: '240px 1fr',
   minHeight: '100vh',
-  background: '#f8fafc', color: '#0f172a',
+  background: '#ffffff', color: '#000000',
   fontFamily: 'Inter, system-ui, sans-serif',
 }
 

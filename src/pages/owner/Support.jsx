@@ -25,10 +25,10 @@ const STATUS_META = {
   awaiting_customer: { label: 'Awaiting Shop',    color: '#c2410c', bg: '#ffedd5' },
   awaiting_internal: { label: 'Awaiting Support', color: '#0891b2', bg: '#cffafe' },
   resolved:          { label: 'Resolved',         color: '#059669', bg: '#d1fae5' },
-  closed:            { label: 'Closed',           color: '#475569', bg: '#e2e8f0' },
+  closed:            { label: 'Closed',           color: '#000000', bg: '#e2e8f0' },
 }
 const PRIORITY_META = {
-  low:    { label: 'Low',    color: '#64748b' },
+  low:    { label: 'Low',    color: '#000000' },
   normal: { label: 'Normal', color: '#2563eb' },
   high:   { label: 'High',   color: '#d97706' },
   urgent: { label: 'Urgent', color: '#dc2626' },
@@ -68,7 +68,7 @@ function OwnerDesk() {
         <div style={{ width: 44, height: 44, borderRadius: 10, background: 'linear-gradient(135deg,#2554f5,#7c3aed)', display: 'grid', placeItems: 'center', color: '#fff' }}><LifeBuoy size={22} /></div>
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>Service Desk</h1>
-          <div style={{ color: '#64748b', fontSize: 13 }}>Tickets across every TorqueDesk company.</div>
+          <div style={{ color: '#000000', fontSize: 13 }}>Tickets across every TorqueDesk company.</div>
         </div>
       </div>
 
@@ -87,7 +87,7 @@ function OwnerDesk() {
 
       <form onSubmit={applySearch} style={{ ...card, padding: 12, marginBottom: 16, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         <div style={{ position: 'relative', flex: 1, minWidth: 220 }}>
-          <Search size={14} style={{ position: 'absolute', left: 10, top: 11, color: '#94a3b8' }} />
+          <Search size={14} style={{ position: 'absolute', left: 10, top: 11, color: '#000000' }} />
           <input value={filters.q} onChange={(e) => setFilters({ ...filters, q: e.target.value })} placeholder="Ticket #, subject, company, submitter…" style={{ ...inp, paddingLeft: 32 }} />
         </div>
         <select value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })} style={inp}><option value="">Any status</option>{STATUSES.map((s) => <option key={s} value={s}>{STATUS_META[s].label}</option>)}</select>
@@ -97,11 +97,11 @@ function OwnerDesk() {
       </form>
 
       <div style={card}>
-        {loading ? <div style={{ padding: 32, textAlign: 'center', color: '#64748b' }}><Loader2 className="spin" size={18} /></div> :
-         tickets.length === 0 ? <div style={{ padding: 48, textAlign: 'center', color: '#94a3b8' }}>No tickets match the filters.</div> :
+        {loading ? <div style={{ padding: 32, textAlign: 'center', color: '#000000' }}><Loader2 className="spin" size={18} /></div> :
+         tickets.length === 0 ? <div style={{ padding: 48, textAlign: 'center', color: '#000000' }}>No tickets match the filters.</div> :
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
-              <tr style={{ background: '#f8fafc', fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, color: '#64748b' }}>
+              <tr style={{ background: '#ffffff', fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, color: '#000000' }}>
                 <th style={th}>Ticket</th><th style={th}>Subject</th><th style={th}>Company</th><th style={th}>Priority</th><th style={th}>Status</th><th style={th}>Assignee</th><th style={th}>Updated</th>
               </tr>
             </thead>
@@ -113,8 +113,8 @@ function OwnerDesk() {
                   <td style={td}>{t.company}</td>
                   <td style={td}><Pill {...PRIORITY_META[t.priority]} /></td>
                   <td style={td}><Pill {...STATUS_META[t.status]} /></td>
-                  <td style={{ ...td, color: '#475569', fontSize: 13 }}>{t.assignee || '—'}</td>
-                  <td style={{ ...td, color: '#64748b', fontSize: 12 }}>{fmtDate(t.updatedAt)}</td>
+                  <td style={{ ...td, color: '#000000', fontSize: 13 }}>{t.assignee || '—'}</td>
+                  <td style={{ ...td, color: '#000000', fontSize: 12 }}>{fmtDate(t.updatedAt)}</td>
                 </tr>
               ))}
             </tbody>
@@ -159,9 +159,9 @@ function OwnerTicket({ id }) {
       <div>
         <Link to="/p/admin/support" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: '#2554f5', fontSize: 13, textDecoration: 'none', marginBottom: 16 }}><ArrowLeft size={14} /> Service Desk</Link>
         <div style={{ ...card, padding: 20, marginBottom: 16 }}>
-          <div style={{ fontFamily: 'ui-monospace,monospace', color: '#64748b', fontSize: 12 }}>{t.ticketNumber}</div>
+          <div style={{ fontFamily: 'ui-monospace,monospace', color: '#000000', fontSize: 12 }}>{t.ticketNumber}</div>
           <h1 style={{ margin: '4px 0', fontSize: 20, fontWeight: 700 }}>{t.subject}</h1>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6, fontSize: 13, color: '#475569' }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6, fontSize: 13, color: '#000000' }}>
             <span><strong>Company:</strong> {t.company}</span>
             <span><strong>Submitter:</strong> {t.submitterName} ({t.submitterEmail})</span>
             <span><strong>Category:</strong> {CATEGORIES[t.category] || t.category}</span>
@@ -187,8 +187,8 @@ function OwnerTicket({ id }) {
                 background: m.visibility === 'internal' ? '#fef3c7' : (m.authorType === 'shop' ? '#eff6ff' : '#f1f5f9'),
                 border: '1px solid ' + (m.visibility === 'internal' ? '#fcd34d' : (m.authorType === 'shop' ? '#bfdbfe' : '#cbd5e1')),
               }}>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12, color: '#64748b', marginBottom: 4 }}>
-                  <strong style={{ color: '#0f172a' }}>{m.authorName}</strong>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12, color: '#000000', marginBottom: 4 }}>
+                  <strong style={{ color: '#000000' }}>{m.authorName}</strong>
                   <span>· {m.authorType === 'shop' ? 'Shop' : 'Support'}</span>
                   <span>· {fmtDate(m.createdAt)}</span>
                   {m.visibility === 'internal' && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: '#92400e', fontWeight: 700 }}><Lock size={11} /> Internal note</span>}
@@ -196,12 +196,12 @@ function OwnerTicket({ id }) {
                 <div style={{ whiteSpace: 'pre-wrap', fontSize: 14 }}>{m.body}</div>
               </div>
             ))}
-            {(t.messages || []).length === 0 && <div style={{ color: '#94a3b8', fontSize: 13 }}>No messages yet.</div>}
+            {(t.messages || []).length === 0 && <div style={{ color: '#000000', fontSize: 13 }}>No messages yet.</div>}
           </div>
           <form onSubmit={send} style={{ display: 'grid', gap: 8 }}>
             <textarea value={reply.body} onChange={(e) => setReply({ ...reply, body: e.target.value })} rows={3} placeholder={reply.internal ? 'Internal note (shop will not see this)…' : 'Reply to shop…'} style={{ ...inp, fontFamily: 'inherit', background: reply.internal ? '#fffbeb' : '#fff' }} />
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <label style={{ fontSize: 13, display: 'flex', gap: 6, alignItems: 'center', color: reply.internal ? '#92400e' : '#475569' }}>
+              <label style={{ fontSize: 13, display: 'flex', gap: 6, alignItems: 'center', color: reply.internal ? '#92400e' : '#000000' }}>
                 <input type="checkbox" checked={reply.internal} onChange={(e) => setReply({ ...reply, internal: e.target.checked })} />
                 <Lock size={13} /> Internal note (owner-only)
               </label>
@@ -213,9 +213,9 @@ function OwnerTicket({ id }) {
         {t.audit && t.audit.length > 0 && (
           <div style={{ ...card, padding: 20, marginTop: 16 }}>
             <SectionLabel>Activity</SectionLabel>
-            <ul style={{ margin: 0, padding: 0, listStyle: 'none', fontSize: 13, color: '#475569', display: 'grid', gap: 6 }}>
+            <ul style={{ margin: 0, padding: 0, listStyle: 'none', fontSize: 13, color: '#000000', display: 'grid', gap: 6 }}>
               {t.audit.map((a, i) => (
-                <li key={i}><strong>{a.actorName}</strong> {prettyAction(a)} <span style={{ color: '#94a3b8' }}>· {fmtDate(a.createdAt)}</span></li>
+                <li key={i}><strong>{a.actorName}</strong> {prettyAction(a)} <span style={{ color: '#000000' }}>· {fmtDate(a.createdAt)}</span></li>
               ))}
             </ul>
           </div>
@@ -244,8 +244,8 @@ function OwnerTicket({ id }) {
         </div>
         <div style={{ ...card, padding: 16, fontSize: 13 }}>
           <SectionLabel>SLA</SectionLabel>
-          <div style={{ color: '#475569' }}><strong>First response due:</strong><br />{fmtDate(t.slaResponseDueAt)}</div>
-          <div style={{ color: '#475569', marginTop: 6 }}><strong>Resolve due:</strong><br />{fmtDate(t.slaResolveDueAt)}</div>
+          <div style={{ color: '#000000' }}><strong>First response due:</strong><br />{fmtDate(t.slaResponseDueAt)}</div>
+          <div style={{ color: '#000000', marginTop: 6 }}><strong>Resolve due:</strong><br />{fmtDate(t.slaResolveDueAt)}</div>
           {t.firstResponseAt && <div style={{ color: '#059669', marginTop: 6, fontSize: 12 }}>First response: {fmtDate(t.firstResponseAt)}</div>}
         </div>
       </aside>
@@ -265,12 +265,12 @@ function prettyAction(a) {
 function Stat({ label, value, tone, icon: Icon }) {
   return <div style={{ ...card, padding: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
     <div style={{ width: 32, height: 32, borderRadius: 8, background: tone + '18', color: tone, display: 'grid', placeItems: 'center' }}><Icon size={16} /></div>
-    <div><div style={{ fontSize: 11, color: '#64748b' }}>{label}</div><div style={{ fontSize: 18, fontWeight: 700 }}>{value}</div></div>
+    <div><div style={{ fontSize: 11, color: '#000000' }}>{label}</div><div style={{ fontSize: 18, fontWeight: 700 }}>{value}</div></div>
   </div>
 }
 function Pill({ label, color, bg }) { return <span style={{ display: 'inline-block', padding: '2px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, color, background: bg || (color + '18') }}>{label}</span> }
-function Field({ label, children }) { return <label style={{ display: 'grid', gap: 4 }}><span style={{ fontSize: 12, fontWeight: 600, color: '#334155' }}>{label}</span>{children}</label> }
-function SectionLabel({ children }) { return <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, color: '#64748b', fontWeight: 700, marginBottom: 8 }}>{children}</div> }
+function Field({ label, children }) { return <label style={{ display: 'grid', gap: 4 }}><span style={{ fontSize: 12, fontWeight: 600, color: '#000000' }}>{label}</span>{children}</label> }
+function SectionLabel({ children }) { return <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, color: '#000000', fontWeight: 700, marginBottom: 8 }}>{children}</div> }
 function fmtDate(d) { if (!d) return '—'; const t = new Date(d); return t.toLocaleString() }
 
 const card = { background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, overflow: 'hidden' }
@@ -279,5 +279,5 @@ const td = { padding: '12px 14px', fontSize: 14 }
 const inp = { padding: '8px 10px', border: '1px solid #cbd5e1', borderRadius: 6, fontSize: 14, width: '100%', boxSizing: 'border-box' }
 const btnPrimary = { display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px', background: 'linear-gradient(90deg,#3c6dff,#2554f5)', color: '#fff', border: 'none', borderRadius: 6, fontWeight: 600, fontSize: 13, cursor: 'pointer' }
 const errBox = { padding: 10, background: '#fee2e2', border: '1px solid #fecaca', borderRadius: 6, fontSize: 13, color: '#991b1b' }
-const pre = { whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: 14, background: '#f8fafc', padding: 10, borderRadius: 6, border: '1px solid #e2e8f0', margin: '4px 0 10px' }
-const valBox = { fontSize: 14, background: '#f8fafc', padding: 8, borderRadius: 6, border: '1px solid #e2e8f0', margin: '4px 0 10px' }
+const pre = { whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: 14, background: '#ffffff', padding: 10, borderRadius: 6, border: '1px solid #e2e8f0', margin: '4px 0 10px' }
+const valBox = { fontSize: 14, background: '#ffffff', padding: 8, borderRadius: 6, border: '1px solid #e2e8f0', margin: '4px 0 10px' }

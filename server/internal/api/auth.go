@@ -252,7 +252,11 @@ func (s *Server) companyLogin(w http.ResponseWriter, r *http.Request) {
 		         o.created_at DESC
 		LIMIT 1`, req.Email).
 		Scan(&ownerID, &companyID, &firstName, &lastName, &hash, &status, &role, &cStatus, &cName, &mfaSecret, &mfaEnabled)
-	ok := err == nil && status == "active"
+	// 'active' = fully activated. 'pending' = signup form submitted but
+	// payment hasn't landed yet. Both can log in; feature gating + the
+	// expired banner handle the pending case so the shop manager can
+	// complete payment from inside the app instead of being locked out.
+	ok := err == nil && (status == "active" || status == "pending")
 	if !ok {
 		hash = dummy
 	}

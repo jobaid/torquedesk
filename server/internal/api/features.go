@@ -158,15 +158,18 @@ func (s *Server) getMyFeatures(w http.ResponseWriter, r *http.Request) {
 	// same for safety even though those sessions are blocked at login.
 	var cStatus string
 	_ = s.db.QueryRow(r.Context(), `SELECT status FROM companies WHERE id::text = $1`, cid).Scan(&cStatus)
-	if cStatus == "expired" || cStatus == "cancelled" || cStatus == "suspended" {
+	// pending = signup form submitted but Stripe hasn't confirmed payment,
+	// so lock the UI the same way we do for expired/cancelled — just a
+	// different banner message.
+	if cStatus == "expired" || cStatus == "cancelled" || cStatus == "suspended" || cStatus == "pending" {
 		for k := range out {
 			out[k] = false
 		}
-		// Keep Settings reachable so the shop manager can hit the Billing
-		// / renewal page. Also expose a signal flag the UI reads to show
-		// the big 'Subscription expired' banner.
 		out["settings"] = true
 		out["__subscription_expired"] = true
+		if cStatus == "pending" {
+			out["__subscription_pending"] = true
+		}
 	}
 	writeJSON(w, 200, out)
 }

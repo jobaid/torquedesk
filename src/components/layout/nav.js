@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, Car, Search, Wrench, Stethoscope, ScanLine, Zap, CalendarCheck, ClipboardList,
-  Megaphone, Cpu, Star, History, FileText, Users, Settings, UserRound, BarChart3, ClipboardCheck, Package,
+  Megaphone, Cpu, Star, History, FileText, Users, Settings, UserRound, BarChart3, ClipboardCheck, Package, LifeBuoy,
 } from 'lucide-react'
 
 // `feature` is the key the SaaS owner can toggle in Owner Portal → Company →
@@ -34,6 +34,7 @@ export const NAV = [
       { to: '/customers', label: 'Customers', icon: Users, feature: 'customers' },
       { to: '/inspections', label: 'Inspections', icon: ClipboardCheck, feature: 'inspections' },
       { to: '/reports', label: 'Reports', icon: BarChart3, feature: 'reports' },
+      { to: '/support', label: 'Technical Support', icon: LifeBuoy },
     ],
   },
   {
@@ -70,6 +71,7 @@ export const PAGE_META = {
   favorites: { title: 'Favorites', crumb: 'Library' },
   history: { title: 'Search History', crumb: 'Library' },
   reports: { title: 'Reports', crumb: 'Shop' },
+  support: { title: 'Technical Support', crumb: 'Shop' },
   settings: { title: 'Settings' },
   profile: { title: 'Profile' },
 }

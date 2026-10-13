@@ -50,6 +50,8 @@ const OwnerPlaceholder = lazy(() => import('./pages/owner/Placeholder'))
 const OwnerSettings = lazy(() => import('./pages/owner/Settings'))
 const OwnerPlatformEmail = lazy(() => import('./pages/owner/PlatformEmail'))
 const OwnerPlatformTemplates = lazy(() => import('./pages/owner/PlatformTemplates'))
+const OwnerSupport = lazy(() => import('./pages/owner/Support'))
+const Support = lazy(() => import('./pages/Support'))
 const OwnerAddons = lazy(() => import('./pages/owner/Addons'))
 const OwnerPlans = lazy(() => import('./pages/owner/Plans'))
 const OwnerBilling = lazy(() => import('./pages/owner/Billing'))
@@ -153,6 +155,8 @@ export default function App() {
             <Route path="email-templates" element={<OwnerPlatformTemplates />} />
             <Route path="addons" element={<OwnerAddons />} />
             <Route path="plans" element={<OwnerPlans />} />
+            <Route path="support" element={<OwnerSupport />} />
+            <Route path="support/:id" element={<OwnerSupport />} />
             <Route path="security" element={<OwnerPlaceholder title="Security" body="MFA is on the login page; broader security settings arrive later." />} />
             <Route path="settings" element={<OwnerSettings />} />
           </Route>
@@ -172,6 +176,8 @@ export default function App() {
             <Route path="email-templates" element={<OwnerPlatformTemplates />} />
             <Route path="addons" element={<OwnerAddons />} />
             <Route path="plans" element={<OwnerPlans />} />
+            <Route path="support" element={<OwnerSupport />} />
+            <Route path="support/:id" element={<OwnerSupport />} />
             <Route path="security" element={<OwnerPlaceholder title="Security" body="MFA, session management, and SSO settings are planned for a later phase. For now, owner passwords use Argon2id hashing." />} />
             <Route path="settings" element={<OwnerSettings />} />
           </Route>
@@ -280,6 +286,8 @@ function Boot() {
             <Route path="sales/payments" element={<S><PaymentsReport /></S>} />
             <Route path="sales/tax" element={<S><TaxReport /></S>} />
           </Route>
+          <Route path="support" element={<S><Support /></S>} />
+          <Route path="support/:id" element={<S><Support /></S>} />
           <Route path="profile" element={<S><Profile /></S>} />
           <Route path="login" element={<Navigate to="/" replace />} />
           <Route path="*" element={<S><NotFound /></S>} />

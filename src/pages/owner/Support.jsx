@@ -4,7 +4,7 @@ import {
   LifeBuoy, Clock, CheckCircle2, AlertTriangle, Hourglass, MessageSquare,
   ArrowLeft, Send, Loader2, Lock, Search,
 } from 'lucide-react'
-import { api } from '../../lib/api'
+import { ownerApi as api } from '../../store/useOwner'
 
 const CATEGORIES = {
   login_auth: 'Login/Auth', subscription_billing: 'Subscription', payments_stripe: 'Payments',
@@ -52,8 +52,8 @@ function OwnerDesk() {
     try {
       const query = Object.entries(filters).filter(([, v]) => v).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&')
       const [s, t] = await Promise.all([
-        api('/owner/support/stats'),
-        api('/owner/support/tickets' + (query ? '?' + query : '')),
+        api('/support/stats'),
+        api('/support/tickets' + (query ? '?' + query : '')),
       ])
       setStats(s); setTickets(t)
     } finally { setLoading(false) }
@@ -132,22 +132,22 @@ function OwnerTicket({ id }) {
   const [busy, setBusy] = useState(false)
 
   const load = () => Promise.all([
-    api(`/owner/support/tickets/${id}`),
-    api('/owner/support/admins'),
+    api(`/support/tickets/${id}`),
+    api('/support/admins'),
   ]).then(([tk, ad]) => { setT(tk); setAdmins(ad) }).catch((e) => setErr(e.message))
   useEffect(() => { load() }, [id])
   useEffect(() => { const t = setInterval(load, 15000); return () => clearInterval(t) }, [id])
 
   const update = async (patch) => {
     setBusy(true)
-    try { await api(`/owner/support/tickets/${id}`, { method: 'PATCH', body: patch }); await load() }
+    try { await api(`/support/tickets/${id}`, { method: 'PATCH', body: patch }); await load() }
     catch (e) { setErr(e.message) } finally { setBusy(false) }
   }
   const send = async (e) => {
     e.preventDefault()
     if (!reply.body.trim()) return
     setBusy(true)
-    try { await api(`/owner/support/tickets/${id}/messages`, { method: 'POST', body: reply }); setReply({ body: '', internal: reply.internal }); await load() }
+    try { await api(`/support/tickets/${id}/messages`, { method: 'POST', body: reply }); setReply({ body: '', internal: reply.internal }); await load() }
     catch (e) { setErr(e.message) } finally { setBusy(false) }
   }
 

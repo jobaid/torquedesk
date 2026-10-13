@@ -1,12 +1,13 @@
 import { NavLink, Navigate, Route, Routes } from 'react-router-dom'
 import {
   Palette, Store, BadgeCheck, UserCog, Wrench, DollarSign, Percent, TrendingUp, Receipt, Hash, Printer, ToggleRight,
-  PanelsTopLeft, CalendarClock, History, Database, KeyRound, Archive, ShieldCheck, CreditCard, Plug, FileText, Package, Receipt as ReceiptIcon,
+  PanelsTopLeft, CalendarClock, History, Database, KeyRound, Archive, ShieldCheck, CreditCard, Plug, FileText, Package, Receipt as ReceiptIcon, Info,
 } from 'lucide-react'
 import { ShopDetails, Licenses, StaffPage } from './ShopSettings'
 import { LaborRates, TaxRates, Markups, ShopFees } from './FinancialSettings'
 import { Numbering, Printing, DocumentOptions, HeaderFooter, EstimateSettings } from './DocumentSettings'
 import { Appearance, DataSettings, AuditLog, ChangePassword } from './GeneralSettings'
+import About from './About'
 import { BackupSettings } from './BackupSettings'
 import { MfaSettings } from './MfaSettings'
 import { PaymentGateways } from './PaymentGateways'
@@ -51,6 +52,7 @@ export const SETTINGS_NAV = [
     { path: 'general/backup', label: 'Backup & Restore', icon: Archive, el: <BackupSettings />, feature: 'backup' },
     { path: 'general/audit', label: 'Audit Log', icon: History, el: <AuditLog />, feature: 'audit_log' },
     { path: 'general/data', label: 'Local Data', icon: Database, el: <DataSettings /> },
+    { path: 'general/about', label: 'About', icon: Info, el: <About /> },
   ] },
 ]
 

@@ -263,7 +263,7 @@ function TicketDetail({ id }) {
                 <span>· {m.authorType === 'shop' ? 'You' : 'Support'}</span>
                 <span>· {fmtDate(m.createdAt)}</span>
               </div>
-              <div style={{ whiteSpace: 'pre-wrap', fontSize: 14 }}>{m.body}</div>
+              <div style={{ whiteSpace: 'pre-wrap', fontSize: 14, color: '#0f172a' }}>{m.body}</div>
             </div>
           ))}
         </div>

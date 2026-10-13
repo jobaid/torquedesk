@@ -51,12 +51,12 @@ export default function Subscriptions() {
         </div>
       </Card>
 
-      {error && <Card style={{ color: '#ffb3b8' }}>{error}</Card>}
+      {error && <Card style={{ color: '#dc2626' }}>{error}</Card>}
       {!rows && !error && <Card>Loading…</Card>}
       {rows && (
         <Card style={{ padding: 0, overflowX: 'auto' }}>
           {rows.length === 0 ? (
-            <div style={{ padding: 40, textAlign: 'center', color: '#8da2bf' }}>No subscriptions match.</div>
+            <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>No subscriptions match.</div>
           ) : (
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead><tr>
@@ -67,14 +67,14 @@ export default function Subscriptions() {
               <tbody>
                 {rows.map((s) => (
                   <tr key={s.id}>
-                    <Td><Link to={`${window.location.pathname.startsWith('/owner') ? '/owner' : '/p/admin'}/companies/${s.companyId}`} style={{ color: '#e5edf5', fontWeight: 600, textDecoration: 'none' }}>{s.companyName}</Link></Td>
+                    <Td><Link to={`${window.location.pathname.startsWith('/owner') ? '/owner' : '/p/admin'}/companies/${s.companyId}`} style={{ color: '#0f172a', fontWeight: 600, textDecoration: 'none' }}>{s.companyName}</Link></Td>
                     <Td style={{ textTransform: 'capitalize' }}>{s.plan}</Td>
                     <Td><StatusPill status={s.status} /></Td>
                     <Td style={{ textTransform: 'capitalize' }}>{s.billingCycle}</Td>
                     <Td right>{money(s.monthlyPrice)}</Td>
                     <Td right>{money(s.annualPrice)}</Td>
                     <Td>{s.endDate || '—'}</Td>
-                    <Td right style={{ color: typeof s.daysUntilExpiration === 'number' && s.daysUntilExpiration < 30 ? '#fdba74' : '#8da2bf' }}>
+                    <Td right style={{ color: typeof s.daysUntilExpiration === 'number' && s.daysUntilExpiration < 30 ? '#fdba74' : '#64748b' }}>
                       {s.daysUntilExpiration ?? '—'}
                     </Td>
                     <Td>
@@ -84,7 +84,7 @@ export default function Subscriptions() {
                            style={{ color: '#5b8def', fontFamily: 'monospace', fontSize: 11 }}>
                           {s.stripeCustomerId.slice(0, 10)}…
                         </a>
-                      ) : <span style={{ color: '#8da2bf' }}>—</span>}
+                      ) : <span style={{ color: '#64748b' }}>—</span>}
                     </Td>
                     <Td>
                       {s.stripeSubscriptionId ? (
@@ -93,7 +93,7 @@ export default function Subscriptions() {
                            style={{ color: '#5b8def', fontFamily: 'monospace', fontSize: 11 }}>
                           {s.stripeSubscriptionId.slice(0, 10)}…
                         </a>
-                      ) : <span style={{ color: '#8da2bf' }}>—</span>}
+                      ) : <span style={{ color: '#64748b' }}>—</span>}
                     </Td>
                     <Td>
                       <Btn variant="danger" onClick={() => removeSub(s)} disabled={busy === s.id} style={{ padding: '2px 8px', fontSize: 11 }} title="Delete this subscription row">

@@ -12,12 +12,12 @@ export default function AuditLog() {
   return (
     <div>
       <PageHeader title="Audit log" subtitle="Every administrative action on the TorqueDesk platform is recorded here." />
-      {error && <Card style={{ color: '#ffb3b8' }}>{error}</Card>}
+      {error && <Card style={{ color: '#dc2626' }}>{error}</Card>}
       {!rows && !error && <Card>Loading…</Card>}
       {rows && (
         <Card style={{ padding: 0, overflowX: 'auto' }}>
           {rows.length === 0 ? (
-            <div style={{ padding: 40, textAlign: 'center', color: '#8da2bf' }}>No audit entries yet.</div>
+            <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>No audit entries yet.</div>
           ) : (
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead><tr>
@@ -26,12 +26,12 @@ export default function AuditLog() {
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.id}>
-                    <Td style={{ color: '#8da2bf', whiteSpace: 'nowrap' }}>{new Date(r.at).toLocaleString()}</Td>
+                    <Td style={{ color: '#64748b', whiteSpace: 'nowrap' }}>{new Date(r.at).toLocaleString()}</Td>
                     <Td>{r.adminName}</Td>
                     <Td><span style={{ fontFamily: 'monospace', fontSize: 12, color: '#5b8def' }}>{r.action}</span></Td>
-                    <Td style={{ fontSize: 12, color: '#8da2bf' }}>{r.targetType}{r.targetId && <> · {r.targetId.slice(0, 8)}…</>}</Td>
-                    <Td style={{ fontSize: 11, color: '#5c6c86' }}>{r.ip || '—'}</Td>
-                    <Td style={{ fontSize: 11, color: '#8da2bf', fontFamily: 'monospace', maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <Td style={{ fontSize: 12, color: '#64748b' }}>{r.targetType}{r.targetId && <> · {r.targetId.slice(0, 8)}…</>}</Td>
+                    <Td style={{ fontSize: 11, color: '#94a3b8' }}>{r.ip || '—'}</Td>
+                    <Td style={{ fontSize: 11, color: '#64748b', fontFamily: 'monospace', maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {r.details ? JSON.stringify(r.details) : ''}
                     </Td>
                   </tr>

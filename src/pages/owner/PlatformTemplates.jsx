@@ -34,19 +34,19 @@ export default function PlatformTemplates() {
         subtitle="Customize the welcome, status-change, and subscription emails that the platform sends to shop owners. Revert to default any time."
       />
       {err && <div style={{ padding: 10, borderRadius: 8, marginBottom: 12, fontSize: 13, background: 'rgba(220,53,69,0.12)', border: '1px solid rgba(220,53,69,0.35)', color: '#fda1aa' }}>{err}</div>}
-      {loading ? <div style={{ color: '#8da2bf' }}>Loading…</div> : (
+      {loading ? <div style={{ color: '#64748b' }}>Loading…</div> : (
         <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 16 }}>
           <aside style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {list.map((t) => (
               <button key={t.kind} type="button" onClick={() => setSel(t.kind)}
                 style={{
                   textAlign: 'left', padding: '10px 12px', borderRadius: 8,
-                  border: '1px solid ' + (t.kind === sel ? '#5b8def' : '#1e2a44'),
-                  background: t.kind === sel ? 'rgba(91,141,239,.1)' : '#111a2b',
-                  color: '#e5edf5', cursor: 'pointer', fontSize: 13,
+                  border: '1px solid ' + (t.kind === sel ? '#5b8def' : '#e2e8f0'),
+                  background: t.kind === sel ? 'rgba(91,141,239,.1)' : '#ffffff',
+                  color: '#0f172a', cursor: 'pointer', fontSize: 13,
                 }}>
                 <div style={{ fontWeight: 600 }}>{t.label}</div>
-                <div style={{ fontSize: 11, color: '#8da2bf', marginTop: 2 }}>
+                <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
                   {t.isCustom ? (t.enabled ? 'Customized' : 'Customized · disabled') : 'Using default'}
                 </div>
               </button>
@@ -103,7 +103,7 @@ function TemplateEditor({ template, onSaved }) {
         <FileText size={18} color="#5b8def" />
         <div>
           <div style={{ fontSize: 15, fontWeight: 600 }}>{template.label}</div>
-          <div style={{ fontSize: 11, color: '#8da2bf' }}>{template.description}</div>
+          <div style={{ fontSize: 11, color: '#64748b' }}>{template.description}</div>
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
           <Btn variant="secondary" onClick={() => setTab('edit')} style={{ background: tab === 'edit' ? 'rgba(91,141,239,.1)' : undefined }}>Edit</Btn>
@@ -112,10 +112,10 @@ function TemplateEditor({ template, onSaved }) {
       </div>
 
       {template.placeholders?.length > 0 && (
-        <div style={{ padding: '8px 10px', background: '#0b1220', border: '1px solid #1e2a44', borderRadius: 6, fontSize: 12, color: '#c5d2e1', marginBottom: 12 }}>
+        <div style={{ padding: '8px 10px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6, fontSize: 12, color: '#c5d2e1', marginBottom: 12 }}>
           <strong>Placeholders:</strong>{' '}
           {template.placeholders.map((p) => (
-            <code key={p} style={{ padding: '1px 6px', margin: 2, background: '#1e2a44', color: '#93c5fd', borderRadius: 4 }}>{`{{${p}}}`}</code>
+            <code key={p} style={{ padding: '1px 6px', margin: 2, background: '#e2e8f0', color: '#93c5fd', borderRadius: 4 }}>{`{{${p}}}`}</code>
           ))}
         </div>
       )}
@@ -127,11 +127,11 @@ function TemplateEditor({ template, onSaved }) {
           </Field>
           <Field label="HTML body">
             <textarea value={html} onChange={(e) => setHtml(e.target.value)} rows={10}
-              style={{ width: '100%', padding: '9px 11px', borderRadius: 8, border: '1px solid #2a3650', background: '#0b1220', color: '#e5edf5', fontSize: 12, fontFamily: 'ui-monospace, Menlo, monospace' }} />
+              style={{ width: '100%', padding: '9px 11px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#f8fafc', color: '#0f172a', fontSize: 12, fontFamily: 'ui-monospace, Menlo, monospace' }} />
           </Field>
           <Field label="Plain-text body">
             <textarea value={text} onChange={(e) => setText(e.target.value)} rows={6}
-              style={{ width: '100%', padding: '9px 11px', borderRadius: 8, border: '1px solid #2a3650', background: '#0b1220', color: '#e5edf5', fontSize: 12, fontFamily: 'ui-monospace, Menlo, monospace' }} />
+              style={{ width: '100%', padding: '9px 11px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#f8fafc', color: '#0f172a', fontSize: 12, fontFamily: 'ui-monospace, Menlo, monospace' }} />
           </Field>
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#c5d2e1' }}>
             <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
@@ -140,12 +140,12 @@ function TemplateEditor({ template, onSaved }) {
         </div>
       ) : (
         <div>
-          <div style={{ fontSize: 11, color: '#8da2bf', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 4 }}>Subject</div>
-          <div style={{ padding: '8px 10px', background: '#0b1220', border: '1px solid #1e2a44', borderRadius: 6, color: '#c5d2e1', marginBottom: 10 }}>{preview(subject)}</div>
-          <div style={{ fontSize: 11, color: '#8da2bf', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 4 }}>HTML preview</div>
-          <div style={{ padding: 14, background: '#fff', color: '#111', border: '1px solid #1e2a44', borderRadius: 6 }} dangerouslySetInnerHTML={{ __html: preview(html) }} />
-          <div style={{ fontSize: 11, color: '#8da2bf', textTransform: 'uppercase', letterSpacing: '.05em', margin: '10px 0 4px' }}>Plain text preview</div>
-          <pre style={{ padding: 10, background: '#0b1220', border: '1px solid #1e2a44', borderRadius: 6, fontSize: 12, color: '#c5d2e1', whiteSpace: 'pre-wrap' }}>{preview(text)}</pre>
+          <div style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 4 }}>Subject</div>
+          <div style={{ padding: '8px 10px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6, color: '#c5d2e1', marginBottom: 10 }}>{preview(subject)}</div>
+          <div style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 4 }}>HTML preview</div>
+          <div style={{ padding: 14, background: '#fff', color: '#111', border: '1px solid #e2e8f0', borderRadius: 6 }} dangerouslySetInnerHTML={{ __html: preview(html) }} />
+          <div style={{ fontSize: 11, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.05em', margin: '10px 0 4px' }}>Plain text preview</div>
+          <pre style={{ padding: 10, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6, fontSize: 12, color: '#c5d2e1', whiteSpace: 'pre-wrap' }}>{preview(text)}</pre>
         </div>
       )}
 

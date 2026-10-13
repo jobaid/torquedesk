@@ -32,7 +32,7 @@ export default function Companies() {
       <Card style={{ marginBottom: 14, padding: 14 }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 180px', gap: 10 }}>
           <div style={{ position: 'relative' }}>
-            <Search size={14} style={{ position: 'absolute', left: 10, top: 11, color: '#5c6c86' }} />
+            <Search size={14} style={{ position: 'absolute', left: 10, top: 11, color: '#94a3b8' }} />
             <Input placeholder="Search by name, email, company code, or slug…" value={search} onChange={(e) => setSearch(e.target.value)} style={{ paddingLeft: 32 }} />
           </div>
           <Select value={status} onChange={(e) => setStatus(e.target.value)}>
@@ -42,12 +42,12 @@ export default function Companies() {
         </div>
       </Card>
 
-      {error && <Card style={{ color: '#ffb3b8' }}>Could not load companies: {error}</Card>}
+      {error && <Card style={{ color: '#dc2626' }}>Could not load companies: {error}</Card>}
       {!rows && !error && <Card>Loading…</Card>}
       {rows && (
         <Card style={{ padding: 0, overflowX: 'auto' }}>
           {empty ? (
-            <div style={{ padding: 40, textAlign: 'center', color: '#8da2bf' }}>
+            <div style={{ padding: 40, textAlign: 'center', color: '#64748b' }}>
               No companies yet. Click <strong>Add company</strong> to create one.
             </div>
           ) : (
@@ -60,20 +60,20 @@ export default function Companies() {
                   <tr key={c.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`${window.location.pathname.startsWith('/owner') ? '/owner' : '/p/admin'}/companies/${c.id}`)}>
                     <Td>
                       <div style={{ fontWeight: 600 }}>{c.name}</div>
-                      <div style={{ fontSize: 11, color: '#8da2bf' }}>{c.email || c.slug}</div>
+                      <div style={{ fontSize: 11, color: '#64748b' }}>{c.email || c.slug}</div>
                     </Td>
-                    <Td style={{ fontFamily: 'monospace', color: '#8da2bf', fontSize: 12 }}>{c.companyCode}</Td>
+                    <Td style={{ fontFamily: 'monospace', color: '#64748b', fontSize: 12 }}>{c.companyCode}</Td>
                     <Td><StatusPill status={c.status} /></Td>
                     <Td style={{ textTransform: 'capitalize' }}>{c.subscription?.plan || '—'}</Td>
-                    <Td style={{ color: '#8da2bf' }}>{c.subscription?.endDate || '—'}</Td>
+                    <Td style={{ color: '#64748b' }}>{c.subscription?.endDate || '—'}</Td>
                     <Td>
                       {c.applicationUrl ? (
                         <a href={c.applicationUrl} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ color: '#5b8def', fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                           Open <ExternalLink size={11} />
                         </a>
-                      ) : <span style={{ color: '#5c6c86' }}>—</span>}
+                      ) : <span style={{ color: '#94a3b8' }}>—</span>}
                     </Td>
-                    <Td style={{ color: '#5c6c86' }}>›</Td>
+                    <Td style={{ color: '#94a3b8' }}>›</Td>
                   </tr>
                 ))}
               </tbody>

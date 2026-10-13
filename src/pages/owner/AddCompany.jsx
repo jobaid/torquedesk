@@ -84,7 +84,7 @@ export default function AddCompany() {
         actions={<Btn variant="secondary" onClick={() => navigate(-1)}><ArrowLeft size={14} />Back</Btn>}
       />
       <form onSubmit={submit}>
-        {generalError && <Card style={{ marginBottom: 14, color: '#ffb3b8' }}>{generalError}</Card>}
+        {generalError && <Card style={{ marginBottom: 14, color: '#dc2626' }}>{generalError}</Card>}
 
         <Section title="Company">
           <Grid cols={2}>

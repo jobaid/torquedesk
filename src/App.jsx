@@ -51,6 +51,7 @@ const OwnerSettings = lazy(() => import('./pages/owner/Settings'))
 const OwnerPlatformEmail = lazy(() => import('./pages/owner/PlatformEmail'))
 const OwnerPlatformTemplates = lazy(() => import('./pages/owner/PlatformTemplates'))
 const OwnerSupport = lazy(() => import('./pages/owner/Support'))
+const OwnerUsers = lazy(() => import('./pages/owner/Users'))
 const Support = lazy(() => import('./pages/Support'))
 const OwnerAddons = lazy(() => import('./pages/owner/Addons'))
 const OwnerPlans = lazy(() => import('./pages/owner/Plans'))
@@ -146,7 +147,7 @@ export default function App() {
             <Route path="companies/:id" element={<OwnerCompanyDetail />} />
             <Route path="subscriptions" element={<OwnerSubscriptions />} />
             <Route path="audit" element={<OwnerAuditLog />} />
-            <Route path="users" element={<OwnerPlaceholder title="Users" body="Phase 1 scope: company owners are managed from each company's detail page." />} />
+            <Route path="users" element={<OwnerUsers />} />
             <Route path="access" element={<OwnerPlaceholder title="Access Management" body="Access is controlled by changing a company's status from its detail page." />} />
             <Route path="urls" element={<OwnerPlaceholder title="Application URLs" body="Each company has an application URL on its detail page." />} />
             <Route path="billing" element={<OwnerBilling />} />
@@ -167,7 +168,7 @@ export default function App() {
             <Route path="companies/:id" element={<OwnerCompanyDetail />} />
             <Route path="subscriptions" element={<OwnerSubscriptions />} />
             <Route path="audit" element={<OwnerAuditLog />} />
-            <Route path="users" element={<OwnerPlaceholder title="Users" body="Phase 1 scope: company owners are managed from each company's detail page. Platform-wide user management arrives in a later phase." />} />
+            <Route path="users" element={<OwnerUsers />} />
             <Route path="access" element={<OwnerPlaceholder title="Access Management" body="Access is controlled by changing a company's status from its detail page. A dedicated matrix view lands in a later phase." />} />
             <Route path="urls" element={<OwnerPlaceholder title="Application URLs" body="Each company has an application URL on its detail page. Custom-domain management will be added in a later phase." />} />
             <Route path="billing" element={<OwnerBilling />} />

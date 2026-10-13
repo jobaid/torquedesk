@@ -106,6 +106,8 @@ export default function Backups() {
         </div>
       </Card>
 
+      <FullDbSection />
+
       {/* Error / notice */}
       {err && <Card style={{ background: '#2a0d10', borderColor: '#51232a', color: '#fda4af', marginBottom: 12 }}><AlertTriangle size={14} style={{ verticalAlign: -2 }} /> {err}</Card>}
       {summary && (
@@ -219,3 +221,108 @@ function Dialog({ title, children, onClose }) {
 const th = { textAlign: 'left', padding: '10px 14px', fontSize: 11, textTransform: 'uppercase', letterSpacing: '.06em', color: '#000000', fontWeight: 600 }
 const td = { padding: '10px 14px', color: '#000000' }
 const pill = (bg, fg) => ({ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 10px', borderRadius: 999, background: bg, color: fg, fontSize: 11, fontWeight: 600 })
+
+function FullDbSection() {
+  const [list, setList] = useState([])
+  const [busy, setBusy] = useState('')
+  const [err, setErr] = useState('')
+  const [ok, setOk] = useState('')
+  const [confirmFile, setConfirmFile] = useState(null)
+  const fileRef = useRef(null)
+
+  const refresh = async () => {
+    try { setList((await ownerApi('/backups/full-dump')) || []) }
+    catch (e) { setErr(e.message) }
+  }
+  useEffect(() => { refresh() }, [])
+
+  const create = async () => {
+    setBusy('create'); setErr(''); setOk('')
+    try { await ownerApi('/backups/full-dump', { method: 'POST' }); setOk('Full database dump created.'); await refresh() }
+    catch (e) { setErr(e.message) }
+    finally { setBusy('') }
+  }
+  const download = async (b) => {
+    const token = useOwner.getState().owner?.token
+    const res = await fetch(`/api/owner/backups/full-dump/${encodeURIComponent(b.name)}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+    if (!res.ok) { setErr('Download failed'); return }
+    const blob = await res.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a'); a.href = url; a.download = b.name; a.click()
+    setTimeout(() => URL.revokeObjectURL(url), 60_000)
+  }
+  const remove = async (b) => {
+    if (!confirm(`Delete ${b.name}?`)) return
+    try { await ownerApi(`/backups/full-dump/${encodeURIComponent(b.name)}`, { method: 'DELETE' }); await refresh() }
+    catch (e) { setErr(e.message) }
+  }
+  const pickFile = (e) => { const f = e.target.files?.[0]; if (f) setConfirmFile(f) }
+  const doRestore = async () => {
+    const f = confirmFile; setConfirmFile(null); if (!f) return
+    setBusy('restore'); setErr(''); setOk('')
+    try {
+      const token = useOwner.getState().owner?.token
+      const fd = new FormData(); fd.append('file', f)
+      const res = await fetch('/api/owner/backups/full-restore', { method: 'POST', headers: token ? { Authorization: `Bearer ${token}` } : {}, body: fd })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(data.error || 'Restore failed')
+      setOk('Full database restored. You will need to sign in again if your admin password changed.')
+      if (fileRef.current) fileRef.current.value = ''
+      await refresh()
+    } catch (e) { setErr(e.message) }
+    finally { setBusy('') }
+  }
+
+  return (
+    <Card style={{ marginBottom: 16, borderColor: '#2554f5' }}>
+      <div style={{ display: 'flex', alignItems: 'start', gap: 10, marginBottom: 12 }}>
+        <div style={{ padding: 6, background: 'linear-gradient(135deg,#2554f5,#7c3aed)', borderRadius: 8, color: '#fff', display: 'flex' }}><HardDrive size={16} /></div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 700, fontSize: 15, color: '#000' }}>Full database dump (pg_dump)</div>
+          <div style={{ fontSize: 12, color: '#000', marginTop: 2 }}>
+            True whole-database backup via <code>pg_dump</code>: every table, every row, every sequence, every migration — regardless of app version. Use this to migrate to a new server with zero data loss.
+          </div>
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+        <Btn onClick={create} disabled={!!busy}><Plus size={14} /> {busy === 'create' ? 'Dumping…' : 'Create full DB dump'}</Btn>
+        <div style={{ marginLeft: 'auto', position: 'relative' }}>
+          <input ref={fileRef} type="file" accept=".sql,.sql.gz" onChange={pickFile}
+            style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }} />
+          <Btn variant="secondary" disabled={!!busy}><Upload size={14} /> {busy === 'restore' ? 'Restoring…' : 'Restore from .sql / .sql.gz'}</Btn>
+        </div>
+      </div>
+      {err && <div style={{ marginTop: 10, padding: 10, background: '#fee2e2', border: '1px solid #fecaca', borderRadius: 6, fontSize: 13, color: '#991b1b' }}>{err}</div>}
+      {ok && <div style={{ marginTop: 10, padding: 10, background: '#d1fae5', border: '1px solid #a7f3d0', borderRadius: 6, fontSize: 13, color: '#065f46' }}>{ok}</div>}
+
+      {list.length > 0 && (
+        <div style={{ marginTop: 14, borderTop: '1px solid #e2e8f0', paddingTop: 12 }}>
+          {list.map((b) => (
+            <div key={b.name} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid #f1f5f9' }}>
+              <HardDrive size={14} />
+              <code style={{ fontSize: 12, flex: 1, color: '#000' }}>{b.name}</code>
+              <span style={{ fontSize: 12, color: '#000' }}>{fmtSize(b.size)}</span>
+              <span style={{ fontSize: 12, color: '#000' }}>{fmtDate(b.takenAt)}</span>
+              <Btn variant="secondary" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => download(b)}><Download size={12} /></Btn>
+              <Btn variant="danger" style={{ padding: '4px 10px', fontSize: 12 }} onClick={() => remove(b)}><Trash2 size={12} /></Btn>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {confirmFile && (
+        <Dialog title="Restore the entire database?" onClose={() => setConfirmFile(null)}>
+          <div style={{ color: '#b91c1c', marginBottom: 10 }}>
+            <AlertTriangle size={16} style={{ verticalAlign: -3, marginRight: 6 }} />
+            <strong>This replaces every table in the database</strong> with the contents of <code>{confirmFile.name}</code>. All current rows will be dropped. Admin passwords, shop data, subscriptions — everything comes from the dump file.
+          </div>
+          <div style={{ fontSize: 12, color: '#000', marginBottom: 14 }}>Make sure the dump was created from a compatible app version.</div>
+          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+            <Btn variant="ghost" onClick={() => setConfirmFile(null)}>Cancel</Btn>
+            <Btn variant="danger" onClick={doRestore}>Yes, restore everything</Btn>
+          </div>
+        </Dialog>
+      )}
+    </Card>
+  )
+}

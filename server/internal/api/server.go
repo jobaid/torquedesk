@@ -85,6 +85,7 @@ func (s *Server) Handler(staticDir string) http.Handler {
 	s.customerRoutes(mux)
 	s.supportRoutes(mux)
 	s.adminUserRoutes(mux)
+	s.fullDumpRoutes(mux)
 
 	if st, err := os.Stat(staticDir); err == nil && st.IsDir() {
 		fsrv := http.FileServer(http.Dir(staticDir))

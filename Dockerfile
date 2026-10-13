@@ -34,7 +34,7 @@ RUN GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/torquedesk-server .
 # ownership from the image on first mount, so uploads + backups are writable
 # by the server process without a wrapper script.
 FROM alpine:3.20
-RUN apk add --no-cache ca-certificates tzdata \
+RUN apk add --no-cache ca-certificates tzdata postgresql16-client \
  && addgroup -S torquedesk \
  && adduser -S -G torquedesk -u 10001 torquedesk \
  && mkdir -p /data/uploads /data/backups /app/dist \

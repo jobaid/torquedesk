@@ -11,6 +11,8 @@ import (
 	"slices"
 	"strings"
 	"time"
+
+	"github.com/skip2/go-qrcode"
 )
 
 // Permissions per role. The frontend receives this list at login and the API
@@ -207,6 +209,10 @@ type companyLoginReq struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
 	MfaCode  string `json:"mfaCode"`
+	// Security-question answers for accounts that have them enabled.
+	// Caller re-POSTs with these after seeing the two question texts.
+	SecurityAnswer1 string `json:"securityAnswer1"`
+	SecurityAnswer2 string `json:"securityAnswer2"`
 }
 
 // companyLogin authenticates a shop user against company_owners.password_hash
@@ -228,6 +234,8 @@ func (s *Server) companyLogin(w http.ResponseWriter, r *http.Request) {
 	var (
 		ownerID, companyID, firstName, lastName, hash, status, role, cStatus, cName, mfaSecret string
 		mfaEnabled                                                                             bool
+		secQ1, secQ2                                                                           *int
+		secA1Hash, secA2Hash                                                                   string
 	)
 	// When a single email is tied to multiple shops (e.g. a cancelled test
 	// shop and a live production shop) prefer the active one so the user can
@@ -236,7 +244,9 @@ func (s *Server) companyLogin(w http.ResponseWriter, r *http.Request) {
 	err := s.db.QueryRow(r.Context(), `
 		SELECT o.id::text, o.company_id::text, o.first_name, o.last_name, o.password_hash, o.status, o.role,
 		       c.status, c.name,
-		       coalesce(o.mfa_secret, ''), coalesce(o.mfa_enabled, false)
+		       coalesce(o.mfa_secret, ''), coalesce(o.mfa_enabled, false),
+		       o.security_q1, coalesce(o.security_a1_hash, ''),
+		       o.security_q2, coalesce(o.security_a2_hash, '')
 		FROM company_owners o
 		JOIN companies c ON c.id = o.company_id
 		WHERE o.email = $1
@@ -251,7 +261,8 @@ func (s *Server) companyLogin(w http.ResponseWriter, r *http.Request) {
 		         END,
 		         o.created_at DESC
 		LIMIT 1`, req.Email).
-		Scan(&ownerID, &companyID, &firstName, &lastName, &hash, &status, &role, &cStatus, &cName, &mfaSecret, &mfaEnabled)
+		Scan(&ownerID, &companyID, &firstName, &lastName, &hash, &status, &role, &cStatus, &cName, &mfaSecret, &mfaEnabled,
+			&secQ1, &secA1Hash, &secQ2, &secA2Hash)
 	// 'active' = fully activated. 'pending' = signup form submitted but
 	// payment hasn't landed yet. Both can log in; feature gating + the
 	// expired banner handle the pending case so the shop manager can
@@ -297,6 +308,38 @@ func (s *Server) companyLogin(w http.ResponseWriter, r *http.Request) {
 				VALUES ($1::uuid, $2, $3, 'login', $4, 'update', 'mfa_failed', '', $5)`,
 				companyID, req.Email, role, ownerID, clientIP(r))
 			writeJSON(w, 401, map[string]any{"error": "Incorrect authenticator code.", "mfaRequired": true})
+			return
+		}
+	}
+	// Security-questions gate. If both questions are set, both answers must be
+	// provided correctly. Normalization matches the setter: trim + lowercase.
+	if secQ1 != nil && secQ2 != nil && secA1Hash != "" && secA2Hash != "" {
+		if req.SecurityAnswer1 == "" || req.SecurityAnswer2 == "" {
+			writeJSON(w, 401, map[string]any{
+				"error":                        "Answer your security questions.",
+				"securityQuestionsRequired":    true,
+				"question1":                    *secQ1,
+				"question2":                    *secQ2,
+				"question1Text":                SecurityQuestionCatalog[*secQ1],
+				"question2Text":                SecurityQuestionCatalog[*secQ2],
+			})
+			return
+		}
+		a1 := normalizeAnswer(req.SecurityAnswer1)
+		a2 := normalizeAnswer(req.SecurityAnswer2)
+		if !VerifyPassword(a1, secA1Hash) || !VerifyPassword(a2, secA2Hash) {
+			_, _ = s.db.Exec(r.Context(), `INSERT INTO settings_audit_log
+				(company_id, user_name, user_role, entity, entity_id, action, field, old_value, new_value)
+				VALUES ($1::uuid, $2, $3, 'login', $4, 'update', 'security_questions_failed', '', $5)`,
+				companyID, req.Email, role, ownerID, clientIP(r))
+			writeJSON(w, 401, map[string]any{
+				"error":                     "One or more answers are incorrect.",
+				"securityQuestionsRequired": true,
+				"question1":                 *secQ1,
+				"question2":                 *secQ2,
+				"question1Text":             SecurityQuestionCatalog[*secQ1],
+				"question2Text":             SecurityQuestionCatalog[*secQ2],
+			})
 			return
 		}
 	}
@@ -355,7 +398,14 @@ func (s *Server) shopMfaSetup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	url := TOTPURL("TorqueDesk ("+u.Name+")", u.Email, secret)
-	writeJSON(w, 200, map[string]any{"secret": secret, "otpauthUrl": url})
+	// Generate the QR server-side so the TOTP secret never leaves our stack.
+	// (Previously the UI fetched api.qrserver.com, which the CSP img-src blocked
+	// AND would have handed the secret to a third party.)
+	qrDataURL := ""
+	if png, err := qrcode.Encode(url, qrcode.Medium, 256); err == nil {
+		qrDataURL = "data:image/png;base64," + base64.StdEncoding.EncodeToString(png)
+	}
+	writeJSON(w, 200, map[string]any{"secret": secret, "otpauthUrl": url, "qrDataUrl": qrDataURL})
 }
 
 func (s *Server) shopMfaEnable(w http.ResponseWriter, r *http.Request) {

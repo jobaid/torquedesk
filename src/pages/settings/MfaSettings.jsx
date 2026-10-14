@@ -44,7 +44,12 @@ export function MfaSettings() {
     } catch (e) { setErr(e.message) } finally { setBusy(false) }
   }
 
-  const qrURL = setupData ? `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(setupData.otpauthUrl)}` : null
+  // Prefer the server-generated data URL (works offline, keeps the TOTP
+  // secret out of any third-party CDN, and isn't blocked by the img-src CSP).
+  // Fallback to the old external render only if the backend didn't send one.
+  const qrURL = setupData
+    ? (setupData.qrDataUrl || `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(setupData.otpauthUrl)}`)
+    : null
 
   if (loading) return null
   if (!available) {

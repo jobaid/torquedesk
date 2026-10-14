@@ -37,7 +37,7 @@ export async function api(path, { method = 'GET', body, form } = {}) {
     // and offer an explicit sign-out button.
     // Don't wipe the session on an mfaRequired 401 — login is mid-flight and
     // we want the UI to show the TOTP input.
-    if (token && res.status === 401 && !data?.mfaRequired) {
+    if (token && res.status === 401 && !data?.mfaRequired && !data?.securityQuestionsRequired) {
       useApp.getState().logout()
     }
     throw new ApiError(res.status, data?.error || `Request failed (${res.status})`, data?.fields, {
@@ -46,6 +46,9 @@ export async function api(path, { method = 'GET', body, form } = {}) {
       role: data?.role,
       companyStatus: data?.companyStatus,
       mfaRequired: !!data?.mfaRequired,
+      securityQuestionsRequired: !!data?.securityQuestionsRequired,
+      question1Text: data?.question1Text,
+      question2Text: data?.question2Text,
     })
   }
   return data

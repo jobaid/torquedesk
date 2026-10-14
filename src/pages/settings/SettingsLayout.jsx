@@ -8,6 +8,7 @@ import { LaborRates, TaxRates, Markups, ShopFees } from './FinancialSettings'
 import { Numbering, Printing, DocumentOptions, HeaderFooter, EstimateSettings } from './DocumentSettings'
 import { Appearance, DataSettings, AuditLog, ChangePassword } from './GeneralSettings'
 import About from './About'
+import { SecurityQuestions } from './SecurityQuestions'
 import { BackupSettings } from './BackupSettings'
 import { MfaSettings } from './MfaSettings'
 import { PaymentGateways } from './PaymentGateways'
@@ -49,6 +50,7 @@ export const SETTINGS_NAV = [
     { path: 'general/email-templates', label: 'Email Templates', icon: FileText, el: <EmailTemplates />, feature: 'notifications' },
     { path: 'general/password', label: 'Change Password', icon: KeyRound, el: <ChangePassword /> },
     { path: 'general/mfa', label: 'Two-factor (MFA)', icon: ShieldCheck, el: <MfaSettings /> },
+    { path: 'general/security-questions', label: 'Security Questions', icon: ShieldCheck, el: <SecurityQuestions /> },
     { path: 'general/backup', label: 'Backup & Restore', icon: Archive, el: <BackupSettings />, feature: 'backup' },
     { path: 'general/audit', label: 'Audit Log', icon: History, el: <AuditLog />, feature: 'audit_log' },
     { path: 'general/data', label: 'Local Data', icon: Database, el: <DataSettings /> },

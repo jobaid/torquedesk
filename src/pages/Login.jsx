@@ -86,6 +86,7 @@ export default function Login() {
   const [busy, setBusy] = useState(false)
   const [serverErr, setServerErr] = useState('')
   const [mfaRequired, setMfaRequired] = useState(false)
+  const [secStep, setSecStep] = useState(null) // null | { q1Text, q2Text, a1, a2 }
   const [mfaCode, setMfaCode] = useState('')
 
   const signIn = async (payload, extra = {}) => {
@@ -109,12 +110,26 @@ export default function Login() {
     setBusy(true)
     setServerErr('')
     try {
-      const res = await api('/auth/company-login', { method: 'POST', body: { email: form.email.trim(), password: form.password, mfaCode } })
+      const body = {
+        email: form.email.trim(),
+        password: form.password,
+        mfaCode,
+        securityAnswer1: secStep?.a1 || '',
+        securityAnswer2: secStep?.a2 || '',
+      }
+      const res = await api('/auth/company-login', { method: 'POST', body })
       login({ ...res.user, token: res.token, permissions: res.permissions, since: Date.now() })
-      setMfaRequired(false); setMfaCode('')
+      setMfaRequired(false); setMfaCode(''); setSecStep(null)
       toast.success(`Welcome, ${res.user.name.split(' ')[0]}`, 'You are signed in.')
     } catch (e) {
-      if (e.mfaRequired) {
+      if (e.securityQuestionsRequired) {
+        setSecStep((prev) => ({
+          q1Text: e.question1Text || prev?.q1Text || 'Security question 1',
+          q2Text: e.question2Text || prev?.q2Text || 'Security question 2',
+          a1: '', a2: '',
+        }))
+        setServerErr(e.message)
+      } else if (e.mfaRequired) {
         setMfaRequired(true)
         setServerErr(e.message)
       } else {
@@ -212,6 +227,16 @@ export default function Login() {
                 maxLength={6} inputMode="numeric" placeholder="123456" autoFocus
                 style={{ letterSpacing: 4, textAlign: 'center', fontSize: 18 }} />
             </Field>
+          )}
+          {mode === 'shop' && secStep && (
+            <>
+              <Field label={secStep.q1Text} required htmlFor="l-sa1" hint="Not case-sensitive.">
+                <input id="l-sa1" className="input" value={secStep.a1} onChange={(e) => setSecStep({ ...secStep, a1: e.target.value })} autoComplete="off" autoFocus />
+              </Field>
+              <Field label={secStep.q2Text} required htmlFor="l-sa2">
+                <input id="l-sa2" className="input" value={secStep.a2} onChange={(e) => setSecStep({ ...secStep, a2: e.target.value })} autoComplete="off" />
+              </Field>
+            </>
           )}
           {serverErr && <div className="callout callout-danger" role="alert"><LogIn size={18} /><div>{serverErr}</div></div>}
           <button className="btn btn-primary btn-lg btn-block" type="submit" disabled={busy}><LogIn size={18} />{busy ? 'Signing in…' : 'Sign in'}</button>

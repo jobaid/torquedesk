@@ -402,16 +402,36 @@ func (m mailer) send(password string, to []string, subject, htmlBody, textBody s
 	} else if m.User != "" && password != "" {
 		auth = smtp.PlainAuth("", m.User, password, m.Host)
 	}
-	if m.UseTLS {
-		// Dial, STARTTLS and send. net/smtp doesn't have a one-shot helper.
-		c, err := smtp.Dial(addr)
-		if err != nil {
-			return err
+	if m.UseTLS || m.Port == 465 {
+		// Port 465 = implicit TLS (SMTPS): the server expects a TLS handshake
+		// the moment the socket opens. net/smtp has no helper for this, so we
+		// tls.Dial first and hand the connection to smtp.NewClient. Plain
+		// smtp.Dial to a 465 listener drops the connection → "EOF" to callers.
+		// Port 587 (and 25) with UseTLS=true keeps the older STARTTLS flow.
+		var c *smtp.Client
+		var err error
+		tlsCfg := &tls.Config{ServerName: m.Host, MinVersion: tls.VersionTLS12}
+		if m.Port == 465 {
+			conn, derr := tls.Dial("tcp", addr, tlsCfg)
+			if derr != nil {
+				return derr
+			}
+			c, err = smtp.NewClient(conn, m.Host)
+			if err != nil {
+				conn.Close()
+				return err
+			}
+		} else {
+			c, err = smtp.Dial(addr)
+			if err != nil {
+				return err
+			}
+			if err := c.StartTLS(tlsCfg); err != nil {
+				c.Close()
+				return err
+			}
 		}
 		defer c.Close()
-		if err := c.StartTLS(&tls.Config{ServerName: m.Host, MinVersion: tls.VersionTLS12}); err != nil {
-			return err
-		}
 		if auth != nil {
 			if err := c.Auth(auth); err != nil {
 				return err

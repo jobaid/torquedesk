@@ -126,6 +126,7 @@ func (s *Server) createFullDump(w http.ResponseWriter, r *http.Request) {
 	info, _ := os.Stat(finalPath)
 	_ = s.recordSaasAudit(r.Context(), nil, u.Name, "full_db_dump_created", "backup", name, nil,
 		map[string]any{"size": info.Size()}, clientIP(r))
+	go s.pushOffsite("full-db", finalPath)
 	writeJSON(w, 201, fullDumpItem{Name: name, Size: info.Size(), TakenAt: info.ModTime().UnixMilli()})
 }
 

@@ -138,6 +138,7 @@ func (s *Server) ownerCreateManualBackup(w http.ResponseWriter, r *http.Request)
 	}
 	_ = s.recordSaasAudit(r.Context(), nil, u.Name, "platform_backup_created", "backup", fn, nil,
 		map[string]any{"kind": "manual", "companies": m.Companies, "bytes": m.TotalBytes}, clientIP(r))
+	go s.pushOffsite("manual", out)
 	writeJSON(w, 201, map[string]any{"ok": true, "name": fn, "manifest": m})
 }
 
@@ -150,6 +151,7 @@ func (s *Server) ownerRunAutoBackup(w http.ResponseWriter, r *http.Request) {
 	}
 	_ = s.recordSaasAudit(r.Context(), nil, u.Name, "platform_backup_auto_run", "backup", ownerBackupAutoName, nil,
 		map[string]any{"companies": m.Companies, "bytes": m.TotalBytes}, clientIP(r))
+	go s.pushOffsite("auto", filepath.Join(ownerAutoDir(), ownerBackupAutoName))
 	writeJSON(w, 200, map[string]any{"ok": true, "manifest": m})
 }
 

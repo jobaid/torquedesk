@@ -1,0 +1,19 @@
+[Unit]
+Description=TorqueDesk nightly offsite backup to Google Drive
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+# Point these at your real paths before enabling.
+Environment=TD_COMPOSE_DIR=/opt/torquedesk
+Environment=TD_UPLOAD_DIR=/var/lib/docker/volumes/torquedesk_data/_data
+Environment=TD_REMOTE=gdrive:torquedesk-backups
+Environment=RETAIN_DAYS=30
+ExecStart=/opt/torquedesk/scripts/rclone-backup.sh
+StandardOutput=append:/var/log/torquedesk-backup.log
+StandardError=append:/var/log/torquedesk-backup.log
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7

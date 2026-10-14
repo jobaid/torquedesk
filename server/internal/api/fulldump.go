@@ -35,6 +35,33 @@ func (s *Server) fullDumpRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/owner/backups/full-dump/{name}", s.ownerAuth(s.downloadFullDump))
 	mux.HandleFunc("DELETE /api/owner/backups/full-dump/{name}", s.ownerAuth(s.deleteFullDump))
 	mux.HandleFunc("POST /api/owner/backups/full-restore", s.ownerAuth(s.restoreFullDump))
+	mux.HandleFunc("GET /api/owner/backups/offsite-status", s.ownerAuth(s.offsiteStatus))
+}
+
+// offsiteStatus returns the rclone backup script's status file, if present.
+// The script writes it to $BACKUP_DIR/offsite-status.json after every run.
+// Missing file = never configured.
+func (s *Server) offsiteStatus(w http.ResponseWriter, r *http.Request) {
+	path := filepath.Join(backupDir(), "offsite-status.json")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		writeJSON(w, 200, map[string]any{"configured": false})
+		return
+	}
+	// Pass through verbatim — the script writes well-formed JSON.
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+	// Wrap into {configured:true, ...} so the frontend can distinguish empty.
+	w.Write([]byte(`{"configured":true,`))
+	// Trim leading `{` from the file content and leading whitespace.
+	trimmed := data
+	for len(trimmed) > 0 && (trimmed[0] == ' ' || trimmed[0] == '\n' || trimmed[0] == '\r' || trimmed[0] == '\t') {
+		trimmed = trimmed[1:]
+	}
+	if len(trimmed) > 0 && trimmed[0] == '{' {
+		trimmed = trimmed[1:]
+	}
+	w.Write(trimmed)
 }
 
 type fullDumpItem struct {

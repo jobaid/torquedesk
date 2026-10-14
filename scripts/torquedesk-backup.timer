@@ -1,0 +1,12 @@
+[Unit]
+Description=Nightly TorqueDesk offsite backup
+Requires=torquedesk-backup.service
+
+[Timer]
+# 02:30 server-local every day. If the host was off at that time, run on next boot.
+OnCalendar=*-*-* 02:30:00
+Persistent=true
+RandomizedDelaySec=5min
+
+[Install]
+WantedBy=timers.target

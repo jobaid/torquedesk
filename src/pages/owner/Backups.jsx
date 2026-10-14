@@ -222,8 +222,44 @@ const th = { textAlign: 'left', padding: '10px 14px', fontSize: 11, textTransfor
 const td = { padding: '10px 14px', color: '#000000' }
 const pill = (bg, fg) => ({ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 10px', borderRadius: 999, background: bg, color: fg, fontSize: 11, fontWeight: 600 })
 
+function OffsiteTile({ data }) {
+  if (!data) return null
+  if (!data.configured) {
+    return (
+      <div style={{ marginTop: 14, padding: '12px 14px', background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: 8, fontSize: 13, color: '#78350f' }}>
+        <strong>Offsite backup is not configured.</strong> Install the rclone backup script to push nightly dumps to Google Drive — see <code>scripts/BACKUP.md</code> in the repo.
+      </div>
+    )
+  }
+  const ago = relTime(data.timestamp)
+  const okColor = data.status === 'ok' ? '#065f46' : '#991b1b'
+  const okBg    = data.status === 'ok' ? '#d1fae5' : '#fee2e2'
+  const okBord  = data.status === 'ok' ? '#a7f3d0' : '#fecaca'
+  return (
+    <div style={{ marginTop: 14, padding: '12px 14px', background: okBg, border: '1px solid ' + okBord, borderRadius: 8, fontSize: 13, color: okColor }}>
+      <strong>{data.status === 'ok' ? 'Offsite backup OK' : 'Offsite backup FAILED'}</strong>
+      {' · '}last run {ago}
+      {data.sizeBytes ? ' · ' + fmtSize(data.sizeBytes) : ''}
+      {data.durationSeconds ? ' · ' + data.durationSeconds + 's' : ''}
+      <div style={{ fontSize: 11, marginTop: 4, opacity: .85 }}>→ <code>{data.remote}</code></div>
+      {data.message && data.status !== 'ok' && <div style={{ marginTop: 6, fontSize: 12 }}>{data.message}</div>}
+    </div>
+  )
+}
+
+function relTime(iso) {
+  if (!iso) return '—'
+  const t = new Date(iso)
+  const diff = (Date.now() - t.getTime()) / 1000
+  if (diff < 60) return 'moments ago'
+  if (diff < 3600) return `${Math.round(diff/60)}m ago`
+  if (diff < 86400) return `${Math.round(diff/3600)}h ago`
+  return `${Math.round(diff/86400)}d ago`
+}
+
 function FullDbSection() {
   const [list, setList] = useState([])
+  const [offsite, setOffsite] = useState(null)
   const [busy, setBusy] = useState('')
   const [err, setErr] = useState('')
   const [ok, setOk] = useState('')
@@ -233,6 +269,8 @@ function FullDbSection() {
   const refresh = async () => {
     try { setList((await ownerApi('/backups/full-dump')) || []) }
     catch (e) { setErr(e.message) }
+    try { setOffsite(await ownerApi('/backups/offsite-status')) }
+    catch { /* non-fatal */ }
   }
   useEffect(() => { refresh() }, [])
 
@@ -292,6 +330,8 @@ function FullDbSection() {
           <Btn variant="secondary" disabled={!!busy}><Upload size={14} /> {busy === 'restore' ? 'Restoring…' : 'Restore from .sql / .sql.gz'}</Btn>
         </div>
       </div>
+      <OffsiteTile data={offsite} />
+
       {err && <div style={{ marginTop: 10, padding: 10, background: '#fee2e2', border: '1px solid #fecaca', borderRadius: 6, fontSize: 13, color: '#991b1b' }}>{err}</div>}
       {ok && <div style={{ marginTop: 10, padding: 10, background: '#d1fae5', border: '1px solid #a7f3d0', borderRadius: 6, fontSize: 13, color: '#065f46' }}>{ok}</div>}
 

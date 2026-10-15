@@ -14,6 +14,7 @@ import { MfaSettings } from './MfaSettings'
 import { PaymentGateways } from './PaymentGateways'
 import { NotificationSettings } from './Notifications'
 import { Integrations } from './Integrations'
+import { VehicleIntel } from './VehicleIntel'
 import { EmailTemplates } from './EmailTemplates'
 import { Addons } from './Addons'
 import { Billing } from './Billing'
@@ -44,6 +45,7 @@ export const SETTINGS_NAV = [
   { group: 'General', items: [
     { path: 'general/appearance', label: 'Appearance', icon: Palette, el: <Appearance /> },
     { path: 'general/integrations', label: 'Integrations', icon: Plug, el: <Integrations /> },
+    { path: 'general/vehicle-intel', label: 'Vehicle Intel & Parts', icon: Plug, el: <VehicleIntel /> },
     { path: 'general/addons', label: 'Add-ons', icon: Package, el: <Addons /> },
     { path: 'general/billing', label: 'Billing', icon: ReceiptIcon, el: <Billing /> },
     { path: 'general/notifications', label: 'Notifications', icon: KeyRound, el: <NotificationSettings />, feature: 'notifications' },

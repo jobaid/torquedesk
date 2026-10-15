@@ -49,6 +49,8 @@ var FeatureCatalog = []map[string]any{
 	{"key": "payment_receipts", "label": "Automated payment receipt emails", "group": "Add-ons", "defaultOn": true},
 	{"key": "email_templates", "label": "Editable email templates", "group": "Add-ons", "defaultOn": true},
 	{"key": "integrations_hub", "label": "Integrations hub", "group": "Add-ons", "defaultOn": true},
+	{"key": "vehicle_history", "label": "Vehicle history (CARFAX)", "group": "Add-ons", "defaultOn": false},
+	{"key": "parts_pricing", "label": "Parts pricing & merchant comparison", "group": "Add-ons", "defaultOn": false},
 
 	// Reporting
 	{"key": "reports", "label": "Reports", "group": "Reporting", "defaultOn": true},

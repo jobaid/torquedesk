@@ -175,7 +175,13 @@ func (s *Server) publicSignup(w http.ResponseWriter, r *http.Request) {
 	var existingCount int
 	_ = s.db.QueryRow(r.Context(), `SELECT count(*) FROM company_owners WHERE lower(email) = $1`, in.Owner.Email).Scan(&existingCount)
 	if existingCount > 0 {
-		ve["owner.email"] = "An account with this email already exists. Please sign in instead."
+		ve["owner.email"] = "An account with this email has already been used for a TorqueDesk trial. Only one trial per email is allowed."
+	}
+	// Also lock the business email across companies.
+	var bizCount int
+	_ = s.db.QueryRow(r.Context(), `SELECT count(*) FROM companies WHERE lower(email) = $1`, in.Business.Email).Scan(&bizCount)
+	if bizCount > 0 {
+		ve["business.email"] = "A shop with this business email has already signed up. Only one trial per email is allowed."
 	}
 	if len(ve) > 0 {
 		handleErr(w, ve)
@@ -373,6 +379,13 @@ func (s *Server) publicSignupSync(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := s.activateSignupV2(r.Context(), dto.Metadata.CompanyID, dto.Metadata.Subscription,
 		dto.Metadata.Plan, dto.Metadata.BillingCycle, stripeSubID, stripeCustID); err != nil {
+		if errors.Is(err, ErrTrialAlreadyUsed) {
+			writeJSON(w, 409, map[string]any{
+				"error": "This card has already been used for a TorqueDesk trial. Only one trial per card is allowed. Your subscription has been cancelled and will not be charged.",
+				"trialAbuse": true,
+			})
+			return
+		}
 		writeErr(w, 500, err.Error())
 		return
 	}
@@ -481,6 +494,15 @@ func (s *Server) activateSignupV2(ctx context.Context, companyID, subID, planKey
 		return err
 	}
 	invalidateCompanyStatus(companyID)
+	// Trial-abuse check: one card/bank per trial. Only runs on the
+	// pending→active transition; a re-attach for an already-active shop
+	// shouldn't be able to retroactively lock their own fingerprint out.
+	if wasPending && stripeCustomerID != "" {
+		if abuseErr := s.enforceTrialAbuse(ctx, companyID, stripeCustomerID, stripeSubID); errors.Is(abuseErr, ErrTrialAlreadyUsed) {
+			invalidateCompanyStatus(companyID)
+			return abuseErr
+		}
+	}
 	// Welcome email only on the first activation — not every re-attach.
 	if !wasPending {
 		return nil

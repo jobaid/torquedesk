@@ -13,6 +13,8 @@ export default function SignupComplete() {
   const [status, setStatus] = useState('activating') // activating | ready | failed
   const [err, setErr] = useState('')
 
+  const [trialAbuse, setTrialAbuse] = useState(false)
+
   useEffect(() => {
     if (!session) { setStatus('failed'); setErr('Missing session id in URL.'); return }
     let alive = true
@@ -23,6 +25,9 @@ export default function SignupComplete() {
         const res = await fetch('/api/public/signup/sync/' + encodeURIComponent(session), { method: 'POST' })
         const body = await res.json().catch(() => ({}))
         if (!alive) return
+        if (res.status === 409 && body?.trialAbuse) {
+          setTrialAbuse(true); setStatus('failed'); setErr(body.error); return
+        }
         if (!res.ok) throw new Error(body?.error || `Sync failed (${res.status})`)
         if (body.ready) { setStatus('ready'); return }
       } catch (e) {
@@ -65,9 +70,16 @@ export default function SignupComplete() {
           {status === 'failed' && (
             <>
               <AlertCircle className="mx-auto text-red-500" size={40} />
-              <h1 className="mt-5 text-xl font-bold text-slate-900">We hit a snag activating your account</h1>
+              <h1 className="mt-5 text-xl font-bold text-slate-900">
+                {trialAbuse ? 'Trial already used' : 'We hit a snag activating your account'}
+              </h1>
               <p className="mt-2 text-sm text-slate-600">{err}</p>
-              <p className="mt-2 text-xs text-slate-500">If you were charged, no worries — your subscription exists. Contact support with your email and we'll finish activation manually.</p>
+              {!trialAbuse && (
+                <p className="mt-2 text-xs text-slate-500">If you were charged, no worries — your subscription exists. Contact support with your email and we'll finish activation manually.</p>
+              )}
+              {trialAbuse && (
+                <p className="mt-2 text-xs text-slate-500">Only one TorqueDesk trial per email, card, or bank account is allowed. If this is in error, contact support.</p>
+              )}
               <Link to="/" className="mt-6 inline-flex items-center justify-center w-full px-5 py-3 rounded-lg bg-slate-900 text-white font-semibold hover:bg-slate-800">
                 Back to sign in
               </Link>

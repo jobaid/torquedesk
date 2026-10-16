@@ -38,6 +38,7 @@ func New(ctx context.Context, pool *pgxpool.Pool) (*Server, error) {
 		return nil, err
 	}
 	startLoginLimiterGC()
+	s.StartCustomerBroadcastSweeper()
 	return s, nil
 }
 
@@ -89,6 +90,7 @@ func (s *Server) Handler(staticDir string) http.Handler {
 	s.securityQuestionRoutes(mux)
 	s.vintelRoutes(mux)
 	s.broadcastRoutes(mux)
+	s.customerBroadcastRoutes(mux)
 
 	if st, err := os.Stat(staticDir); err == nil && st.IsDir() {
 		fsrv := http.FileServer(http.Dir(staticDir))

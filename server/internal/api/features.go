@@ -51,6 +51,7 @@ var FeatureCatalog = []map[string]any{
 	{"key": "integrations_hub", "label": "Integrations hub", "group": "Add-ons", "defaultOn": true},
 	{"key": "vehicle_history", "label": "Vehicle history (CARFAX)", "group": "Add-ons", "defaultOn": false},
 	{"key": "parts_pricing", "label": "Parts pricing & merchant comparison", "group": "Add-ons", "defaultOn": false},
+	{"key": "customer_broadcast", "label": "Customer broadcast email", "group": "Add-ons", "defaultOn": false},
 
 	// Reporting
 	{"key": "reports", "label": "Reports", "group": "Reporting", "defaultOn": true},

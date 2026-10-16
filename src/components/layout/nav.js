@@ -32,6 +32,7 @@ export const NAV = [
     items: [
       { to: '/orders', label: 'Repair Orders', icon: FileText, countKey: 'openOrders', feature: 'orders' },
       { to: '/customers', label: 'Customers', icon: Users, feature: 'customers' },
+      { to: '/customer-broadcast', label: 'Broadcast Email', icon: Megaphone, feature: 'customer_broadcast' },
       { to: '/inspections', label: 'Inspections', icon: ClipboardCheck, feature: 'inspections' },
       { to: '/reports', label: 'Reports', icon: BarChart3, feature: 'reports' },
       { to: '/support', label: 'Technical Support', icon: LifeBuoy },

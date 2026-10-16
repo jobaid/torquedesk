@@ -55,6 +55,7 @@ const OwnerSupport = lazy(() => import('./pages/owner/Support'))
 const OwnerUsers = lazy(() => import('./pages/owner/Users'))
 const Legal = lazy(() => import('./pages/Legal'))
 const Support = lazy(() => import('./pages/Support'))
+const CustomerBroadcast = lazy(() => import('./pages/CustomerBroadcast'))
 const OwnerAddons = lazy(() => import('./pages/owner/Addons'))
 const OwnerPlans = lazy(() => import('./pages/owner/Plans'))
 const OwnerBilling = lazy(() => import('./pages/owner/Billing'))
@@ -289,6 +290,7 @@ function Boot() {
           <Route path="orders" element={<S><Orders /></S>} />
           <Route path="orders/:id" element={<S><OrderEditor /></S>} />
           <Route path="customers" element={<S><Customers /></S>} />
+          <Route path="customer-broadcast" element={<S><CustomerBroadcast /></S>} />
           <Route path="customers/:id" element={<S><Customers /></S>} />
           <Route path="inspections" element={<S><Inspections /></S>} />
           <Route path="inspections/:id" element={<S><Inspections /></S>} />

@@ -733,7 +733,7 @@ func (s *Server) getCompany(w http.ResponseWriter, r *http.Request) {
 		Scan(&subID, &plan, &sstatus, &cycle, &monthly, &annual, &start, &end, &trialStart, &trialEnd, &autoR, &payStatus,
 			&stripeCust, &stripeSubscription)
 	if err == nil {
-		c["subscription"] = map[string]any{
+		subInfo := map[string]any{
 			"id": subID, "plan": plan, "status": sstatus, "billingCycle": cycle,
 			"monthlyPrice": dec(monthly), "annualPrice": dec(annual),
 			"startDate": fmtDate(start), "endDate": fmtDate(end),
@@ -743,6 +743,37 @@ func (s *Server) getCompany(w http.ResponseWriter, r *http.Request) {
 			"stripeCustomerId":       stripeCust,
 			"stripeSubscriptionId":   stripeSubscription,
 		}
+		// Pull live card brand/last4 from Stripe so the SaaS Owner UI shows
+		// which card the shop is using. Non-fatal — any Stripe error just
+		// leaves the card fields empty.
+		if stripeSubscription != "" {
+			if secret, ok := s.platformStripeSecret(r.Context()); ok {
+				if raw, serr := stripeForm(r.Context(), secret, "GET",
+					"https://api.stripe.com/v1/subscriptions/"+stripeSubscription+"?expand[]=default_payment_method", nil); serr == nil {
+					var sub struct {
+						Status              string `json:"status"`
+						CancelAtPeriodEnd   bool   `json:"cancel_at_period_end"`
+						DefaultPaymentMethod any   `json:"default_payment_method"`
+					}
+					_ = json.Unmarshal(raw, &sub)
+					subInfo["stripeStatus"] = sub.Status
+					subInfo["cancelAtPeriodEnd"] = sub.CancelAtPeriodEnd
+					if pm, ok := sub.DefaultPaymentMethod.(map[string]any); ok {
+						if card, ok := pm["card"].(map[string]any); ok {
+							if b, ok := card["brand"].(string); ok { subInfo["cardBrand"] = b }
+							if l, ok := card["last4"].(string); ok { subInfo["cardLast4"] = l }
+							if m, ok := card["exp_month"].(float64); ok { subInfo["cardExpMonth"] = int(m) }
+							if y, ok := card["exp_year"].(float64); ok { subInfo["cardExpYear"] = int(y) }
+						}
+						if bank, ok := pm["us_bank_account"].(map[string]any); ok {
+							subInfo["cardBrand"] = "us_bank_account"
+							if l, ok := bank["last4"].(string); ok { subInfo["cardLast4"] = l }
+						}
+					}
+				}
+			}
+		}
+		c["subscription"] = subInfo
 	}
 	// Owners
 	owners := []map[string]any{}

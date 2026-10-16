@@ -137,6 +137,10 @@ func (s *Server) cancelMySubscription(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 502, "Could not cancel in Stripe: "+err.Error())
 		return
 	}
+	// Mirror onto our subscriptions table so the SaaS Owner UI reflects the
+	// change without waiting for the Stripe webhook.
+	_, _ = s.db.Exec(r.Context(),
+		`UPDATE subscriptions SET auto_renewal=false, updated_at=now() WHERE company_id::text = $1`, cid)
 	writeJSON(w, 200, map[string]any{"ok": true})
 }
 
@@ -160,6 +164,8 @@ func (s *Server) resumeMySubscription(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 502, "Could not resume in Stripe: "+err.Error())
 		return
 	}
+	_, _ = s.db.Exec(r.Context(),
+		`UPDATE subscriptions SET auto_renewal=true, updated_at=now() WHERE company_id::text = $1`, cid)
 	writeJSON(w, 200, map[string]any{"ok": true})
 }
 

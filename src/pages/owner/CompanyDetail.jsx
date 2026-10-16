@@ -152,8 +152,19 @@ export default function CompanyDetail() {
                       ({c.subscription.daysUntilExpiration} days)
                     </span>
                   )}</span>} />
-                  <KV k="Auto-renew" v={c.subscription.autoRenewal ? 'Yes' : 'No'} />
+                  <KV k="Auto-renew" v={c.subscription.autoRenewal
+                    ? <span style={{ color: '#16a34a' }}>On</span>
+                    : <span style={{ color: '#dc2626' }}>Off {c.subscription.cancelAtPeriodEnd ? '(cancels at period end)' : ''}</span>} />
                   <KV k="Payment status" v={<span style={{ textTransform: 'capitalize' }}>{c.subscription.paymentStatus}</span>} />
+                  <KV k="Payment method" v={c.subscription.cardBrand
+                    ? <span style={{ textTransform: 'capitalize' }}>
+                        {c.subscription.cardBrand === 'us_bank_account' ? 'Bank' : c.subscription.cardBrand}
+                        {c.subscription.cardLast4 ? ' •••• ' + c.subscription.cardLast4 : ''}
+                        {c.subscription.cardExpMonth && c.subscription.cardExpYear
+                          ? ` (exp ${String(c.subscription.cardExpMonth).padStart(2,'0')}/${String(c.subscription.cardExpYear).slice(-2)})`
+                          : ''}
+                      </span>
+                    : '—'} />
                   <KV k="Stripe customer ID"
                     v={c.subscription.stripeCustomerId ? (
                       <a href={`https://dashboard.stripe.com/customers/${c.subscription.stripeCustomerId}`}

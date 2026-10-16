@@ -9,11 +9,13 @@ package api
 // background sweep that runs hourly.
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"mime"
 	"net/http"
 	"os"
@@ -281,12 +283,15 @@ func (s *Server) shopBroadcastSend(w http.ResponseWriter, r *http.Request) {
 		"You are receiving this because you are a customer of "+htmlEscape(fromName)+".")
 
 	batch := time.Now().UTC().Format("20060102150405")
-	ctx := r.Context()
+	// Use context.Background() — r.Context() cancels when the HTTP response
+	// returns, which would kill every enqueue in the goroutine below.
 	go func() {
+		ctx := context.Background()
 		for _, email := range emails {
 			s.SendPlatformEmail(ctx, []string{email}, in.Subject, shell, textBody,
 				"customer_broadcast", "cbr:"+u.CompanyID+":"+batch+":"+strings.ToLower(email))
 		}
+		log.Printf("customer_broadcast: queued %d emails for company %s batch %s", len(emails), u.CompanyID, batch)
 	}()
 
 	writeJSON(w, 200, map[string]any{"ok": true, "recipients": len(emails), "batch": batch})

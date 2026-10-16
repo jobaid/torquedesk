@@ -85,8 +85,10 @@ func (s *Server) broadcastSend(w http.ResponseWriter, r *http.Request) {
 	// Dedupe key timestamps the batch so retries within the same minute
 	// don't double-send.
 	batch := time.Now().UTC().Format("20060102150405")
-	ctx := r.Context()
+	// Use context.Background() — the request context cancels when the HTTP
+	// response is sent, which would kill the enqueue below mid-loop.
 	go func() {
+		ctx := context.Background()
 		for _, email := range emails {
 			s.SendPlatformEmail(ctx, []string{email}, in.Subject, shell, textBody,
 				"broadcast", "broadcast:"+batch+":"+strings.ToLower(email))

@@ -28,7 +28,7 @@ export default function Broadcast() {
     try {
       const r = await ownerApi('/broadcast', {
         method: 'POST',
-        body: JSON.stringify({ subject: subject.trim(), body: body.trim(), audience }),
+        body: { subject: subject.trim(), body: body.trim(), audience },
       })
       setSent(r)
     } catch (e) { setErr(e?.message || 'Send failed') }

@@ -4,6 +4,19 @@ import { money } from '../../lib/format'
 const pad = (n) => String(n).padStart(2, '0')
 export const toDateStr = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 
+// Full ISO timestamp anchored to the START of this local day. Used for the
+// `from` end of a report range so the backend compares against the correct
+// absolute UTC moment regardless of the shop's timezone.
+const toLocalDayStartISO = (d) => {
+  const x = new Date(d); x.setHours(0, 0, 0, 0); return x.toISOString()
+}
+// Full ISO anchored to the END of this local day (23:59:59.999). Used for
+// the `to` end of a range — avoids the server-side +24h UTC hack that would
+// otherwise clip evening invoices in westerly timezones.
+const toLocalDayEndISO = (d) => {
+  const x = new Date(d); x.setHours(23, 59, 59, 999); return x.toISOString()
+}
+
 export function presetRange(preset) {
   const now = new Date()
   const start = new Date(now.getFullYear(), now.getMonth(), now.getDate())
@@ -25,8 +38,8 @@ export function presetRange(preset) {
 
 export function buildQuery(filters) {
   const params = new URLSearchParams()
-  if (filters.from) params.set('from', toDateStr(filters.from))
-  if (filters.to) params.set('to', toDateStr(filters.to))
+  if (filters.from) params.set('from', toLocalDayStartISO(filters.from))
+  if (filters.to) params.set('to', toLocalDayEndISO(filters.to))
   for (const k of ['customer_id', 'technician_id', 'service_writer_id', 'payment_method', 'invoice_status', 'tax_type', 'part_number']) {
     if (filters[k]) params.set(k, filters[k])
   }

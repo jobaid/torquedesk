@@ -56,7 +56,15 @@ func parseFilter(r *http.Request) reportFilter {
 	}
 	if s := q.Get("to"); s != "" {
 		if t, err := parseDate(s); err == nil {
-			f.To, f.HasTo = t.Add(24*time.Hour), true // inclusive end-of-day
+			// RFC3339 inputs already carry an explicit time-of-day (set by the
+			// frontend to 23:59:59.999 of the local day), so they represent the
+			// correct absolute end-of-day moment — do not shift them. Date-only
+			// legacy inputs still need the +24h end-of-day expansion.
+			if strings.Contains(s, "T") {
+				f.To, f.HasTo = t, true
+			} else {
+				f.To, f.HasTo = t.Add(24*time.Hour), true
+			}
 		}
 	}
 	f.Page, _ = strconv.Atoi(q.Get("page"))

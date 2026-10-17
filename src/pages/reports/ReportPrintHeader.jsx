@@ -17,7 +17,7 @@ export default function ReportPrintHeader({ title, filters, extra }) {
   return (
     <div className="report-print-header">
       <div className="rph-top">
-        <div className="rph-shop">{shop.shopName || 'TorqueDesk'}</div>
+        <div className="rph-shop">{shop.shopName || 'Fixora'}</div>
         <div className="rph-contact">
           {addr && <div>{addr}</div>}
           {shop.phone && <div>{shop.phone}</div>}

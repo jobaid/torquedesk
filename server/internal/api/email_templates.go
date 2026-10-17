@@ -45,21 +45,21 @@ var builtInTemplates = map[string]templateDef{
 		Placeholders: []string{"owner_name", "company_name", "application_url", "from_name"},
 		Subject:      "Welcome to {{from_name}} — your shop is ready",
 		HTML: `<p>Hi {{owner_name}},</p>
-<p>Your TorqueDesk shop account for <strong>{{company_name}}</strong> is ready.
+<p>Your Fixora shop account for <strong>{{company_name}}</strong> is ready.
 Sign in with the credentials you were provided and start setting up your workspace.</p>
 <p><a href="{{application_url}}" style="display:inline-block;padding:10px 18px;background:#2a6cf0;color:#fff;text-decoration:none;border-radius:8px;font-weight:600">Open your shop</a></p>`,
-		Text: "Hi {{owner_name}},\n\nYour TorqueDesk shop account for {{company_name}} is ready.\n\nOpen your shop: {{application_url}}\n",
+		Text: "Hi {{owner_name}},\n\nYour Fixora shop account for {{company_name}} is ready.\n\nOpen your shop: {{application_url}}\n",
 	},
 	"status_change": {
 		Kind: "status_change", Scope: "platform",
 		Label:        "Account status change",
 		Description:  "Sent when you suspend, reactivate, expire, or cancel a shop.",
 		Placeholders: []string{"company_name", "status_phrase", "reason", "status"},
-		Subject:      "TorqueDesk account status: {{status}}",
-		HTML: `<p>Your TorqueDesk shop <strong>{{company_name}}</strong> {{status_phrase}}.</p>
+		Subject:      "Fixora account status: {{status}}",
+		HTML: `<p>Your Fixora shop <strong>{{company_name}}</strong> {{status_phrase}}.</p>
 <p>{{reason}}</p>
-<p>If you believe this is a mistake, reply to this email and the TorqueDesk team will look into it.</p>`,
-		Text: "Your TorqueDesk shop {{company_name}} {{status_phrase}}.\n{{reason}}\n",
+<p>If you believe this is a mistake, reply to this email and the Fixora team will look into it.</p>`,
+		Text: "Your Fixora shop {{company_name}} {{status_phrase}}.\n{{reason}}\n",
 	},
 	"addon_subscription": {
 		Kind: "addon_subscription", Scope: "platform",
@@ -76,15 +76,15 @@ Sign in with the credentials you were provided and start setting up your workspa
   <tr><td style="padding:4px 10px 4px 0;color:#666;font-size:12px">First charge</td><td style="padding:4px 0;font-size:13px"><strong>{{next_charge}}</strong></td></tr>
 </table>
 <p style="margin-top:14px">The feature is already enabled in your shop. You can cancel any time from Settings → Add-ons before the trial ends and you won't be charged.</p>
-<p>— The TorqueDesk team</p>`,
-		Text: "Hi,\n\nThank you for subscribing to {{addon_name}}. {{status_phrase}}\n\nAdd-on: {{addon_name}}\nPrice: {{monthly_price}} / month\nTrial ends: {{trial_end}}\nFirst charge: {{next_charge}}\n\nThe feature is already enabled in your shop. Cancel any time from Settings → Add-ons.\n\n— The TorqueDesk team\n",
+<p>— The Fixora team</p>`,
+		Text: "Hi,\n\nThank you for subscribing to {{addon_name}}. {{status_phrase}}\n\nAdd-on: {{addon_name}}\nPrice: {{monthly_price}} / month\nTrial ends: {{trial_end}}\nFirst charge: {{next_charge}}\n\nThe feature is already enabled in your shop. Cancel any time from Settings → Add-ons.\n\n— The Fixora team\n",
 	},
 	"subscription": {
 		Kind: "subscription", Scope: "platform",
 		Label:        "Subscription update",
 		Description:  "Sent on subscription extend / renew / plan-change / expiration.",
 		Placeholders: []string{"company_name", "title", "intro", "detail_table"},
-		Subject:      "TorqueDesk: {{title}}",
+		Subject:      "Fixora: {{title}}",
 		HTML:         `<p>{{intro}}</p>{{detail_table}}`,
 		Text:         "{{intro}}\n",
 	},

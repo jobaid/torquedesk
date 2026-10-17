@@ -19,7 +19,7 @@ export default function VehiclePickerModal() {
   }
 
   return (
-    <Modal open={open} onClose={close} size="lg" title="Select vehicle" description="Information throughout TorqueDesk is filtered to the vehicle you choose.">
+    <Modal open={open} onClose={close} size="lg" title="Select vehicle" description="Information throughout Fixora is filtered to the vehicle you choose.">
       <div className="stack gap-24">
         {recent.length > 0 && (
           <div className="stack gap-8">

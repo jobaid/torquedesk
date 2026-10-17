@@ -37,26 +37,26 @@ export default function Broadcast() {
 
   const useTemplate = (kind) => {
     if (kind === 'maintenance') {
-      setSubject('TorqueDesk scheduled maintenance')
+      setSubject('Fixora scheduled maintenance')
       setBody(`Hi,
 
-We'll be performing scheduled maintenance on TorqueDesk from <strong>10:00 PM EST tonight</strong> to <strong>11:00 PM EST</strong>. During this window the app may be briefly unavailable while we deploy updates.
+We'll be performing scheduled maintenance on Fixora from <strong>10:00 PM EST tonight</strong> to <strong>11:00 PM EST</strong>. During this window the app may be briefly unavailable while we deploy updates.
 
 No action is required on your part. If you have any questions, reply to this email.
 
 Thanks,
-The TorqueDesk team`)
+The Fixora team`)
     } else if (kind === 'outage') {
-      setSubject('TorqueDesk service update')
+      setSubject('Fixora service update')
       setBody(`Hi,
 
-We're currently investigating a service issue affecting some TorqueDesk shops. Our team is actively working on a fix.
+We're currently investigating a service issue affecting some Fixora shops. Our team is actively working on a fix.
 
 We'll send a follow-up email once the issue is fully resolved. Thanks for your patience.
 
-— The TorqueDesk team`)
+— The Fixora team`)
     } else if (kind === 'update') {
-      setSubject("What's new on TorqueDesk")
+      setSubject("What's new on Fixora")
       setBody(`Hi,
 
 A quick note on what shipped this week:
@@ -65,7 +65,7 @@ A quick note on what shipped this week:
 
 Log in to try it out, and reply if you have questions.
 
-— The TorqueDesk team`)
+— The Fixora team`)
     }
   }
 

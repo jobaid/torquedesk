@@ -51,7 +51,7 @@ export default function SignupComplete() {
           {status === 'activating' && (
             <>
               <Loader2 className="mx-auto text-blue-600 animate-spin" size={40} />
-              <h1 className="mt-5 text-xl font-bold text-slate-900">Activating your TorqueDesk account…</h1>
+              <h1 className="mt-5 text-xl font-bold text-slate-900">Activating your Fixora account…</h1>
               <p className="mt-2 text-sm text-slate-600">Payment received. Setting up your shop workspace, enabling features, and sending your welcome email. This usually takes just a few seconds.</p>
             </>
           )}
@@ -78,7 +78,7 @@ export default function SignupComplete() {
                 <p className="mt-2 text-xs text-slate-500">If you were charged, no worries — your subscription exists. Contact support with your email and we'll finish activation manually.</p>
               )}
               {trialAbuse && (
-                <p className="mt-2 text-xs text-slate-500">Only one TorqueDesk trial per email, card, or bank account is allowed. If this is in error, contact support.</p>
+                <p className="mt-2 text-xs text-slate-500">Only one Fixora trial per email, card, or bank account is allowed. If this is in error, contact support.</p>
               )}
               <Link to="/" className="mt-6 inline-flex items-center justify-center w-full px-5 py-3 rounded-lg bg-slate-900 text-white font-semibold hover:bg-slate-800">
                 Back to sign in

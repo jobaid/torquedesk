@@ -684,7 +684,7 @@ func supportBrand() string {
 	if v := os.Getenv("TORQUEDESK_BRAND"); v != "" {
 		return v
 	}
-	return "TorqueDesk Support"
+	return "Fixora Support"
 }
 
 func supportPortalBase() string {
@@ -703,7 +703,7 @@ func supportEmailShell(title, body string) string {
   </div>
   <div style="padding:24px 28px;line-height:1.55;font-size:14px">` + body + `</div>
   <div style="padding:14px 28px;background:#f8fafc;color:#64748b;font-size:11px;border-top:1px solid #e2e8f0">
-    You received this because you have an active TorqueDesk account. Reply by signing in — do not reply to this email.
+    You received this because you have an active Fixora account. Reply by signing in — do not reply to this email.
   </div>
 </div></body></html>`
 }

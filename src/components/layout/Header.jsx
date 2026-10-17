@@ -11,7 +11,7 @@ import { initials, relTime } from '../../lib/format'
 export default function Header() {
   const { pathname } = useLocation()
   const seg = pathname.split('/')[1] || ''
-  const meta = PAGE_META[seg] || { title: 'TorqueDesk' }
+  const meta = PAGE_META[seg] || { title: 'Fixora' }
   const openPalette = useUI((s) => s.openPalette)
   const setDrawer = useUI((s) => s.setDrawer)
 

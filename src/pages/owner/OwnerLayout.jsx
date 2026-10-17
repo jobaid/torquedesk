@@ -41,7 +41,7 @@ export default function OwnerLayout() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '18px 16px', borderBottom: '1px solid #e2e8f0' }}>
           <div style={{ background: 'linear-gradient(135deg,#2554f5,#7c3aed)', borderRadius: 8, padding: 6, display: 'flex' }}><ShieldCheck size={18} color="#fff" /></div>
           <div>
-            <div style={{ fontSize: 15, fontWeight: 700, lineHeight: 1, color: '#000000' }}>TorqueDesk</div>
+            <div style={{ fontSize: 15, fontWeight: 700, lineHeight: 1, color: '#000000' }}>Fixora</div>
             <div style={{ fontSize: 10.5, color: '#000000', marginTop: 2 }}>Admin Portal</div>
           </div>
         </div>

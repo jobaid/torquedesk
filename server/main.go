@@ -1,4 +1,4 @@
-// TorqueDesk API server.
+// Fixora API server.
 //
 // Uses DATABASE_URL when set. Otherwise starts an embedded PostgreSQL instance
 // under ./.data so the app runs locally without installing PostgreSQL.
@@ -100,7 +100,7 @@ func main() {
 	// Format: "email:password". Password may contain any character except the
 	// first colon (which separates). Convenient for Docker:
 	//   docker compose run --rm --entrypoint=/app/torquedesk-server \
-	//     server --reset-saas-admin='you@example.com:TorqueDesk2026'
+	//     server --reset-saas-admin='you@example.com:Fixora2026'
 	if *resetSaasAdmin != "" {
 		email, pw, ok := splitEmailPassword(*resetSaasAdmin)
 		if !ok {
@@ -127,7 +127,7 @@ func main() {
 
 	httpSrv := &http.Server{Addr: *addr, Handler: srv.Handler(*static), ReadHeaderTimeout: 10 * time.Second}
 	go func() {
-		log.Printf("TorqueDesk API listening on %s", *addr)
+		log.Printf("Fixora API listening on %s", *addr)
 		if err := httpSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Printf("http: %v", err)
 			stop()

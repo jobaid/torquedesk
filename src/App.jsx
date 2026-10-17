@@ -244,7 +244,7 @@ function Boot() {
         <div className="card">
           <EmptyState
             icon={ServerOff}
-            title={isAuth ? 'Your session is no longer valid' : "Can't reach the TorqueDesk server"}
+            title={isAuth ? 'Your session is no longer valid' : "Can't reach the Fixora server"}
             action={
               isAuth
                 ? <button className="btn btn-primary" onClick={() => logout()}>Sign in again</button>

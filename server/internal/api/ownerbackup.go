@@ -46,7 +46,7 @@ import (
 )
 
 const (
-	ownerBackupAutoName = "TorqueDesk_PlatformBackup.zip"
+	ownerBackupAutoName = "Fixora_PlatformBackup.zip"
 	ownerBackupDirName  = "_global"
 )
 
@@ -129,7 +129,7 @@ func ownerListKind(dir string) []ownerBackupItem {
 
 func (s *Server) ownerCreateManualBackup(w http.ResponseWriter, r *http.Request) {
 	u := userFrom(r.Context())
-	fn := fmt.Sprintf("TorqueDesk_PlatformBackup_%s.zip", time.Now().UTC().Format("2006-01-02_1504"))
+	fn := fmt.Sprintf("Fixora_PlatformBackup_%s.zip", time.Now().UTC().Format("2006-01-02_1504"))
 	out := filepath.Join(ownerManualDir(), fn)
 	m, err := s.writeOwnerArchive(r.Context(), "manual", out)
 	if err != nil {

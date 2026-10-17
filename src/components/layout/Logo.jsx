@@ -11,7 +11,7 @@ export default function Logo({ size = 34 }) {
         justifyContent: 'center',
         borderRadius: size * 0.22,
       }}
-      aria-label="TorqueDesk"
+      aria-label="Fixora"
     >
       <svg width={size * 0.72} height={size * 0.72} viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
         {/* T */}

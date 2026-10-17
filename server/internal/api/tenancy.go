@@ -59,7 +59,7 @@ func (s *Server) demoCompanyID(ctx context.Context) (string, error) {
 	if out == "" {
 		if err := s.db.QueryRow(ctx, `INSERT INTO companies
 			(company_code, slug, name, legal_name, status, application_url, industry, timezone, notes)
-			VALUES ('DEMO-SHOP-001', 'demo', 'Demo Shop', 'TorqueDesk Demo Shop', 'active', '/', 'Automotive', 'America/New_York',
+			VALUES ('DEMO-SHOP-001', 'demo', 'Demo Shop', 'Fixora Demo Shop', 'active', '/', 'Automotive', 'America/New_York',
 				'Auto-created by tenancy.go self-heal.')
 			ON CONFLICT (company_code) DO UPDATE SET updated_at = now()
 			RETURNING id::text`).Scan(&out); err != nil {
@@ -138,7 +138,7 @@ func (s *Server) requireActiveTenant(h http.HandlerFunc) http.HandlerFunc {
 		}
 		if status == "suspended" || status == "expired" || status == "cancelled" {
 			writeJSON(w, 403, map[string]any{
-				"error":         "Your TorqueDesk subscription is currently " + status + ".",
+				"error":         "Your Fixora subscription is currently " + status + ".",
 				"companyStatus": status,
 			})
 			return

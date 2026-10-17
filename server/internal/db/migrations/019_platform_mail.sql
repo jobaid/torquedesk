@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS platform_mail_settings (
     smtp_password_enc   bytea,
     smtp_use_tls        boolean NOT NULL DEFAULT true,
     from_email          text NOT NULL DEFAULT '',
-    from_name           text NOT NULL DEFAULT 'TorqueDesk',
+    from_name           text NOT NULL DEFAULT 'Fixora',
     reply_to            text NOT NULL DEFAULT '',
     enabled             boolean NOT NULL DEFAULT false,
     notify_new_company      boolean NOT NULL DEFAULT true,

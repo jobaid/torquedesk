@@ -175,7 +175,7 @@ func (s *Server) publicSignup(w http.ResponseWriter, r *http.Request) {
 	var existingCount int
 	_ = s.db.QueryRow(r.Context(), `SELECT count(*) FROM company_owners WHERE lower(email) = $1`, in.Owner.Email).Scan(&existingCount)
 	if existingCount > 0 {
-		ve["owner.email"] = "An account with this email has already been used for a TorqueDesk trial. Only one trial per email is allowed."
+		ve["owner.email"] = "An account with this email has already been used for a Fixora trial. Only one trial per email is allowed."
 	}
 	// Also lock the business email across companies.
 	var bizCount int
@@ -350,7 +350,7 @@ func (s *Server) publicSignupSync(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if dto.Metadata.Signup != "true" {
-		writeErr(w, 404, "This checkout session is not a TorqueDesk signup.")
+		writeErr(w, 404, "This checkout session is not a Fixora signup.")
 		return
 	}
 	if dto.Status != "complete" {
@@ -381,7 +381,7 @@ func (s *Server) publicSignupSync(w http.ResponseWriter, r *http.Request) {
 		dto.Metadata.Plan, dto.Metadata.BillingCycle, stripeSubID, stripeCustID); err != nil {
 		if errors.Is(err, ErrTrialAlreadyUsed) {
 			writeJSON(w, 409, map[string]any{
-				"error": "This card has already been used for a TorqueDesk trial. Only one trial per card is allowed. Your subscription has been cancelled and will not be charged.",
+				"error": "This card has already been used for a Fixora trial. Only one trial per card is allowed. Your subscription has been cancelled and will not be charged.",
 				"trialAbuse": true,
 			})
 			return
@@ -644,8 +644,8 @@ func signupStripePriceFor(ctx context.Context, _ *Server, secret string, plan si
 	// subscription_plan_prices table if you want them survivable across
 	// restarts.
 	productID, priceID, err := stripeCreateProductAndPriceWithInterval(ctx, secret,
-		"TorqueDesk — "+plan.Name+" ("+cycle+")",
-		"TorqueDesk subscription", amount, "usd", interval)
+		"Fixora — "+plan.Name+" ("+cycle+")",
+		"Fixora subscription", amount, "usd", interval)
 	if err != nil {
 		return "", err
 	}

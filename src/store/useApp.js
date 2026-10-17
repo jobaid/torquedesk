@@ -14,7 +14,7 @@ export const ROLES = {
 const SEED_NOTIFS = [
   { id: 'n1', title: 'New bulletin: TSB 25-006', body: 'Transmission harsh 1–2 upshift — software update available.', at: Date.now() - 1000 * 60 * 42, read: false, path: '/bulletins/tsb-25-006' },
   { id: 'n2', title: 'Safety recall 24V-312', body: 'Fuel pump impeller may deform. Check VIN for open recalls.', at: Date.now() - 1000 * 60 * 60 * 26, read: false, path: '/bulletins/rc-24v-312' },
-  { id: 'n3', title: 'Welcome to TorqueDesk', body: 'Select a vehicle to get started. Press Ctrl+K to search anywhere.', at: Date.now() - 1000 * 60 * 60 * 50, read: true, path: '/vehicle' },
+  { id: 'n3', title: 'Welcome to Fixora', body: 'Select a vehicle to get started. Press Ctrl+K to search anywhere.', at: Date.now() - 1000 * 60 * 60 * 50, read: true, path: '/vehicle' },
 ]
 
 export const useApp = create(

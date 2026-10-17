@@ -54,7 +54,7 @@ func (s *Server) requireFeature(w http.ResponseWriter, r *http.Request, key stri
 	u := userFrom(r.Context())
 	if !s.companyHasFeature(r.Context(), u.CompanyID, key) {
 		writeJSON(w, 403, map[string]any{
-			"error":        "This add-on is not enabled for your shop. Contact your TorqueDesk administrator.",
+			"error":        "This add-on is not enabled for your shop. Contact your Fixora administrator.",
 			"missingAddon": key,
 		})
 		return false

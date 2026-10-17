@@ -21,7 +21,7 @@
 -- Seed company for existing single-tenant data.
 -- ---------------------------------------------------------------------------
 INSERT INTO companies (company_code, slug, name, legal_name, status, application_url, industry, timezone, notes)
-VALUES ('DEMO-SHOP-001', 'demo', 'Demo Shop', 'TorqueDesk Demo Shop', 'active', '/', 'Automotive', 'America/New_York',
+VALUES ('DEMO-SHOP-001', 'demo', 'Demo Shop', 'Fixora Demo Shop', 'active', '/', 'Automotive', 'America/New_York',
 	'Automatically created to backfill all pre-tenancy data. You may rename or repurpose this company.')
 ON CONFLICT (company_code) DO NOTHING;
 

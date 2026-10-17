@@ -1,4 +1,4 @@
-// Package api implements the TorqueDesk REST API.
+// Package api implements the Fixora REST API.
 package api
 
 import (

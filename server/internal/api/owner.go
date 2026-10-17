@@ -333,7 +333,7 @@ func (s *Server) ownerAuth(h http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 		if u.Role != saasOwnerRole {
-			writeErr(w, 403, "This area is restricted to TorqueDesk SaaS owners.")
+			writeErr(w, 403, "This area is restricted to Fixora SaaS owners.")
 			return
 		}
 		h(w, r.WithContext(context.WithValue(r.Context(), ctxKey{}, u)))

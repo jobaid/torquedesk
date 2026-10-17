@@ -156,7 +156,7 @@ func (s *Server) oauthMailStart(w http.ResponseWriter, r *http.Request) {
 	}
 	clientID := os.Getenv(p.ClientIDEnv)
 	if clientID == "" {
-		writeErr(w, 503, "This provider isn't configured on the server. Ask the TorqueDesk administrator to set "+p.ClientIDEnv+" + "+p.ClientSecretEnv+".")
+		writeErr(w, 503, "This provider isn't configured on the server. Ask the Fixora administrator to set "+p.ClientIDEnv+" + "+p.ClientSecretEnv+".")
 		return
 	}
 	state := signOAuthState(s.secret, cid, provider, u.Name)

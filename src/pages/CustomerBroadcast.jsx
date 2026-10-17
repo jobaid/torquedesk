@@ -33,7 +33,7 @@ export default function CustomerBroadcast() {
       <div className="page full">
         <div className="card stack gap-8" style={{ maxWidth: 560, padding: 24 }}>
           <h2>Customer broadcast email</h2>
-          <p className="muted">This add-on is not enabled for your shop. Contact your TorqueDesk administrator to enable it.</p>
+          <p className="muted">This add-on is not enabled for your shop. Contact your Fixora administrator to enable it.</p>
         </div>
       </div>
     )

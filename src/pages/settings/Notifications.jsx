@@ -74,7 +74,7 @@ function ConnectWizard({ preset, onClose, email, setEmail, password, setPassword
           <div style={{ padding: 14, borderRadius: 8, background: '#eff6ff', border: '1px solid #bfdbfe', marginBottom: 14 }}>
             <div style={{ fontWeight: 600, color: '#1e40af' }}>Sign in with {preset.label} (recommended)</div>
             <div style={{ fontSize: 12, color: '#1e3a8a', marginTop: 4 }}>
-              Authenticate with your {preset.label} account in a popup. No app password needed — TorqueDesk will send mail through your account using OAuth.
+              Authenticate with your {preset.label} account in a popup. No app password needed — Fixora will send mail through your account using OAuth.
             </div>
             {oauthConnected ? (
               <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, color: '#065f46' }}>

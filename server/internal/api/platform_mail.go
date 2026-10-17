@@ -183,9 +183,9 @@ func (s *Server) testPlatformMail(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 400, err.Error())
 		return
 	}
-	err = m.send(pw, []string{in.To}, "TorqueDesk platform test email",
-		"<p>This is a test email from the TorqueDesk platform mailer. If you received this, platform-level emails to shop owners are configured correctly.</p>",
-		"This is a test email from the TorqueDesk platform mailer.\n")
+	err = m.send(pw, []string{in.To}, "Fixora platform test email",
+		"<p>This is a test email from the Fixora platform mailer. If you received this, platform-level emails to shop owners are configured correctly.</p>",
+		"This is a test email from the Fixora platform mailer.\n")
 	if err != nil {
 		writeErr(w, 502, "Could not send: "+err.Error())
 		return
@@ -278,7 +278,7 @@ func (s *Server) platformNotifyEnabled(ctx context.Context, kind string) bool {
 // address and support contact.
 func platformEmailShell(fromName, title, body, footerNote string) string {
 	if fromName == "" {
-		fromName = "TorqueDesk"
+		fromName = "Fixora"
 	}
 	// Preheader is the first bit of plain text in the email body — most
 	// mail clients show it next to the subject in the inbox list.
@@ -335,7 +335,7 @@ func (s *Server) NotifyCompanyCreated(ctx context.Context, ownerEmail, ownerName
 	subject, html, text := s.renderTemplate(ctx, "platform", "", "welcome", vars)
 	s.SendPlatformEmail(ctx, []string{ownerEmail},
 		subject,
-		platformEmailShell(fromName, "Welcome to TorqueDesk", html, "You are receiving this because your shop was just activated on TorqueDesk."),
+		platformEmailShell(fromName, "Welcome to Fixora", html, "You are receiving this because your shop was just activated on Fixora."),
 		text,
 		"welcome", "welcome:"+strings.ToLower(ownerEmail),
 	)
@@ -381,35 +381,35 @@ func (s *Server) NotifySubscriptionChange(ctx context.Context, ownerEmail, compa
 	}
 	fromName := s.platformFromName(ctx)
 	title := "Subscription update"
-	intro := "Your TorqueDesk subscription for <strong>" + htmlEscape(companyName) + "</strong> was updated."
+	intro := "Your Fixora subscription for <strong>" + htmlEscape(companyName) + "</strong> was updated."
 	switch kind {
 	case "renewed":
 		title = "Subscription renewed"
-		intro = "Your TorqueDesk subscription for <strong>" + htmlEscape(companyName) + "</strong> has been renewed."
+		intro = "Your Fixora subscription for <strong>" + htmlEscape(companyName) + "</strong> has been renewed."
 	case "extended":
 		title = "Subscription extended"
-		intro = "Your TorqueDesk subscription for <strong>" + htmlEscape(companyName) + "</strong> has been extended."
+		intro = "Your Fixora subscription for <strong>" + htmlEscape(companyName) + "</strong> has been extended."
 	case "expiring_soon":
 		title = "Subscription expiring soon"
-		intro = "Your TorqueDesk subscription for <strong>" + htmlEscape(companyName) + "</strong> is about to expire."
+		intro = "Your Fixora subscription for <strong>" + htmlEscape(companyName) + "</strong> is about to expire."
 	case "expired":
 		title = "Subscription expired"
-		intro = "Your TorqueDesk subscription for <strong>" + htmlEscape(companyName) + "</strong> has expired."
+		intro = "Your Fixora subscription for <strong>" + htmlEscape(companyName) + "</strong> has expired."
 	case "plan_changed":
 		title = "Subscription plan changed"
-		intro = "Your TorqueDesk subscription plan for <strong>" + htmlEscape(companyName) + "</strong> has been changed."
+		intro = "Your Fixora subscription plan for <strong>" + htmlEscape(companyName) + "</strong> has been changed."
 	case "trial_set":
 		title = "Trial period started"
-		intro = "Your TorqueDesk subscription for <strong>" + htmlEscape(companyName) + "</strong> has been placed into a trial period."
+		intro = "Your Fixora subscription for <strong>" + htmlEscape(companyName) + "</strong> has been placed into a trial period."
 	case "pending_set":
 		title = "Subscription pending"
-		intro = "Your TorqueDesk subscription for <strong>" + htmlEscape(companyName) + "</strong> is now pending — the TorqueDesk team is reviewing the account."
+		intro = "Your Fixora subscription for <strong>" + htmlEscape(companyName) + "</strong> is now pending — the Fixora team is reviewing the account."
 	case "suspended_set":
 		title = "Subscription suspended"
-		intro = "Your TorqueDesk subscription for <strong>" + htmlEscape(companyName) + "</strong> has been suspended. Contact support for details."
+		intro = "Your Fixora subscription for <strong>" + htmlEscape(companyName) + "</strong> has been suspended. Contact support for details."
 	case "cancelled_set":
 		title = "Subscription cancelled"
-		intro = "Your TorqueDesk subscription for <strong>" + htmlEscape(companyName) + "</strong> has been cancelled."
+		intro = "Your Fixora subscription for <strong>" + htmlEscape(companyName) + "</strong> has been cancelled."
 	}
 	var rows strings.Builder
 	for _, k := range []string{"plan", "billingCycle", "endDate", "monthlyPrice", "annualPrice"} {
@@ -439,7 +439,7 @@ func (s *Server) NotifySubscriptionChange(ctx context.Context, ownerEmail, compa
 func (s *Server) platformFromName(ctx context.Context) string {
 	dto, _, err := s.scanPlatformMail(ctx)
 	if err != nil || dto.FromName == "" {
-		return "TorqueDesk"
+		return "Fixora"
 	}
 	return dto.FromName
 }

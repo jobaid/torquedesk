@@ -80,7 +80,7 @@ func (s *Server) broadcastSend(w http.ResponseWriter, r *http.Request) {
 
 	fromName := s.platformFromName(r.Context())
 	shell := platformEmailShell(fromName, in.Subject, htmlBody,
-		"You are receiving this because your TorqueDesk shop is on our platform mailing list.")
+		"You are receiving this because your Fixora shop is on our platform mailing list.")
 
 	// Dedupe key timestamps the batch so retries within the same minute
 	// don't double-send.

@@ -98,17 +98,17 @@ func (s *Server) sendRenewalEmail(ctx context.Context, cid, email, companyName, 
 	fromName := s.platformFromName(ctx)
 	subject := "Renew your " + companyName + " subscription to keep access"
 	html := `<p>Hi,</p>
-<p>Your TorqueDesk subscription for <strong>` + htmlEscape(companyName) + `</strong> has expired, so you can't sign in right now.</p>
+<p>Your Fixora subscription for <strong>` + htmlEscape(companyName) + `</strong> has expired, so you can't sign in right now.</p>
 <p>Pick up where you left off — click the button below to renew. Your shop data, customers, and documents are all preserved and come back online the moment payment goes through.</p>
 <p><a href="` + htmlEscape(link) + `" style="display:inline-block;padding:12px 22px;background:#2a6cf0;color:#fff;text-decoration:none;border-radius:8px;font-weight:600">Renew subscription</a></p>
 <p style="color:#6b7280;font-size:12px">Or copy and paste this link into your browser:<br>` + htmlEscape(link) + `</p>
 <p>Questions? Just reply to this email.</p>`
-	text := "Hi,\n\nYour TorqueDesk subscription for " + companyName + " has expired, so you can't sign in right now.\n\n" +
+	text := "Hi,\n\nYour Fixora subscription for " + companyName + " has expired, so you can't sign in right now.\n\n" +
 		"Pick up where you left off — renew here:\n\n" + link + "\n\nYour shop data is preserved and comes back online the moment payment goes through.\n\nQuestions? Just reply to this email.\n"
 	today := time.Now().UTC().Format("2006-01-02")
 	s.SendPlatformEmail(ctx, []string{email},
 		subject,
-		platformEmailShell(fromName, "Renew your TorqueDesk subscription", html, "You can also contact your TorqueDesk administrator for help."),
+		platformEmailShell(fromName, "Renew your Fixora subscription", html, "You can also contact your Fixora administrator for help."),
 		text,
 		"renewal", "renewal:"+cid+":"+today,
 	)

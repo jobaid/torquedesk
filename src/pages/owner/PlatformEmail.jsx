@@ -4,7 +4,7 @@ import { Card, PageHeader, Btn, Field, Input, Select } from './primitives'
 import { ownerApi } from '../../store/useOwner'
 
 // Platform-level outbound email configuration (SaaS owner's own noreply /
-// support address). This is used by TorqueDesk to email SHOP OWNERS about
+// support address). This is used by Fixora to email SHOP OWNERS about
 // platform events — new shop welcome, status changes, subscription updates.
 // It is NOT the per-shop mailer that shops use to email their customers.
 
@@ -31,7 +31,7 @@ export default function PlatformEmail() {
   const [clearPassword, setClearPassword] = useState(false)
   const [useTls, setUseTls] = useState(true)
   const [fromEmail, setFromEmail] = useState('')
-  const [fromName, setFromName] = useState('TorqueDesk')
+  const [fromName, setFromName] = useState('Fixora')
   const [replyTo, setReplyTo] = useState('')
   const [notifyNewCompany, setNotifyNewCompany] = useState(true)
   const [notifyStatusChange, setNotifyStatusChange] = useState(true)
@@ -50,7 +50,7 @@ export default function PlatformEmail() {
       setUser(d.smtpUser || '')
       setUseTls(d.smtpUseTLS)
       setFromEmail(d.fromEmail || '')
-      setFromName(d.fromName || 'TorqueDesk')
+      setFromName(d.fromName || 'Fixora')
       setReplyTo(d.replyTo || '')
       setNotifyNewCompany(d.notifyNewCompany)
       setNotifyStatusChange(d.notifyStatusChange)
@@ -122,7 +122,7 @@ export default function PlatformEmail() {
     <div>
       <PageHeader
         title="Platform Email"
-        subtitle="Outbound sender for emails the TorqueDesk platform sends to shop owners — new shop welcome, status changes, subscription updates. Separate from each shop's own mailer."
+        subtitle="Outbound sender for emails the Fixora platform sends to shop owners — new shop welcome, status changes, subscription updates. Separate from each shop's own mailer."
         actions={connected && <Btn variant="danger" onClick={signOut} disabled={busy}><LogOut size={14} /> Disconnect</Btn>}
       />
       {err && <div style={banner('danger')}>{err}</div>}
@@ -146,7 +146,7 @@ export default function PlatformEmail() {
               <Input type="email" value={fromEmail} onChange={(e) => setFromEmail(e.target.value)} placeholder="noreply@torquedesk.com" />
             </Field>
             <Field label="From name" hint="Shown as the sender name in inboxes.">
-              <Input value={fromName} onChange={(e) => setFromName(e.target.value)} placeholder="TorqueDesk" />
+              <Input value={fromName} onChange={(e) => setFromName(e.target.value)} placeholder="Fixora" />
             </Field>
             <Field label="Reply-to (optional)">
               <Input type="email" value={replyTo} onChange={(e) => setReplyTo(e.target.value)} placeholder="support@torquedesk.com" />

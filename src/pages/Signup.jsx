@@ -93,7 +93,7 @@ export default function Signup() {
         {/* Hero */}
         <div style={{ marginBottom: 28 }}>
           <h1 style={{ margin: 0, fontSize: 36, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
-            Create your TorqueDesk shop account
+            Create your Fixora shop account
           </h1>
           <p style={{ margin: '10px 0 0', fontSize: 16, color: '#64748b' }}>
             Start a {plan?.trialDays || 7}-day free trial. No charge today — cancel anytime from Settings.
@@ -182,7 +182,7 @@ function TopBar() {
     <header style={{ background: '#fff', borderBottom: '1px solid #e5e7eb' }}>
       <div style={{ maxWidth: 1120, margin: '0 auto', padding: '0 20px', height: 64, display: 'flex', alignItems: 'center' }}>
         <Logo />
-        <div style={{ marginLeft: 'auto', fontSize: 13, color: '#64748b' }}>Create your TorqueDesk account</div>
+        <div style={{ marginLeft: 'auto', fontSize: 13, color: '#64748b' }}>Create your Fixora account</div>
       </div>
     </header>
   )
@@ -192,7 +192,7 @@ function Footer() {
   return (
     <footer style={{ borderTop: '1px solid #e5e7eb', background: '#fff' }}>
       <div style={{ maxWidth: 1120, margin: '0 auto', padding: '18px 20px', color: '#64748b', fontSize: 12, display: 'flex', gap: 16, flexWrap: 'wrap', justifyContent: 'space-between' }}>
-        <span>© {new Date().getFullYear()} TorqueDesk · Modern shop management for independent auto repair shops.</span>
+        <span>© {new Date().getFullYear()} Fixora · Modern shop management for independent auto repair shops.</span>
         <span>
           <Link to="/terms" style={{ color: '#64748b', marginRight: 14 }}>Terms</Link>
           <Link to="/privacy" style={{ color: '#64748b' }}>Privacy</Link>

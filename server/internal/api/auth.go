@@ -154,7 +154,7 @@ func (s *Server) auth(perm string, h http.HandlerFunc) http.HandlerFunc {
 			status, err := s.companyStatus(r.Context(), u.CompanyID)
 			if err == nil && status == "suspended" {
 				writeJSON(w, 403, map[string]any{
-					"error":         "Your TorqueDesk subscription is currently " + status + ". Please contact your TorqueDesk administrator.",
+					"error":         "Your Fixora subscription is currently " + status + ". Please contact your Fixora administrator.",
 					"companyStatus": status,
 				})
 				return
@@ -289,7 +289,7 @@ func (s *Server) companyLogin(w http.ResponseWriter, r *http.Request) {
 	// they can self-serve payment.
 	if cStatus == "suspended" {
 		writeJSON(w, 403, map[string]any{
-			"error":         "The TorqueDesk shop \"" + cName + "\" is currently suspended. Contact your TorqueDesk administrator.",
+			"error":         "The Fixora shop \"" + cName + "\" is currently suspended. Contact your Fixora administrator.",
 			"companyStatus": cStatus,
 			"companyName":   cName,
 			"companyId":     companyID,
@@ -397,7 +397,7 @@ func (s *Server) shopMfaSetup(w http.ResponseWriter, r *http.Request) {
 		handleErr(w, err)
 		return
 	}
-	url := TOTPURL("TorqueDesk ("+u.Name+")", u.Email, secret)
+	url := TOTPURL("Fixora ("+u.Name+")", u.Email, secret)
 	// Generate the QR server-side so the TOTP secret never leaves our stack.
 	// (Previously the UI fetched api.qrserver.com, which the CSP img-src blocked
 	// AND would have handed the secret to a third party.)

@@ -73,7 +73,7 @@ func sendResetEmail(toEmail, link string) error {
 		from = user
 	}
 	auth := smtp.PlainAuth("", user, pass, host)
-	msg := []byte("From: " + from + "\r\nTo: " + toEmail + "\r\nSubject: Reset your TorqueDesk password\r\n" +
+	msg := []byte("From: " + from + "\r\nTo: " + toEmail + "\r\nSubject: Reset your Fixora password\r\n" +
 		"Content-Type: text/plain; charset=UTF-8\r\n\r\n" +
 		"Click the link below to reset your password. It expires in 1 hour.\r\n\r\n" + link + "\r\n")
 	return smtp.SendMail(host+":"+port, auth, from, []string{toEmail}, msg)
@@ -178,11 +178,11 @@ func (s *Server) issueResetToken(r *http.Request, kind resetTargetKind, email, p
 	// Fallback: env-var SMTP / log when the matching mailer isn't configured.
 	if kind == kindSaasAdmin {
 		if _, _, err := s.loadPlatformMailer(ctx); err == nil {
-			subject := "Reset your TorqueDesk Owner password"
-			htmlBody := `<p>You asked to reset your TorqueDesk Owner Portal password.</p>` +
+			subject := "Reset your Fixora Owner password"
+			htmlBody := `<p>You asked to reset your Fixora Owner Portal password.</p>` +
 				`<p><a href="` + link + `">Reset your password</a> (expires in 1 hour)</p>` +
 				`<p style="color:#6b7280;font-size:12px">If you didn't ask for this, ignore this email.</p>`
-			plainBody := "You asked to reset your TorqueDesk Owner password.\n\n" +
+			plainBody := "You asked to reset your Fixora Owner password.\n\n" +
 				"Click the link below (expires in 1 hour):\n\n" + link + "\n\n" +
 				"If you didn't ask for this, ignore this email."
 			s.SendPlatformEmail(ctx, []string{email}, subject,
@@ -195,7 +195,7 @@ func (s *Server) issueResetToken(r *http.Request, kind resetTargetKind, email, p
 		var shopName string
 		_ = s.db.QueryRow(ctx, `SELECT coalesce(shop_name,'') FROM shop_settings WHERE company_id::text = $1`, companyID).Scan(&shopName)
 		if shopName == "" {
-			shopName = "TorqueDesk"
+			shopName = "Fixora"
 		}
 		subject, htmlBody, plainBody := s.renderTemplate(ctx, "tenant", companyID, "password_reset", map[string]string{
 			"shop_name": htmlEscape(shopName),

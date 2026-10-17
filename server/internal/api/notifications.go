@@ -274,9 +274,9 @@ func (s *Server) sendTestEmail(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 400, err.Error())
 		return
 	}
-	err = cfg.send(pw, []string{in.To}, "TorqueDesk test email",
-		"<p>This is a test email from your TorqueDesk notification settings. If you received this, SMTP is working correctly.</p>",
-		"This is a test email from your TorqueDesk notification settings. If you received this, SMTP is working correctly.\n")
+	err = cfg.send(pw, []string{in.To}, "Fixora test email",
+		"<p>This is a test email from your Fixora notification settings. If you received this, SMTP is working correctly.</p>",
+		"This is a test email from your Fixora notification settings. If you received this, SMTP is working correctly.\n")
 	if err != nil {
 		writeErr(w, 502, "Could not send: "+err.Error())
 		return

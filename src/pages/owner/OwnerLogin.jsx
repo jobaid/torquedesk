@@ -95,7 +95,7 @@ export default function OwnerLogin() {
         </div>
 
         <div style={{ marginTop: 10, fontSize: 11, color: '#000000', textAlign: 'center' }}>
-          Not a TorqueDesk administrator? <a href="/" style={{ color: '#000000' }}>Go to the main app</a>.
+          Not a Fixora administrator? <a href="/" style={{ color: '#000000' }}>Go to the main app</a>.
         </div>
       </form>
     </div>

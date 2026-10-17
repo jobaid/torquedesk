@@ -46,7 +46,7 @@ export default function AgreementBanner() {
         <button onClick={skip} aria-label="Dismiss" style={{ background: 'transparent', border: 0, color: '#fff', cursor: 'pointer' }}><X size={16} /></button>
       </div>
       <div style={{ padding: 16, fontSize: 13, color: '#334155', lineHeight: 1.5 }}>
-        Please review and accept the <Link to="/legal/agreement" style={{ color: '#2554f5', fontWeight: 600 }}>TorqueDesk Service Agreement</Link>,
+        Please review and accept the <Link to="/legal/agreement" style={{ color: '#2554f5', fontWeight: 600 }}>Fixora Service Agreement</Link>,
         {' '}<Link to="/legal/terms" style={{ color: '#2554f5' }}>Terms</Link>, and <Link to="/legal/privacy" style={{ color: '#2554f5' }}>Privacy Policy</Link>.
         You can continue using the app and accept later.
         <div style={{ display: 'flex', gap: 8, marginTop: 14, justifyContent: 'flex-end' }}>

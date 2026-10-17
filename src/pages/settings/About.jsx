@@ -11,7 +11,7 @@ const JURISDICTION = 'New Mexico, United States'
 export default function About() {
   return (
     <div style={{ maxWidth: 820 }}>
-      <h1 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 6px' }}>About TorqueDesk</h1>
+      <h1 style={{ fontSize: 22, fontWeight: 700, margin: '0 0 6px' }}>About Fixora</h1>
       <div style={{ color: '#64748b', fontSize: 13, marginBottom: 24 }}>
         Operated by {OPERATOR} · <a href={`https://${DOMAIN}`} target="_blank" rel="noreferrer" style={{ color: '#2554f5' }}>{DOMAIN}</a>
       </div>
@@ -47,7 +47,7 @@ export default function About() {
       </section>
 
       <div style={{ marginTop: 20, fontSize: 12, color: '#64748b' }}>
-        Version: <code>TorqueDesk web app</code> · For incidents or outages, open a ticket in <Link to="/support" style={link}>Technical Support</Link>.
+        Version: <code>Fixora web app</code> · For incidents or outages, open a ticket in <Link to="/support" style={link}>Technical Support</Link>.
       </div>
     </div>
   )

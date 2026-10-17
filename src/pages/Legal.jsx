@@ -9,7 +9,7 @@ import { useParams, Link, Navigate, Routes, Route } from 'react-router-dom'
 import { ShieldCheck, Lock, FileText, Handshake, ArrowLeft } from 'lucide-react'
 
 const OPERATOR = 'Web Services LLC'
-const PRODUCT = 'TorqueDesk'
+const PRODUCT = 'Fixora'
 const DOMAIN  = '10corp.com'
 const SUPPORT_EMAIL = 'support@10corp.com'
 const LEGAL_EMAIL   = 'legal@10corp.com'

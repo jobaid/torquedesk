@@ -1,4 +1,4 @@
--- TorqueDesk settings + documents schema.
+-- Fixora settings + documents schema.
 -- Single-row settings tables use id = 1 with a CHECK so there is exactly one row.
 
 CREATE TABLE app_secrets (

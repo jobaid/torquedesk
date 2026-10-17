@@ -221,7 +221,7 @@ function SetupSection({ data, plans, busy, onStart, open, setOpen }) {
             <button className="btn btn-primary" disabled={busy || !selected} onClick={() => onStart(plan, cycle)}>
               {busy ? <><Loader2 size={14} className="spin" /> Redirecting…</> : <><ExternalLink size={14} /> Continue to Stripe</>}
             </button>
-            <span style={{ fontSize: 11, color: '#6b7280' }}>Secure checkout — pay by card or US bank account (ACH). Card / bank details never touch TorqueDesk.</span>
+            <span style={{ fontSize: 11, color: '#6b7280' }}>Secure checkout — pay by card or US bank account (ACH). Card / bank details never touch Fixora.</span>
           </div>
         </div>
       )}

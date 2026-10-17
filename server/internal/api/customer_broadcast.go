@@ -218,7 +218,7 @@ func (s *Server) shopBroadcastSend(w http.ResponseWriter, r *http.Request) {
 	// Entitlement gate — reuses the existing company_features flag.
 	if !s.companyHasFeature(r.Context(), u.CompanyID, "customer_broadcast") {
 		writeJSON(w, 403, map[string]any{
-			"error":        "Customer broadcast email is not enabled for your shop. Contact your TorqueDesk administrator.",
+			"error":        "Customer broadcast email is not enabled for your shop. Contact your Fixora administrator.",
 			"missingAddon": "customer_broadcast",
 		})
 		return

@@ -472,7 +472,7 @@ func stripeCreateCheckoutSession(ctx context.Context, secret string, in stripeCh
 	form.Set("line_items[0][price_data][unit_amount]", strconv.FormatInt(in.Amount.Mul(decimal.NewFromInt(100)).Round(0).IntPart(), 10))
 	name := in.Description
 	if name == "" {
-		name = "TorqueDesk payment"
+		name = "Fixora payment"
 	}
 	form.Set("line_items[0][price_data][product_data][name]", name)
 	form.Set("line_items[0][quantity]", "1")

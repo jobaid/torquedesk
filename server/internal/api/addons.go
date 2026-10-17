@@ -306,7 +306,7 @@ func (s *Server) subscribeAddon(w http.ResponseWriter, r *http.Request) {
 	// Load platform Stripe secret.
 	secret, ok := s.platformStripeSecret(r.Context())
 	if !ok {
-		writeErr(w, 503, "The TorqueDesk platform payment account is not configured yet. Please contact support.")
+		writeErr(w, 503, "The Fixora platform payment account is not configured yet. Please contact support.")
 		return
 	}
 	// Lazy-create Stripe product + price if the owner skipped it on insert.

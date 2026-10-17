@@ -3,7 +3,7 @@ import { CheckCircle2, XCircle, Loader2, Receipt } from 'lucide-react'
 import Logo from '../components/layout/Logo'
 
 // Public landing page the customer's browser hits after Stripe Checkout.
-// Lives OUTSIDE normal app auth — a customer doesn't have a TorqueDesk login.
+// Lives OUTSIDE normal app auth — a customer doesn't have a Fixora login.
 // It never shows document/customer details; just a yes/no acknowledgement.
 // The authoritative state change happens inside the webhook — this page polls
 // our status endpoint so if the webhook takes a moment, the message updates.
@@ -50,7 +50,7 @@ export default function PayReturn({ outcome }) {
       <div style={cardStyle}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
           <Logo size={32} />
-          <span style={{ fontWeight: 700, fontSize: 18 }}>TorqueDesk</span>
+          <span style={{ fontWeight: 700, fontSize: 18 }}>Fixora</span>
         </div>
         {effective === 'succeeded' ? (
           <>

@@ -145,7 +145,7 @@ export default function Login() {
       <div className="login-aside">
         <div className="row gap-12">
           <Logo size={40} />
-          <span className="brand-name" style={{ fontSize: 22, color: '#fff' }}>Torque<span style={{ color: 'var(--nav-accent)' }}>Desk</span></span>
+          <span className="brand-name" style={{ fontSize: 22, color: '#fff' }}>Fix<span style={{ color: 'var(--nav-accent)' }}>ora</span></span>
         </div>
         <div className="stack gap-24 login-pitch">
           <h1>Repair information and shop workflow, built for the bay.</h1>
@@ -162,7 +162,7 @@ export default function Login() {
         <form className="login-card stack gap-16" onSubmit={submit} noValidate>
           <div>
             <h1>Sign in</h1>
-            <p className="muted mt-4">Shop account — email and password issued by your TorqueDesk administrator.</p>
+            <p className="muted mt-4">Shop account — email and password issued by your Fixora administrator.</p>
           </div>
 
           <Field label="Email" required htmlFor="l-email" error={err('email')}>

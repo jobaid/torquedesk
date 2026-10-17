@@ -25,7 +25,7 @@ export default function Companies() {
     <div>
       <PageHeader
         title="Companies"
-        subtitle="Every automobile store on TorqueDesk."
+        subtitle="Every automobile store on Fixora."
         actions={<Btn onClick={() => navigate(`${window.location.pathname.startsWith('/owner') ? '/owner' : '/p/admin'}/companies/new`)}><Plus size={14} />Add company</Btn>}
       />
 

@@ -675,7 +675,7 @@ func (s *Server) restoreBackup(w http.ResponseWriter, r *http.Request) {
 		// Raw JSON (older manual export)
 		var raw backupSnapshot
 		if jErr := json.Unmarshal(body, &raw); jErr != nil {
-			writeErr(w, 400, "Not a valid TorqueDesk backup file.")
+			writeErr(w, 400, "Not a valid Fixora backup file.")
 			return
 		}
 		if raw.Company == nil || fmt.Sprint(raw.Company["id"]) != cid {

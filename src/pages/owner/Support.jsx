@@ -67,7 +67,7 @@ function OwnerDesk() {
         <div style={{ width: 44, height: 44, borderRadius: 10, background: 'linear-gradient(135deg,#2554f5,#7c3aed)', display: 'grid', placeItems: 'center', color: '#fff' }}><LifeBuoy size={22} /></div>
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>Service Desk</h1>
-          <div style={{ color: '#000000', fontSize: 13 }}>Tickets across every TorqueDesk company.</div>
+          <div style={{ color: '#000000', fontSize: 13 }}>Tickets across every Fixora company.</div>
         </div>
       </div>
 

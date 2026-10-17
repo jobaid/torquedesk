@@ -825,7 +825,7 @@ function PaymentLinkModal({ doc, balance, customer, onClose, onPaid }) {
   const smsBody = intent ? `Pay ${money(Number(intent.amount))} for #${doc.number}: ${intent.url}` : ''
 
   return (
-    <Modal open onClose={onClose} title="Send online payment link" description="The customer pays through Stripe Checkout. Their card never touches TorqueDesk.">
+    <Modal open onClose={onClose} title="Send online payment link" description="The customer pays through Stripe Checkout. Their card never touches Fixora.">
       {!intent && (
         <div className="stack gap-12">
           <Field label="Amount to charge" hint={`Balance due is ${money(balance)}.`}>

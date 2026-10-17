@@ -21,13 +21,13 @@ export async function api(path, { method = 'GET', body, form } = {}) {
   try {
     res = await fetch(`/api${path}`, { method, headers, body: form || (body !== undefined ? JSON.stringify(body) : undefined) })
   } catch {
-    throw new ApiError(0, 'Cannot reach the TorqueDesk API server. Start it in a terminal with: npm run api')
+    throw new ApiError(0, 'Cannot reach the Fixora API server. Start it in a terminal with: npm run api')
   }
   if (res.status === 204) return null
   const data = await res.json().catch(() => null)
   // The Vite dev proxy answers with an empty 5xx when the Go API isn't running.
   if (!res.ok && !data && res.status >= 500) {
-    throw new ApiError(0, 'Cannot reach the TorqueDesk API server. Start it in a terminal with: npm run api')
+    throw new ApiError(0, 'Cannot reach the Fixora API server. Start it in a terminal with: npm run api')
   }
   if (!res.ok) {
     // 401 = session is gone — safe to log out silently.

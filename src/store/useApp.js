@@ -123,7 +123,7 @@ export const useApp = create(
       clearNotifications: () => set({ notifications: [] }),
     }),
     {
-      name: 'torque-app',
+      name: 'Fixora-App',
       version: 2,
       // features is tenant-controlled and may be toggled by the SaaS owner at
       // any time; always fetch fresh via /api/me/features — never from cache.

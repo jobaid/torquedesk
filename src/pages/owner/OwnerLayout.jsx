@@ -40,7 +40,7 @@ export default function OwnerLayout() {
     <div style={shellStyle}>
       <aside style={asideStyle}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', borderBottom: '1px solid #e2e8f0' }}>
-          <img src="/logo.png" alt="Fixora" style={{ height: 34, width: 'auto', objectFit: 'contain' }} />
+          <img src="/logo.png" alt="Fixora" style={{ height: 29, width: 'auto', objectFit: 'contain' }} />
           <div style={{ fontSize: 10.5, color: '#64748b', fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase' }}>Admin</div>
         </div>
         <nav style={{ padding: 10, overflow: 'auto', flex: 1 }}>

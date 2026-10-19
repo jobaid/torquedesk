@@ -11,7 +11,7 @@ export const useOwner = create(
       login: (owner) => set({ owner }),
       logout: () => set({ owner: null }),
     }),
-    { name: 'curanex-owner' },
+    { name: 'Fixora-Owner' },
   ),
 )
 

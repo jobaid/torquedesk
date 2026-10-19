@@ -154,7 +154,7 @@ export default function Login() {
             <li><span className="icon-tile"><ShieldCheck size={18} /></span><div><strong>Write it up.</strong> Estimates, repair orders and invoices in one flow.</div></li>
           </ul>
         </div>
-        <p className="xs" style={{ color: '#fe9e26' }}>Sample data for demonstration. Verify against OEM service information.</p>
+        <p className="xs" style={{ color: '#000000' }}>Sample data for demonstration. Verify against OEM service information.</p>
       </div>
 
       <div className="login-main">

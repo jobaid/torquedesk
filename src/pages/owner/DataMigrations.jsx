@@ -32,7 +32,7 @@ export default function DataMigrations() {
             Data Migration Tool
           </h1>
           <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: 14 }}>
-            Import customers &amp; vehicles from a competitor's shop-management software into a Fixora shop.
+            Import customers, vehicles, or historical invoices from a competitor's shop-management software.
           </p>
         </div>
       </div>
@@ -75,6 +75,7 @@ export default function DataMigrations() {
 // ---------------------------------------------------------------- New job
 function NewJobCard({ companies, presets, onCreated, setErr }) {
   const [companyId, setCompanyId] = useState('')
+  const [entity, setEntity] = useState('customers')
   const [vendor, setVendor] = useState('custom')
   const [file, setFile] = useState(null)
   const [busy, setBusy] = useState(false)
@@ -88,7 +89,7 @@ function NewJobCard({ companies, presets, onCreated, setErr }) {
       const token = useOwner.getState().owner?.token
       const fd = new FormData()
       fd.append('company_id', companyId)
-      fd.append('entity', 'customers')
+      fd.append('entity', entity)
       fd.append('source_vendor', vendor)
       fd.append('file', file)
       const res = await fetch('/api/owner/migrations', { method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: fd })
@@ -100,14 +101,21 @@ function NewJobCard({ companies, presets, onCreated, setErr }) {
     finally { setBusy(false) }
   }
 
+  const entities = presets?.entities || [{ key: 'customers', label: 'Customers' }]
+
   return (
     <form onSubmit={submit} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14, padding: 20 }}>
       <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', marginBottom: 14 }}>New migration</div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
         <Field label="Target shop">
           <select value={companyId} onChange={(e) => setCompanyId(e.target.value)} style={inp}>
             <option value="">Select a shop…</option>
             {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </Field>
+        <Field label="Data type">
+          <select value={entity} onChange={(e) => setEntity(e.target.value)} style={inp}>
+            {entities.map((e) => <option key={e.key} value={e.key}>{e.label}</option>)}
           </select>
         </Field>
         <Field label="Source software">
@@ -118,6 +126,12 @@ function NewJobCard({ companies, presets, onCreated, setErr }) {
           </select>
         </Field>
       </div>
+      {entity !== 'customers' && (
+        <div style={{ marginTop: 10, padding: '8px 12px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, fontSize: 12, color: '#1e40af' }}>
+          {entity === 'vehicles' && 'Vehicles are matched to existing customers by phone (then name). Import customers first if you haven\'t.'}
+          {entity === 'invoices' && 'Historical invoices are created as single-line records (status=paid). Customers must already exist in the target shop.'}
+        </div>
+      )}
       <Field label="CSV file" style={{ marginTop: 14 }}>
         <label style={{ ...inp, display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', borderStyle: 'dashed' }}>
           <Upload size={16} color="#64748b" />
@@ -142,8 +156,9 @@ function JobDetail({ job: initialJob, presets, onClose, onReload }) {
   const [busy, setBusy] = useState('')
   const [err, setErr] = useState('')
 
-  const fields = presets?.fields || []
+  const fields = job.fields || []
   const headers = job.csv_headers || []
+  const requiredField = job.entity === 'invoices' ? 'invoice_number' : (job.entity === 'vehicles' ? 'customer_phone' : 'name')
 
   const saveMapping = async () => {
     setBusy('save'); setErr('')
@@ -158,7 +173,7 @@ function JobDetail({ job: initialJob, presets, onClose, onReload }) {
     catch (e) { setErr(e.message) } finally { setBusy('') }
   }
   const commit = async () => {
-    if (!window.confirm(`Import ${job.dry_run_report?.valid ?? '?'} customers into ${job.company_name}? This cannot be undone from the migration tool.`)) return
+    if (!window.confirm(`Import ${job.dry_run_report?.valid ?? '?'} ${job.entity} into ${job.company_name}? This cannot be undone from the migration tool.`)) return
     setBusy('commit'); setErr('')
     try { const r = await ownerApi(`/migrations/${job.id}/commit`, { method: 'POST' }); setJob(r) }
     catch (e) { setErr(e.message) } finally { setBusy('') }
@@ -194,13 +209,13 @@ function JobDetail({ job: initialJob, presets, onClose, onReload }) {
       <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14, padding: 20, marginBottom: 20 }}>
         <div style={sectionHead}>1. Column mapping</div>
         <div style={{ fontSize: 13, color: '#64748b', marginBottom: 14 }}>
-          Match our customer fields to columns in your CSV. Leave blank to skip. <strong>Name</strong> is required.
+          Match our {job.entity} fields to columns in your CSV. Leave blank to skip. <strong>{prettyField(requiredField)}</strong> is required.
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           {fields.map((f) => (
             <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ width: 180, fontSize: 13, color: '#334155', fontWeight: f === 'name' ? 600 : 400 }}>
-                {prettyField(f)}{f === 'name' && <span style={{ color: '#dc2626' }}> *</span>}
+              <div style={{ width: 180, fontSize: 13, color: '#334155', fontWeight: f === requiredField ? 600 : 400 }}>
+                {prettyField(f)}{f === requiredField && <span style={{ color: '#dc2626' }}> *</span>}
               </div>
               <select value={mapping[f] || ''} onChange={(e) => setMapping({ ...mapping, [f]: e.target.value })} style={{ ...inp, flex: 1 }}>
                 <option value="">— skip —</option>
@@ -210,7 +225,7 @@ function JobDetail({ job: initialJob, presets, onClose, onReload }) {
           ))}
         </div>
         <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 14 }}>
-          <button onClick={saveMapping} disabled={busy === 'save' || !mapping.name} style={btnSecondary}>
+          <button onClick={saveMapping} disabled={busy === 'save' || !mapping[requiredField]} style={btnSecondary}>
             {busy === 'save' ? 'Saving…' : 'Save mapping'}
           </button>
         </div>
@@ -241,7 +256,7 @@ function JobDetail({ job: initialJob, presets, onClose, onReload }) {
       {/* Dry run */}
       <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14, padding: 20, marginBottom: 20 }}>
         <div style={sectionHead}>3. Dry run (validate without inserting)</div>
-        <button onClick={dryRun} disabled={busy === 'dry' || !mapping.name} style={btnSecondary}>
+        <button onClick={dryRun} disabled={busy === 'dry' || !mapping[requiredField]} style={btnSecondary}>
           {busy === 'dry' ? <Loader2 size={14} className="spin" /> : <Play size={14} />}
           {busy === 'dry' ? 'Validating…' : 'Run validation'}
         </button>
@@ -274,7 +289,7 @@ function JobDetail({ job: initialJob, presets, onClose, onReload }) {
           disabled={busy === 'commit' || !job.dry_run_report || job.dry_run_report.valid === 0 || job.status === 'completed'}
           style={btnPrimary}>
           {busy === 'commit' ? <Loader2 size={14} className="spin" /> : <Check size={14} />}
-          {busy === 'commit' ? 'Importing…' : job.status === 'completed' ? 'Already imported' : `Import ${job.dry_run_report?.valid ?? '?'} customers`}
+          {busy === 'commit' ? 'Importing…' : job.status === 'completed' ? 'Already imported' : `Import ${job.dry_run_report?.valid ?? '?'} ${job.entity}`}
         </button>
         {job.commit_report && (
           <div style={{ marginTop: 14 }}>

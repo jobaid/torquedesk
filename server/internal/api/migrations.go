@@ -18,89 +18,210 @@ import (
 // ----------------------------------------------------------------------------
 // Data Migration Tool (SaaS owner only)
 //
-// Lets the owner import a CSV export from another shop-management app
-// (Shop-Ware, Tekmetric, Mitchell 1, RO Writer, Shopmonkey, or a custom CSV)
-// into a target company's customers table (with vehicles embedded as JSONB).
-//
-// Flow: upload (POST) -> headers come back -> owner picks/edits column
-// mapping (PATCH) -> dry-run (POST /dry-run) -> commit (POST /commit).
+// Phase 1: customers (with embedded first vehicle)
+// Phase 2: vehicles (append to existing customers), invoices (historical)
 // ----------------------------------------------------------------------------
 
-const migrationMaxBytes = 20 << 20 // 20 MB CSV cap
+const migrationMaxBytes = 20 << 20
 
-// Our canonical field names for the "customers" entity. Mapping is
-// {ourField: sourceHeader}.
-var customerFields = []string{
-	"name", "phone", "email", "address", "notes",
-	"vehicle_year", "vehicle_make", "vehicle_model", "vehicle_vin",
-	"vehicle_license_plate", "vehicle_mileage", "vehicle_trim",
+// Canonical field lists per entity. The order drives UI display.
+var entityFields = map[string][]string{
+	"customers": {
+		"name", "phone", "email", "address", "notes",
+		"vehicle_year", "vehicle_make", "vehicle_model", "vehicle_vin",
+		"vehicle_license_plate", "vehicle_mileage", "vehicle_trim",
+	},
+	"vehicles": {
+		"customer_phone", "customer_name",
+		"year", "make", "model", "trim", "vin", "license_plate", "mileage", "color",
+	},
+	"invoices": {
+		"customer_phone", "customer_name", "vehicle_vin", "vehicle_license_plate",
+		"invoice_number", "invoice_date", "status", "total",
+		"description", "mileage",
+	},
 }
 
-// Preset per-vendor header guesses, keyed by our field.
-// Values are source-header candidates (lowercased). First hit wins.
-var vendorPresets = map[string]map[string][]string{
+// Preset per-vendor header guesses, keyed by {entity, our_field}.
+// First match wins. Keep lower-cased.
+var vendorPresets = map[string]map[string]map[string][]string{
 	"shopware": {
-		"name":                  {"customer name", "name", "first name"},
-		"phone":                 {"phone", "primary phone", "mobile"},
-		"email":                 {"email"},
-		"address":               {"address", "street"},
-		"notes":                 {"notes", "memo"},
-		"vehicle_year":          {"year", "vehicle year"},
-		"vehicle_make":          {"make", "vehicle make"},
-		"vehicle_model":         {"model", "vehicle model"},
-		"vehicle_vin":           {"vin"},
-		"vehicle_license_plate": {"license", "plate", "license plate"},
-		"vehicle_mileage":       {"mileage", "odometer"},
-		"vehicle_trim":          {"trim"},
+		"customers": {
+			"name":                  {"customer name", "name", "first name"},
+			"phone":                 {"phone", "primary phone", "mobile"},
+			"email":                 {"email"},
+			"address":               {"address", "street"},
+			"notes":                 {"notes", "memo"},
+			"vehicle_year":          {"year", "vehicle year"},
+			"vehicle_make":          {"make", "vehicle make"},
+			"vehicle_model":         {"model", "vehicle model"},
+			"vehicle_vin":           {"vin"},
+			"vehicle_license_plate": {"license", "plate", "license plate"},
+			"vehicle_mileage":       {"mileage", "odometer"},
+			"vehicle_trim":          {"trim"},
+		},
+		"vehicles": {
+			"customer_phone": {"phone", "customer phone"},
+			"customer_name":  {"customer name", "name"},
+			"year":           {"year"},
+			"make":           {"make"},
+			"model":          {"model"},
+			"trim":           {"trim"},
+			"vin":            {"vin"},
+			"license_plate":  {"license", "plate", "license plate"},
+			"mileage":        {"mileage", "odometer"},
+			"color":          {"color"},
+		},
+		"invoices": {
+			"customer_phone":        {"customer phone", "phone"},
+			"customer_name":         {"customer", "customer name"},
+			"vehicle_vin":           {"vin"},
+			"vehicle_license_plate": {"plate", "license"},
+			"invoice_number":        {"invoice number", "ro number", "ro#", "invoice #"},
+			"invoice_date":          {"invoice date", "date", "closed date"},
+			"status":                {"status", "state"},
+			"total":                 {"total", "grand total", "amount"},
+			"description":           {"description", "notes", "concern"},
+			"mileage":               {"mileage", "odometer"},
+		},
 	},
 	"tekmetric": {
-		"name":                  {"customer name", "name"},
-		"phone":                 {"phone", "cell phone"},
-		"email":                 {"email"},
-		"address":               {"address"},
-		"notes":                 {"notes"},
-		"vehicle_year":          {"vehicle year", "year"},
-		"vehicle_make":          {"vehicle make", "make"},
-		"vehicle_model":         {"vehicle model", "model"},
-		"vehicle_vin":           {"vin"},
-		"vehicle_license_plate": {"license plate", "plate"},
-		"vehicle_mileage":       {"vehicle mileage", "mileage"},
+		"customers": {
+			"name":                  {"customer name", "name"},
+			"phone":                 {"phone", "cell phone"},
+			"email":                 {"email"},
+			"address":               {"address"},
+			"notes":                 {"notes"},
+			"vehicle_year":          {"vehicle year", "year"},
+			"vehicle_make":          {"vehicle make", "make"},
+			"vehicle_model":         {"vehicle model", "model"},
+			"vehicle_vin":           {"vin"},
+			"vehicle_license_plate": {"license plate", "plate"},
+			"vehicle_mileage":       {"vehicle mileage", "mileage"},
+		},
+		"vehicles": {
+			"customer_phone": {"customer phone", "phone"},
+			"customer_name":  {"customer name", "name"},
+			"year":           {"year"},
+			"make":           {"make"},
+			"model":          {"model"},
+			"vin":            {"vin"},
+			"license_plate":  {"license plate", "plate"},
+			"mileage":        {"mileage"},
+		},
+		"invoices": {
+			"customer_phone": {"customer phone", "phone"},
+			"customer_name":  {"customer name", "name"},
+			"vehicle_vin":    {"vin"},
+			"invoice_number": {"ro number", "invoice number", "repair order"},
+			"invoice_date":   {"posted date", "date", "invoice date"},
+			"status":         {"status"},
+			"total":          {"total sales", "total", "grand total"},
+			"description":    {"concerns", "notes"},
+			"mileage":        {"mileage"},
+		},
 	},
 	"mitchell1": {
-		"name":                  {"full name", "name"},
-		"phone":                 {"primary phone", "phone"},
-		"email":                 {"email", "e-mail"},
-		"address":               {"street", "address"},
-		"notes":                 {"comments", "notes"},
-		"vehicle_year":          {"year"},
-		"vehicle_make":          {"make"},
-		"vehicle_model":         {"model"},
-		"vehicle_vin":           {"vin"},
-		"vehicle_license_plate": {"plate", "tag"},
-		"vehicle_mileage":       {"mileage"},
+		"customers": {
+			"name":                  {"full name", "name"},
+			"phone":                 {"primary phone", "phone"},
+			"email":                 {"email", "e-mail"},
+			"address":               {"street", "address"},
+			"notes":                 {"comments", "notes"},
+			"vehicle_year":          {"year"},
+			"vehicle_make":          {"make"},
+			"vehicle_model":         {"model"},
+			"vehicle_vin":           {"vin"},
+			"vehicle_license_plate": {"plate", "tag"},
+			"vehicle_mileage":       {"mileage"},
+		},
+		"vehicles": {
+			"customer_phone": {"phone", "primary phone"},
+			"customer_name":  {"full name", "name"},
+			"year":           {"year"},
+			"make":           {"make"},
+			"model":          {"model"},
+			"vin":            {"vin"},
+			"license_plate":  {"plate", "tag"},
+			"mileage":        {"mileage"},
+		},
+		"invoices": {
+			"customer_phone": {"primary phone", "phone"},
+			"customer_name":  {"full name"},
+			"vehicle_vin":    {"vin"},
+			"invoice_number": {"invoice", "ro", "work order"},
+			"invoice_date":   {"invoice date", "date"},
+			"status":         {"status"},
+			"total":          {"total", "grand total"},
+			"description":    {"complaint", "notes"},
+		},
 	},
 	"rowriter": {
-		"name":                  {"customer", "name"},
-		"phone":                 {"phone"},
-		"email":                 {"email"},
-		"address":               {"address"},
-		"vehicle_year":          {"year"},
-		"vehicle_make":          {"make"},
-		"vehicle_model":         {"model"},
-		"vehicle_vin":           {"vin"},
-		"vehicle_license_plate": {"license"},
+		"customers": {
+			"name":                  {"customer", "name"},
+			"phone":                 {"phone"},
+			"email":                 {"email"},
+			"address":               {"address"},
+			"vehicle_year":          {"year"},
+			"vehicle_make":          {"make"},
+			"vehicle_model":         {"model"},
+			"vehicle_vin":           {"vin"},
+			"vehicle_license_plate": {"license"},
+		},
+		"vehicles": {
+			"customer_phone": {"phone"},
+			"customer_name":  {"customer"},
+			"year":           {"year"},
+			"make":           {"make"},
+			"model":          {"model"},
+			"vin":            {"vin"},
+			"license_plate":  {"license"},
+		},
+		"invoices": {
+			"customer_phone": {"phone"},
+			"customer_name":  {"customer"},
+			"vehicle_vin":    {"vin"},
+			"invoice_number": {"invoice", "ro"},
+			"invoice_date":   {"date", "invoice date"},
+			"status":         {"status"},
+			"total":          {"total"},
+			"description":    {"description", "notes"},
+		},
 	},
 	"shopmonkey": {
-		"name":                  {"customer name", "name"},
-		"phone":                 {"phone"},
-		"email":                 {"email"},
-		"address":               {"address"},
-		"vehicle_year":          {"year"},
-		"vehicle_make":          {"make"},
-		"vehicle_model":         {"model"},
-		"vehicle_vin":           {"vin"},
-		"vehicle_license_plate": {"plate"},
-		"vehicle_mileage":       {"mileage"},
+		"customers": {
+			"name":                  {"customer name", "name"},
+			"phone":                 {"phone"},
+			"email":                 {"email"},
+			"address":               {"address"},
+			"vehicle_year":          {"year"},
+			"vehicle_make":          {"make"},
+			"vehicle_model":         {"model"},
+			"vehicle_vin":           {"vin"},
+			"vehicle_license_plate": {"plate"},
+			"vehicle_mileage":       {"mileage"},
+		},
+		"vehicles": {
+			"customer_phone": {"customer phone", "phone"},
+			"customer_name":  {"customer name"},
+			"year":           {"year"},
+			"make":           {"make"},
+			"model":          {"model"},
+			"vin":            {"vin"},
+			"license_plate":  {"plate"},
+			"mileage":        {"mileage"},
+		},
+		"invoices": {
+			"customer_phone": {"customer phone", "phone"},
+			"customer_name":  {"customer name"},
+			"vehicle_vin":    {"vin"},
+			"invoice_number": {"order number", "invoice number"},
+			"invoice_date":   {"completed date", "date", "invoice date"},
+			"status":         {"status"},
+			"total":          {"total", "grand total"},
+			"description":    {"concern", "notes"},
+			"mileage":        {"mileage"},
+		},
 	},
 }
 
@@ -115,17 +236,20 @@ func (s *Server) migrationRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("DELETE /api/owner/migrations/{id}", s.ownerAuth(s.migrationDelete))
 }
 
-// ---- Presets listing (vendors + target fields) ----------------------------
+// ---- Presets listing -----------------------------------------------------
 
 func (s *Server) migrationPresets(w http.ResponseWriter, r *http.Request) {
 	vendors := []map[string]any{}
 	for key, prs := range vendorPresets {
 		vendors = append(vendors, map[string]any{"key": key, "label": vendorLabel(key), "preset": prs})
 	}
-	vendors = append(vendors, map[string]any{"key": "custom", "label": "Custom CSV", "preset": map[string][]string{}})
+	vendors = append(vendors, map[string]any{"key": "custom", "label": "Custom CSV", "preset": map[string]map[string][]string{}})
+	entities := []map[string]any{}
+	for _, name := range []string{"customers", "vehicles", "invoices"} {
+		entities = append(entities, map[string]any{"key": name, "label": entityLabel(name), "fields": entityFields[name]})
+	}
 	writeJSON(w, 200, map[string]any{
-		"entities": []string{"customers"},
-		"fields":   customerFields,
+		"entities": entities,
 		"vendors":  vendors,
 	})
 }
@@ -142,6 +266,18 @@ func vendorLabel(k string) string {
 		return "R.O. Writer"
 	case "shopmonkey":
 		return "Shopmonkey"
+	}
+	return k
+}
+
+func entityLabel(k string) string {
+	switch k {
+	case "customers":
+		return "Customers (+ 1st vehicle)"
+	case "vehicles":
+		return "Vehicles (append to existing customers)"
+	case "invoices":
+		return "Invoices (historical records)"
 	}
 	return k
 }
@@ -183,7 +319,7 @@ func (s *Server) migrationList(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, out)
 }
 
-// ---- Create job (multipart upload) --------------------------------------
+// ---- Create job ----------------------------------------------------------
 
 func (s *Server) migrationCreate(w http.ResponseWriter, r *http.Request) {
 	r.Body = http.MaxBytesReader(w, r.Body, migrationMaxBytes+1<<20)
@@ -198,8 +334,8 @@ func (s *Server) migrationCreate(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 400, "company_id and entity are required.")
 		return
 	}
-	if entity != "customers" {
-		writeErr(w, 400, "Only the 'customers' entity is supported in Phase 1.")
+	if _, ok := entityFields[entity]; !ok {
+		writeErr(w, 400, "Unknown entity: "+entity)
 		return
 	}
 	if vendor == "" {
@@ -221,14 +357,14 @@ func (s *Server) migrationCreate(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 400, "CSV parse error: "+err.Error())
 		return
 	}
-	// Auto-map using preset if we have one for this vendor.
 	mapping := map[string]string{}
 	if preset, ok := vendorPresets[vendor]; ok {
-		mapping = applyPreset(preset, headers)
+		if ep, ok := preset[entity]; ok {
+			mapping = applyPreset(ep, headers)
+		}
 	}
 	mappingJSON, _ := json.Marshal(mapping)
 	headersPG := "{" + strings.Join(quoteAll(headers), ",") + "}"
-
 	var id string
 	err = s.db.QueryRow(r.Context(), `
 		INSERT INTO data_migration_jobs
@@ -281,10 +417,11 @@ func (s *Server) migrationGetByID(w http.ResponseWriter, r *http.Request, id str
 		"imported_count": imported, "skipped_count": skipped,
 		"error": errMsg, "created_at": createdAt, "updated_at": updatedAt,
 		"preview": preview,
+		"fields":  entityFields[entity],
 	})
 }
 
-// ---- Update mapping -------------------------------------------------------
+// ---- Update mapping ------------------------------------------------------
 
 func (s *Server) migrationUpdateMapping(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
@@ -306,19 +443,32 @@ func (s *Server) migrationUpdateMapping(w http.ResponseWriter, r *http.Request) 
 	s.migrationGetByID(w, r, id)
 }
 
-// ---- Dry run ------------------------------------------------------------
+// ---- Dry run -------------------------------------------------------------
 
 func (s *Server) migrationDryRun(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	raw, mapping, err := loadJobCSV(r.Context(), s, id)
+	raw, mapping, entity, companyID, err := loadJob(r.Context(), s, id)
 	if err != nil {
 		handleErr(w, err)
 		return
 	}
-	report := validateCustomerRows(raw, mapping)
+	var report map[string]any
+	switch entity {
+	case "customers":
+		report = validateCustomerRows(raw, mapping)
+	case "vehicles":
+		report = validateLookupRows(r.Context(), s, companyID, raw, mapping, "vehicles")
+	case "invoices":
+		report = validateLookupRows(r.Context(), s, companyID, raw, mapping, "invoices")
+	default:
+		writeErr(w, 400, "Unknown entity.")
+		return
+	}
 	status := "dry_run_ok"
-	if report["invalid"].(int) > 0 && report["valid"].(int) == 0 {
-		status = "dry_run_failed"
+	if v, _ := report["invalid"].(int); v > 0 {
+		if vv, _ := report["valid"].(int); vv == 0 {
+			status = "dry_run_failed"
+		}
 	}
 	reportJSON, _ := json.Marshal(report)
 	_, err = s.db.Exec(r.Context(),
@@ -331,17 +481,28 @@ func (s *Server) migrationDryRun(w http.ResponseWriter, r *http.Request) {
 	s.migrationGetByID(w, r, id)
 }
 
-// ---- Commit -------------------------------------------------------------
+// ---- Commit --------------------------------------------------------------
 
 func (s *Server) migrationCommit(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	var companyID string
-	raw, mapping, err := loadJobCSVWithCompany(r.Context(), s, id, &companyID)
+	raw, mapping, entity, companyID, err := loadJob(r.Context(), s, id)
 	if err != nil {
 		handleErr(w, err)
 		return
 	}
-	imported, skipped, errs := importCustomerRows(r.Context(), s, companyID, raw, mapping)
+	var imported, skipped int
+	var errs []string
+	switch entity {
+	case "customers":
+		imported, skipped, errs = importCustomerRows(r.Context(), s, companyID, raw, mapping)
+	case "vehicles":
+		imported, skipped, errs = importVehicleRows(r.Context(), s, companyID, raw, mapping)
+	case "invoices":
+		imported, skipped, errs = importInvoiceRows(r.Context(), s, companyID, raw, mapping)
+	default:
+		writeErr(w, 400, "Unknown entity.")
+		return
+	}
 	report := map[string]any{"imported": imported, "skipped": skipped, "errors": errs}
 	reportJSON, _ := json.Marshal(report)
 	status := "completed"
@@ -361,8 +522,6 @@ func (s *Server) migrationCommit(w http.ResponseWriter, r *http.Request) {
 	s.migrationGetByID(w, r, id)
 }
 
-// ---- Delete -------------------------------------------------------------
-
 func (s *Server) migrationDelete(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if _, err := s.db.Exec(r.Context(), `DELETE FROM data_migration_jobs WHERE id=$1`, id); err != nil {
@@ -373,7 +532,7 @@ func (s *Server) migrationDelete(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================================================
-// CSV helpers
+// CSV helpers (shared)
 // ============================================================================
 
 func peekCSV(raw []byte) ([]string, int, error) {
@@ -432,36 +591,23 @@ func previewCSV(ctx context.Context, s *Server, id string, n int) ([]map[string]
 	return out, nil
 }
 
-func loadJobCSV(ctx context.Context, s *Server, id string) ([]byte, map[string]string, error) {
+// loadJob returns raw CSV, mapping, entity, and company_id.
+func loadJob(ctx context.Context, s *Server, id string) ([]byte, map[string]string, string, string, error) {
 	var raw []byte
 	var mappingJSON []byte
+	var entity, companyID string
 	err := s.db.QueryRow(ctx,
-		`SELECT csv_bytes, mapping FROM data_migration_jobs WHERE id=$1`, id).Scan(&raw, &mappingJSON)
+		`SELECT csv_bytes, mapping, entity, company_id FROM data_migration_jobs WHERE id=$1`, id).
+		Scan(&raw, &mappingJSON, &entity, &companyID)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, "", "", err
 	}
-	if raw == nil || len(raw) == 0 {
-		return nil, nil, errors.New("CSV already purged for this job")
+	if len(raw) == 0 {
+		return nil, nil, "", "", errors.New("CSV already purged for this job")
 	}
 	mapping := map[string]string{}
 	_ = json.Unmarshal(mappingJSON, &mapping)
-	return raw, mapping, nil
-}
-
-func loadJobCSVWithCompany(ctx context.Context, s *Server, id string, companyID *string) ([]byte, map[string]string, error) {
-	var raw []byte
-	var mappingJSON []byte
-	err := s.db.QueryRow(ctx,
-		`SELECT csv_bytes, mapping, company_id FROM data_migration_jobs WHERE id=$1`, id).Scan(&raw, &mappingJSON, companyID)
-	if err != nil {
-		return nil, nil, err
-	}
-	if raw == nil || len(raw) == 0 {
-		return nil, nil, errors.New("CSV already purged for this job")
-	}
-	mapping := map[string]string{}
-	_ = json.Unmarshal(mappingJSON, &mapping)
-	return raw, mapping, nil
+	return raw, mapping, entity, companyID, nil
 }
 
 func applyPreset(preset map[string][]string, headers []string) map[string]string {
@@ -489,17 +635,8 @@ func quoteAll(ss []string) []string {
 	return out
 }
 
-// ============================================================================
-// Customer importer
-// ============================================================================
-
-type customerRow struct {
-	line int
-	name string
-	data map[string]string
-}
-
-func parseCustomerRows(raw []byte, mapping map[string]string) []customerRow {
+// genericParse pulls each row as {field: trimmed cell value} using mapping.
+func genericParse(raw []byte, mapping map[string]string) []map[string]string {
 	r := csv.NewReader(strings.NewReader(string(raw)))
 	r.FieldsPerRecord = -1
 	headers, _ := r.Read()
@@ -507,103 +644,99 @@ func parseCustomerRows(raw []byte, mapping map[string]string) []customerRow {
 	for i, h := range headers {
 		idx[h] = i
 	}
-	rows := []customerRow{}
-	line := 1
+	out := []map[string]string{}
 	for {
 		rec, err := r.Read()
 		if err != nil {
 			break
 		}
-		line++
-		get := func(field string) string {
-			col, ok := mapping[field]
-			if !ok {
-				return ""
+		row := map[string]string{}
+		for field, col := range mapping {
+			if i, ok := idx[col]; ok && i < len(rec) {
+				row[field] = strings.TrimSpace(rec[i])
 			}
-			i, ok := idx[col]
-			if !ok || i >= len(rec) {
-				return ""
-			}
-			return strings.TrimSpace(rec[i])
 		}
-		data := map[string]string{}
-		for _, f := range customerFields {
-			data[f] = get(f)
-		}
-		rows = append(rows, customerRow{line: line, name: data["name"], data: data})
+		out = append(out, row)
 	}
-	return rows
+	return out
 }
 
+// normalizePhone strips to digits so lookups match "(555) 123-4567" to "5551234567".
+func normalizePhone(p string) string {
+	var b strings.Builder
+	for _, r := range p {
+		if r >= '0' && r <= '9' {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+// ============================================================================
+// Customers importer
+// ============================================================================
+
 func validateCustomerRows(raw []byte, mapping map[string]string) map[string]any {
-	rows := parseCustomerRows(raw, mapping)
+	rows := genericParse(raw, mapping)
 	valid, invalid := 0, 0
 	sample := []map[string]any{}
 	issues := []map[string]any{}
-	for _, row := range rows {
-		if row.name == "" {
+	for i, row := range rows {
+		line := i + 2
+		if strings.TrimSpace(row["name"]) == "" {
 			invalid++
 			if len(issues) < 20 {
-				issues = append(issues, map[string]any{"line": row.line, "reason": "missing name"})
+				issues = append(issues, map[string]any{"line": line, "reason": "missing name"})
 			}
 			continue
 		}
 		valid++
 		if len(sample) < 5 {
-			sample = append(sample, map[string]any{"line": row.line, "data": row.data})
+			sample = append(sample, map[string]any{"line": line, "data": row})
 		}
 	}
-	return map[string]any{
-		"total":   len(rows),
-		"valid":   valid,
-		"invalid": invalid,
-		"issues":  issues,
-		"sample":  sample,
-	}
+	return map[string]any{"total": len(rows), "valid": valid, "invalid": invalid, "issues": issues, "sample": sample}
 }
 
 func importCustomerRows(ctx context.Context, s *Server, companyID string, raw []byte, mapping map[string]string) (int, int, []string) {
-	rows := parseCustomerRows(raw, mapping)
+	rows := genericParse(raw, mapping)
 	imported, skipped := 0, 0
 	errs := []string{}
-
 	tx, err := s.db.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		return 0, 0, []string{err.Error()}
 	}
 	defer tx.Rollback(ctx)
-
-	for _, row := range rows {
-		if row.name == "" {
+	for i, row := range rows {
+		line := i + 2
+		if row["name"] == "" {
 			skipped++
 			continue
 		}
 		vehicles := []map[string]any{}
-		if row.data["vehicle_year"] != "" || row.data["vehicle_make"] != "" || row.data["vehicle_vin"] != "" {
-			y, _ := strconv.Atoi(row.data["vehicle_year"])
-			mi, _ := strconv.Atoi(row.data["vehicle_mileage"])
-			v := map[string]any{
-				"id":           fmt.Sprintf("mig-%d-%d", time.Now().UnixNano(), row.line),
+		if row["vehicle_year"] != "" || row["vehicle_make"] != "" || row["vehicle_vin"] != "" {
+			y, _ := strconv.Atoi(row["vehicle_year"])
+			mi, _ := strconv.Atoi(row["vehicle_mileage"])
+			vehicles = append(vehicles, map[string]any{
+				"id":           fmt.Sprintf("mig-%d-%d", time.Now().UnixNano(), line),
 				"year":         y,
-				"make":         row.data["vehicle_make"],
-				"model":        row.data["vehicle_model"],
-				"trim":         row.data["vehicle_trim"],
-				"vin":          row.data["vehicle_vin"],
-				"licensePlate": row.data["vehicle_license_plate"],
+				"make":         row["vehicle_make"],
+				"model":        row["vehicle_model"],
+				"trim":         row["vehicle_trim"],
+				"vin":          row["vehicle_vin"],
+				"licensePlate": row["vehicle_license_plate"],
 				"mileage":      mi,
-			}
-			vehicles = append(vehicles, v)
+			})
 		}
 		vehJSON, _ := json.Marshal(vehicles)
 		_, err := tx.Exec(ctx, `
 			INSERT INTO customers (company_id, name, phone, email, address, notes, vehicles)
 			VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb)`,
-			companyID, row.name, row.data["phone"], row.data["email"],
-			row.data["address"], row.data["notes"], vehJSON)
+			companyID, row["name"], row["phone"], row["email"], row["address"], row["notes"], vehJSON)
 		if err != nil {
 			skipped++
 			if len(errs) < 20 {
-				errs = append(errs, fmt.Sprintf("line %d (%s): %s", row.line, row.name, err.Error()))
+				errs = append(errs, fmt.Sprintf("line %d (%s): %s", line, row["name"], err.Error()))
 			}
 			continue
 		}
@@ -613,4 +746,269 @@ func importCustomerRows(ctx context.Context, s *Server, companyID string, raw []
 		return 0, 0, []string{err.Error()}
 	}
 	return imported, skipped, errs
+}
+
+// ============================================================================
+// Vehicles importer (appends to existing customers)
+// Invoices importer (historical records)
+// ============================================================================
+
+// findCustomer looks up a customer by phone (digits only) first, then by
+// exact name. Returns (id, "") when found; ("", reason) when not.
+func findCustomer(ctx context.Context, s *Server, companyID, phone, name string) (string, string) {
+	phoneDigits := normalizePhone(phone)
+	if phoneDigits != "" {
+		var id string
+		err := s.db.QueryRow(ctx, `
+			SELECT id::text FROM customers
+			 WHERE company_id=$1
+			   AND regexp_replace(phone, '\D', '', 'g') = $2
+			 ORDER BY created_at LIMIT 1`, companyID, phoneDigits).Scan(&id)
+		if err == nil {
+			return id, ""
+		}
+	}
+	if name != "" {
+		var id string
+		err := s.db.QueryRow(ctx, `
+			SELECT id::text FROM customers
+			 WHERE company_id=$1 AND lower(name)=lower($2)
+			 ORDER BY created_at LIMIT 1`, companyID, name).Scan(&id)
+		if err == nil {
+			return id, ""
+		}
+	}
+	return "", "no matching customer (looked up by phone then name)"
+}
+
+func validateLookupRows(ctx context.Context, s *Server, companyID string, raw []byte, mapping map[string]string, entity string) map[string]any {
+	rows := genericParse(raw, mapping)
+	valid, invalid := 0, 0
+	issues := []map[string]any{}
+	sample := []map[string]any{}
+	for i, row := range rows {
+		line := i + 2
+		custID, reason := findCustomer(ctx, s, companyID, row["customer_phone"], row["customer_name"])
+		if custID == "" {
+			invalid++
+			if len(issues) < 20 {
+				issues = append(issues, map[string]any{"line": line, "reason": reason})
+			}
+			continue
+		}
+		if entity == "invoices" {
+			if row["invoice_number"] == "" || row["total"] == "" {
+				invalid++
+				if len(issues) < 20 {
+					issues = append(issues, map[string]any{"line": line, "reason": "missing invoice_number or total"})
+				}
+				continue
+			}
+		}
+		if entity == "vehicles" {
+			if row["make"] == "" && row["model"] == "" && row["vin"] == "" {
+				invalid++
+				if len(issues) < 20 {
+					issues = append(issues, map[string]any{"line": line, "reason": "no vehicle data (make/model/vin all blank)"})
+				}
+				continue
+			}
+		}
+		valid++
+		if len(sample) < 5 {
+			sample = append(sample, map[string]any{"line": line, "data": row})
+		}
+	}
+	return map[string]any{"total": len(rows), "valid": valid, "invalid": invalid, "issues": issues, "sample": sample}
+}
+
+// importVehicleRows: appends a vehicle object to customers.vehicles JSONB.
+func importVehicleRows(ctx context.Context, s *Server, companyID string, raw []byte, mapping map[string]string) (int, int, []string) {
+	rows := genericParse(raw, mapping)
+	imported, skipped := 0, 0
+	errs := []string{}
+	tx, err := s.db.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return 0, 0, []string{err.Error()}
+	}
+	defer tx.Rollback(ctx)
+	for i, row := range rows {
+		line := i + 2
+		custID, reason := findCustomer(ctx, s, companyID, row["customer_phone"], row["customer_name"])
+		if custID == "" {
+			skipped++
+			if len(errs) < 20 {
+				errs = append(errs, fmt.Sprintf("line %d: %s", line, reason))
+			}
+			continue
+		}
+		y, _ := strconv.Atoi(row["year"])
+		mi, _ := strconv.Atoi(row["mileage"])
+		vehicle := map[string]any{
+			"id":           fmt.Sprintf("mig-%d-%d", time.Now().UnixNano(), line),
+			"year":         y,
+			"make":         row["make"],
+			"model":        row["model"],
+			"trim":         row["trim"],
+			"vin":          row["vin"],
+			"licensePlate": row["license_plate"],
+			"mileage":      mi,
+			"color":        row["color"],
+		}
+		vehJSON, _ := json.Marshal(vehicle)
+		_, err := tx.Exec(ctx, `
+			UPDATE customers
+			   SET vehicles = COALESCE(vehicles, '[]'::jsonb) || $2::jsonb,
+			       updated_at = now()
+			 WHERE id=$1 AND company_id=$3`,
+			custID, vehJSON, companyID)
+		if err != nil {
+			skipped++
+			if len(errs) < 20 {
+				errs = append(errs, fmt.Sprintf("line %d: %s", line, err.Error()))
+			}
+			continue
+		}
+		imported++
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return 0, 0, []string{err.Error()}
+	}
+	return imported, skipped, errs
+}
+
+// importInvoiceRows: creates historical invoice documents with status=paid.
+// Minimal-schema import: single summary line item, no tax/parts breakdown.
+func importInvoiceRows(ctx context.Context, s *Server, companyID string, raw []byte, mapping map[string]string) (int, int, []string) {
+	rows := genericParse(raw, mapping)
+	imported, skipped := 0, 0
+	errs := []string{}
+
+	tx, err := s.db.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return 0, 0, []string{err.Error()}
+	}
+	defer tx.Rollback(ctx)
+
+	// Ensure document_number_settings has 'invoice' for this company.
+	_, _ = tx.Exec(ctx, `
+		INSERT INTO document_number_settings (company_id, doc_type, prefix, next_number, pad_width)
+		VALUES ($1,'invoice','HIST-',1,0)
+		ON CONFLICT DO NOTHING`, companyID)
+
+	// Reserve a starting number for this import to avoid colliding with new real invoices.
+	var startNum int64
+	_ = tx.QueryRow(ctx, `
+		SELECT COALESCE(MAX(number)+1, 1000000) FROM documents
+		 WHERE company_id=$1 AND number_type='invoice'`, companyID).Scan(&startNum)
+
+	for i, row := range rows {
+		line := i + 2
+		custID, reason := findCustomer(ctx, s, companyID, row["customer_phone"], row["customer_name"])
+		if custID == "" {
+			skipped++
+			if len(errs) < 20 {
+				errs = append(errs, fmt.Sprintf("line %d: %s", line, reason))
+			}
+			continue
+		}
+		if row["invoice_number"] == "" || row["total"] == "" {
+			skipped++
+			if len(errs) < 20 {
+				errs = append(errs, fmt.Sprintf("line %d: missing invoice_number or total", line))
+			}
+			continue
+		}
+		total, err := strconv.ParseFloat(strings.ReplaceAll(row["total"], ",", ""), 64)
+		if err != nil {
+			skipped++
+			if len(errs) < 20 {
+				errs = append(errs, fmt.Sprintf("line %d: invalid total %q", line, row["total"]))
+			}
+			continue
+		}
+
+		// Vehicle snapshot built from imported fields (we don't try to re-link to a vehicles[] entry).
+		vehSnap := map[string]any{
+			"vin":          row["vehicle_vin"],
+			"licensePlate": row["vehicle_license_plate"],
+		}
+		vehSnapJSON, _ := json.Marshal(vehSnap)
+
+		custSnap := map[string]any{"name": row["customer_name"], "phone": row["customer_phone"]}
+		custSnapJSON, _ := json.Marshal(custSnap)
+
+		// Items: single summary line equal to the invoice total.
+		items := []map[string]any{{
+			"id":          fmt.Sprintf("mig-%d-%d", time.Now().UnixNano(), line),
+			"type":        "service",
+			"description": firstNonEmpty(row["description"], "Imported historical invoice ("+row["invoice_number"]+")"),
+			"qty":         1,
+			"price":       total,
+			"amount":      total,
+		}}
+		itemsJSON, _ := json.Marshal(items)
+
+		// Payments: one full-payment entry so totals/status reconcile.
+		payments := []map[string]any{{
+			"id":     fmt.Sprintf("mig-pay-%d-%d", time.Now().UnixNano(), line),
+			"method": "other",
+			"amount": total,
+			"notes":  "Imported historical payment",
+		}}
+		paymentsJSON, _ := json.Marshal(payments)
+
+		display := "HIST-" + row["invoice_number"]
+		docNumber := startNum + int64(i)
+
+		mileageIn := row["mileage"]
+		status := strings.ToLower(firstNonEmpty(row["status"], "paid"))
+
+		// Parse invoice_date, default to today if unparseable.
+		invDate := time.Now()
+		for _, layout := range []string{"2006-01-02", "01/02/2006", "1/2/2006", "2006/01/02", time.RFC3339} {
+			if t, err := time.Parse(layout, row["invoice_date"]); err == nil {
+				invDate = t
+				break
+			}
+		}
+
+		_, err = tx.Exec(ctx, `
+			INSERT INTO documents (
+			  company_id, number_type, number, display_number, type, status,
+			  customer_id, customer_snapshot, vehicle_id, vehicle_snapshot,
+			  mileage_in, odometer_unit, items, payments, settings_snapshot,
+			  created_at, updated_at, created_by, updated_by
+			) VALUES (
+			  $1,'invoice',$2,$3,'invoice',$4,
+			  $5,$6::jsonb,'',$7::jsonb,
+			  $8,'mi',$9::jsonb,$10::jsonb,'{}'::jsonb,
+			  $11,$11,'migration','migration'
+			)`,
+			companyID, docNumber, display, status,
+			custID, custSnapJSON, vehSnapJSON,
+			mileageIn, itemsJSON, paymentsJSON,
+			invDate)
+		if err != nil {
+			skipped++
+			if len(errs) < 20 {
+				errs = append(errs, fmt.Sprintf("line %d (%s): %s", line, display, err.Error()))
+			}
+			continue
+		}
+		imported++
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return 0, 0, []string{err.Error()}
+	}
+	return imported, skipped, errs
+}
+
+func firstNonEmpty(ss ...string) string {
+	for _, s := range ss {
+		if s != "" {
+			return s
+		}
+	}
+	return ""
 }

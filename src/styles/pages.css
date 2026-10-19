@@ -328,8 +328,8 @@ button.step-num:hover { border-color: var(--brand); color: var(--brand-text); }
 
 /* ---------- Login ---------- */
 .login { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); min-height: 100vh; }
-.login-aside { background: radial-gradient(800px 400px at 20% 10%, #0f3d3a 0%, transparent 70%), var(--nav-bg); color: #c9d3dd; padding: 40px 48px; display: flex; flex-direction: column; justify-content: space-between; gap: 32px; }
-.login-pitch h1 { color: #fff; font-size: 34px; line-height: 1.15; letter-spacing: -0.03em; max-width: 480px; }
+.login-aside { background: radial-gradient(800px 400px at 20% 10%, #FE9E26 0%, transparent 70%), var(--nav-bg); color: #000000; padding: 40px 48px; display: flex; flex-direction: column; justify-content: space-between; gap: 32px; }
+.login-pitch h1 { color: #000000; font-size: 34px; line-height: 1.15; letter-spacing: -0.03em; max-width: 480px; }
 .login-pitch ul { list-style: none; }
 .login-pitch li { display: flex; gap: 14px; align-items: flex-start; max-width: 440px; line-height: 1.5; }
 .login-pitch li strong { color: #fff; }

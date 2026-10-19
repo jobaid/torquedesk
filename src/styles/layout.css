@@ -38,13 +38,11 @@
   border-bottom: 1px solid #ffffff0d;
 }
 .brand-mark {
-  width: 34px; height: 34px; flex-shrink: 0;
-  border-radius: 10px;
-  display: grid; place-items: center;
-  background: linear-gradient(140deg, #13a69d, #0b6f6a);
-  color: #fff;
-  box-shadow: inset 0 1px 0 #ffffff30;
+  flex-shrink: 0;
+  object-fit: contain;
+  max-width: 100%;
 }
+.shell.collapsed .brand-mark { max-width: 36px; }
 .brand-name { font-weight: 750; font-size: 16.5px; letter-spacing: -0.02em; white-space: nowrap; }
 .brand-name span { color: var(--nav-accent); }
 .sidebar-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 10px 10px; scrollbar-color: #ffffff20 transparent; }

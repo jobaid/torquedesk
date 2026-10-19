@@ -143,13 +143,13 @@ export default function PlatformEmail() {
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <Field label="From email" hint="noreply@yourdomain.com (use a verified sender).">
-              <Input type="email" value={fromEmail} onChange={(e) => setFromEmail(e.target.value)} placeholder="noreply@torquedesk.com" />
+              <Input type="email" value={fromEmail} onChange={(e) => setFromEmail(e.target.value)} placeholder="noreply@fixora.com" />
             </Field>
             <Field label="From name" hint="Shown as the sender name in inboxes.">
               <Input value={fromName} onChange={(e) => setFromName(e.target.value)} placeholder="Fixora" />
             </Field>
             <Field label="Reply-to (optional)">
-              <Input type="email" value={replyTo} onChange={(e) => setReplyTo(e.target.value)} placeholder="support@torquedesk.com" />
+              <Input type="email" value={replyTo} onChange={(e) => setReplyTo(e.target.value)} placeholder="support@fixora.com" />
             </Field>
           </div>
         </Card>

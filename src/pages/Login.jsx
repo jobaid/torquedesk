@@ -144,8 +144,7 @@ export default function Login() {
     <div className="login">
       <div className="login-aside">
         <div className="row gap-12">
-          <Logo size={40} />
-          <span className="brand-name" style={{ fontSize: 22, color: '#fff' }}>Fix<span style={{ color: 'var(--nav-accent)' }}>ora</span></span>
+          <Logo size={44} />
         </div>
         <div className="stack gap-24 login-pitch">
           <h1>Repair information and shop workflow, built for the bay.</h1>

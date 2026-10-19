@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
-import { Check, Loader2, Eye, EyeOff, AlertCircle, ShieldCheck, Zap, CreditCard, Lock, Building2, Mail, Phone, MapPin, UserRound, KeyRound, ArrowRight } from 'lucide-react'
+import { Check, Loader2, Eye, EyeOff, AlertCircle, ShieldCheck, Zap, CreditCard, Lock, Building2, Mail, Phone, MapPin, UserRound, KeyRound, ArrowRight, Sparkles, Star } from 'lucide-react'
 import Logo from '../components/layout/Logo'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 
-// Premium signup experience. Three-section form on the left, sticky plan
-// summary on the right. New signups automatically appear in the SaaS owner's
-// Companies list (status=pending until Stripe confirms payment).
+// Signup — mobile-first redesign. Plan picker is a row of visual cards
+// (not a dropdown) that collapses to a single column on phones. The
+// 2-column form+summary layout collapses the summary under the form on
+// narrow screens so nothing is cut off.
 export default function Signup() {
   const [params] = useSearchParams()
   const [plans, setPlans] = useState([])
@@ -35,7 +36,6 @@ export default function Signup() {
   }, [])
 
   const plan = plans.find((p) => p.key === planKey)
-
   const strength = passwordStrength(form.password)
 
   const submit = async (e) => {
@@ -78,41 +78,48 @@ export default function Signup() {
   }
 
   if (loading) return (
-    <div style={shellBg}>
+    <div className="su-shell">
       <TopBar />
-      <div style={{ maxWidth: 1120, margin: '0 auto', padding: 60, textAlign: 'center', color: '#6b7280' }}>
+      <div style={{ maxWidth: 1120, margin: '0 auto', padding: '60px 20px', textAlign: 'center', color: '#6b7280' }}>
         <Loader2 className="spin" size={22} /> Loading plans…
       </div>
+      <SignupStyles />
     </div>
   )
 
   return (
-    <div style={shellBg}>
+    <div className="su-shell">
       <TopBar />
-      <main style={{ maxWidth: 1120, margin: '0 auto', padding: '32px 20px 80px' }}>
+      <main className="su-main">
         {/* Hero */}
-        <div style={{ marginBottom: 28 }}>
-          <h1 style={{ margin: 0, fontSize: 36, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
-            Create your Fixora shop account
-          </h1>
-          <p style={{ margin: '10px 0 0', fontSize: 16, color: '#64748b' }}>
-            Start a {plan?.trialDays || 7}-day free trial. No charge today — cancel anytime from Settings.
-          </p>
+        <div className="su-hero">
+          <div className="su-chip"><Sparkles size={14} /> Start free · no credit card charges today</div>
+          <h1>Launch your shop with Fixora</h1>
+          <p>Everything you need — repair orders, invoices, customer management, and reports — in one modern app.</p>
         </div>
 
         {cancelled && (
-          <div style={banner('amber')}>
-            <AlertCircle size={16} /> You cancelled checkout — nothing was charged. Review your details and try again when you're ready.
+          <div className="su-banner su-banner-amber">
+            <AlertCircle size={16} /> You cancelled checkout — nothing was charged. Review and try again when you're ready.
           </div>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 24, alignItems: 'start' }}>
-          {/* Form */}
-          <form onSubmit={submit} style={{ display: 'grid', gap: 18 }}>
-            {/* Shop info */}
-            <section style={card}>
+        {/* Plan picker (visual cards, not a dropdown) */}
+        <div className="su-plans-head">
+          <h2>Pick your plan</h2>
+          <div className="su-cycle">
+            <button type="button" className={cycle === 'monthly' ? 'on' : ''} onClick={() => setCycle('monthly')}>Monthly</button>
+            <button type="button" className={cycle === 'annual' ? 'on' : ''} onClick={() => setCycle('annual')}>Annual <span className="su-save">save ~20%</span></button>
+          </div>
+        </div>
+        <PlanCards plans={plans} planKey={planKey} setPlanKey={setPlanKey} cycle={cycle} />
+
+        {/* Grid: form + sticky summary (collapses on mobile) */}
+        <div className="su-grid">
+          <form onSubmit={submit} className="su-form">
+            <section className="su-card">
               <SectionHeader icon={<Building2 size={18} />} index={1} title="Shop information" sub="Tell us about your repair shop." />
-              <div style={grid2}>
+              <div className="su-grid2">
                 <Input2 label="Shop name" required value={form.businessName} onChange={update('businessName')} err={fieldErrs['business.name']} placeholder="Mike's Auto Repair" />
                 <Input2 label="Business email" required type="email" value={form.businessEmail} onChange={update('businessEmail')} err={fieldErrs['business.email']} placeholder="info@mikesauto.com" icon={<Mail size={14} />} />
                 <Input2 label="Phone" type="tel" value={form.businessPhone} onChange={update('businessPhone')} placeholder="(555) 123-4567" icon={<Phone size={14} />} />
@@ -124,10 +131,9 @@ export default function Signup() {
               </div>
             </section>
 
-            {/* Owner account */}
-            <section style={card}>
+            <section className="su-card">
               <SectionHeader icon={<UserRound size={18} />} index={2} title="Your account" sub="You'll use this email + password to sign in." />
-              <div style={grid2}>
+              <div className="su-grid2">
                 <Input2 label="First name" required value={form.ownerFirstName} onChange={update('ownerFirstName')} err={fieldErrs['owner.firstName']} placeholder="Mike" />
                 <Input2 label="Last name" value={form.ownerLastName} onChange={update('ownerLastName')} placeholder="Rodriguez" />
                 <Input2 label="Your email (sign-in)" required type="email" value={form.ownerEmail} onChange={update('ownerEmail')} err={fieldErrs['owner.email']} placeholder="mike@mikesauto.com" icon={<Mail size={14} />} />
@@ -139,63 +145,136 @@ export default function Signup() {
               {form.password && <PasswordMeter strength={strength} />}
             </section>
 
-            {/* Trust strip */}
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, padding: '14px 18px', background: '#eff6ff', borderRadius: 12, border: '1px solid #dbeafe', color: '#1e40af', fontSize: 13 }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><ShieldCheck size={14} /> Bank-grade encryption</span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Zap size={14} /> {plan?.trialDays || 7}-day free trial</span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><CreditCard size={14} /> Cancel any time</span>
+            <div className="su-trust">
+              <span><ShieldCheck size={14} /> Bank-grade encryption</span>
+              <span><Zap size={14} /> {plan?.trialDays || 7}-day free trial</span>
+              <span><CreditCard size={14} /> Cancel any time</span>
             </div>
 
-            {err && <div style={banner('red')}><AlertCircle size={16} /> {err}</div>}
+            {err && <div className="su-banner su-banner-red"><AlertCircle size={16} /> {err}</div>}
 
-            <button type="submit" disabled={busy} style={ctaBtn(busy)}>
+            <button type="submit" disabled={busy} className="su-cta">
               {busy ? (<><Loader2 size={16} className="spin" /> Starting secure checkout…</>) : (<>Continue to Stripe — start free trial <ArrowRight size={16} /></>)}
             </button>
-            <p style={{ margin: '-4px 0 0', fontSize: 12, color: '#64748b', textAlign: 'center' }}>
+            <p className="su-fine">
               After checkout, your trial starts immediately. No charge until the trial ends.
-              By continuing you agree to our <Link to="/terms" style={{ color: '#2563eb' }}>Terms</Link> and <Link to="/privacy" style={{ color: '#2563eb' }}>Privacy Policy</Link>.
+              By continuing you agree to our <Link to="/terms">Terms</Link> and <Link to="/privacy">Privacy Policy</Link>.
             </p>
           </form>
 
-          {/* Plan summary (sticky on wide screens) */}
-          <aside style={{ position: 'sticky', top: 20 }}>
-            <PlanSummary plans={plans} planKey={planKey} setPlanKey={setPlanKey} cycle={cycle} setCycle={setCycle} />
-            <div style={{ marginTop: 14, textAlign: 'center', fontSize: 12, color: '#64748b' }}>
-              Already have an account? <Link to="/" style={{ color: '#2563eb', fontWeight: 600 }}>Sign in →</Link>
+          <aside className="su-aside">
+            <PlanSummary plan={plan} cycle={cycle} />
+            <div className="su-signin">
+              Already have an account? <Link to="/">Sign in →</Link>
             </div>
           </aside>
         </div>
       </main>
       <Footer />
-      <style>{`
-        .spin { animation: spin 1s linear infinite }
-        @keyframes spin { to { transform: rotate(360deg) } }
-      `}</style>
+      <SignupStyles />
     </div>
   )
 }
 
-const shellBg = { minHeight: '100vh', background: 'radial-gradient(ellipse at top, #eff6ff, transparent 60%), #f8fafc' }
+// ---------------------------------------------------------------- Plan cards
+
+function PlanCards({ plans, planKey, setPlanKey, cycle }) {
+  // Heuristic for "most popular" tag — pick the middle plan if 3+, else none.
+  const popularKey = plans.length >= 3 ? plans[Math.floor(plans.length / 2)]?.key : null
+  return (
+    <div className="su-plan-cards">
+      {plans.map((p) => {
+        const price = cycle === 'annual' ? p.annualPrice / 12 : p.monthlyPrice
+        const annualTotal = p.annualPrice
+        const selected = p.key === planKey
+        const popular = p.key === popularKey
+        return (
+          <button
+            type="button"
+            key={p.key}
+            onClick={() => setPlanKey(p.key)}
+            className={`su-plan ${selected ? 'selected' : ''} ${popular ? 'popular' : ''}`}
+            aria-pressed={selected}
+          >
+            {popular && <div className="su-plan-badge"><Star size={11} /> Most popular</div>}
+            <div className="su-plan-name">{p.name}</div>
+            {p.tagline && <div className="su-plan-tag">{p.tagline}</div>}
+            <div className="su-plan-price">
+              <span className="num">${price.toFixed(0)}</span>
+              <span className="per">/mo</span>
+            </div>
+            <div className="su-plan-cycle">
+              {cycle === 'annual' ? `$${annualTotal}/yr · billed yearly` : 'Billed monthly'}
+            </div>
+            {p.trialDays > 0 && (
+              <div className="su-plan-trial"><Zap size={11} /> {p.trialDays}-day free trial</div>
+            )}
+            <ul className="su-plan-features">
+              {(p.features || []).slice(0, 6).map((f) => (
+                <li key={f}><Check size={13} /> {f.replace(/_/g, ' ')}</li>
+              ))}
+              {p.features?.length > 6 && (
+                <li className="more">+ {p.features.length - 6} more</li>
+              )}
+            </ul>
+            <div className={`su-plan-radio ${selected ? 'on' : ''}`}>
+              {selected ? <><Check size={14} /> Selected</> : 'Choose this plan'}
+            </div>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+// ------------------------------------------------------------- Plan summary
+
+function PlanSummary({ plan, cycle }) {
+  if (!plan) return null
+  const price = cycle === 'annual' ? plan.annualPrice / 12 : plan.monthlyPrice
+  const total = cycle === 'annual' ? plan.annualPrice : plan.monthlyPrice
+  return (
+    <div className="su-summary">
+      <div className="su-summary-head">Your plan</div>
+      <div className="su-summary-name">{plan.name}</div>
+      <div className="su-summary-price">
+        <span className="num">${price.toFixed(0)}</span><span className="per">/mo</span>
+      </div>
+      <div className="su-summary-cycle">{cycle === 'annual' ? `Billed $${total}/year` : 'Billed monthly'}</div>
+      {plan.trialDays > 0 && (
+        <div className="su-summary-trial"><Zap size={12} /> {plan.trialDays}-day free trial</div>
+      )}
+      {plan.tagline && <div className="su-summary-tag">{plan.tagline}</div>}
+      <ul className="su-summary-features">
+        {(plan.features || []).slice(0, 8).map((f) => (
+          <li key={f}><Check size={14} /> {f.replace(/_/g, ' ')}</li>
+        ))}
+        {plan.features?.length > 8 && <li className="more">+ {plan.features.length - 8} more</li>}
+      </ul>
+    </div>
+  )
+}
+
+// ------------------------------------------------------------------ Chrome
 
 function TopBar() {
   return (
-    <header style={{ background: '#fff', borderBottom: '1px solid #e5e7eb' }}>
-      <div style={{ maxWidth: 1120, margin: '0 auto', padding: '0 20px', height: 64, display: 'flex', alignItems: 'center' }}>
+    <header className="su-top">
+      <div className="su-top-inner">
         <Logo />
-        <div style={{ marginLeft: 'auto', fontSize: 13, color: '#64748b' }}>Create your Fixora account</div>
+        <div className="su-top-right">Create your Fixora account</div>
       </div>
     </header>
   )
 }
-
 function Footer() {
   return (
-    <footer style={{ borderTop: '1px solid #e5e7eb', background: '#fff' }}>
-      <div style={{ maxWidth: 1120, margin: '0 auto', padding: '18px 20px', color: '#64748b', fontSize: 12, display: 'flex', gap: 16, flexWrap: 'wrap', justifyContent: 'space-between' }}>
+    <footer className="su-foot">
+      <div className="su-foot-inner">
         <span>© {new Date().getFullYear()} Fixora · Modern shop management for independent auto repair shops.</span>
         <span>
-          <Link to="/terms" style={{ color: '#64748b', marginRight: 14 }}>Terms</Link>
-          <Link to="/privacy" style={{ color: '#64748b' }}>Privacy</Link>
+          <Link to="/terms">Terms</Link>
+          <Link to="/privacy">Privacy</Link>
         </span>
       </div>
     </footer>
@@ -204,49 +283,29 @@ function Footer() {
 
 function SectionHeader({ icon, index, title, sub }) {
   return (
-    <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', marginBottom: 14 }}>
-      <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg,#3c6dff,#2554f5)', color: '#fff', display: 'grid', placeItems: 'center', boxShadow: '0 4px 10px rgba(37,84,245,.25)' }}>
-        {icon}
-      </div>
+    <div className="su-sec-head">
+      <div className="su-sec-icon">{icon}</div>
       <div>
-        <div style={{ fontSize: 11, color: '#2554f5', fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase' }}>Step {index}</div>
-        <h2 style={{ margin: '2px 0 0', fontSize: 17, fontWeight: 700, color: '#0f172a' }}>{title}</h2>
-        {sub && <div style={{ marginTop: 2, fontSize: 12.5, color: '#64748b' }}>{sub}</div>}
+        <div className="su-sec-step">Step {index}</div>
+        <h2>{title}</h2>
+        {sub && <div className="su-sec-sub">{sub}</div>}
       </div>
     </div>
   )
 }
 
-const card = {
-  background: '#fff', border: '1px solid #e5e7eb', borderRadius: 14, padding: 22,
-  boxShadow: '0 1px 2px rgba(0,0,0,.03)',
-}
-const grid2 = { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 12 }
-
 function Input2({ label, required, type = 'text', err, suffix, icon, ...rest }) {
   return (
-    <label style={{ display: 'block' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12.5, fontWeight: 600, color: '#334155', marginBottom: 6 }}>
-        {label}{required && <span style={{ color: '#ef4444' }}>*</span>}
+    <label className="su-field">
+      <div className="su-field-label">
+        {label}{required && <span className="req">*</span>}
       </div>
-      <div style={{ position: 'relative' }}>
-        {icon && <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}>{icon}</span>}
-        <input type={type} {...rest}
-          style={{
-            width: '100%', padding: icon ? '10px 10px 10px 32px' : '10px 12px',
-            paddingRight: suffix ? 36 : undefined,
-            background: '#fff',
-            border: err ? '1px solid #ef4444' : '1px solid #cbd5e1',
-            borderRadius: 10, fontSize: 14, outline: 'none',
-            boxShadow: err ? '0 0 0 3px rgba(239,68,68,.1)' : undefined,
-            transition: 'border-color .15s, box-shadow .15s',
-            boxSizing: 'border-box',
-          }}
-          onFocus={(e) => { if (!err) { e.target.style.borderColor = '#2554f5'; e.target.style.boxShadow = '0 0 0 3px rgba(37,84,245,.12)' } }}
-          onBlur={(e) => { if (!err) { e.target.style.borderColor = '#cbd5e1'; e.target.style.boxShadow = 'none' } }} />
-        {suffix && <span style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)' }}>{suffix}</span>}
+      <div className={`su-field-wrap ${err ? 'invalid' : ''}`}>
+        {icon && <span className="su-field-icon">{icon}</span>}
+        <input type={type} {...rest} />
+        {suffix}
       </div>
-      {err && <div style={{ marginTop: 4, fontSize: 11.5, color: '#dc2626' }}>{err}</div>}
+      {err && <div className="su-field-err">{err}</div>}
     </label>
   )
 }
@@ -278,82 +337,171 @@ function PasswordMeter({ strength }) {
   )
 }
 
-function PlanSummary({ plans, planKey, setPlanKey, cycle, setCycle }) {
-  const plan = plans.find((p) => p.key === planKey)
-  const price = plan ? (cycle === 'annual' ? plan.annualPrice / 12 : plan.monthlyPrice) : 0
-  const total = plan ? (cycle === 'annual' ? plan.annualPrice : plan.monthlyPrice) : 0
+// -------------------------------------------------------------------- Styles
 
+function SignupStyles() {
   return (
-    <div style={{
-      background: 'linear-gradient(165deg,#1e293b,#0f172a)', color: '#fff',
-      borderRadius: 16, padding: 24, boxShadow: '0 20px 50px rgba(15,23,42,0.15)',
-      border: '1px solid rgba(255,255,255,0.08)',
-    }}>
-      <div style={{ fontSize: 11, letterSpacing: '.08em', textTransform: 'uppercase', color: '#93c5fd', fontWeight: 700 }}>Your plan</div>
-      <select value={planKey} onChange={(e) => setPlanKey(e.target.value)}
-        style={{ marginTop: 6, width: '100%', padding: '10px 12px', background: 'rgba(255,255,255,0.1)', color: '#fff', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 10, fontSize: 14, fontWeight: 600 }}>
-        {plans.map((p) => <option key={p.key} value={p.key} style={{ color: '#111' }}>{p.name}</option>)}
-      </select>
-      <div style={{ marginTop: 14, display: 'inline-flex', padding: 3, background: 'rgba(255,255,255,0.08)', borderRadius: 999, width: '100%' }}>
-        <button type="button" onClick={() => setCycle('monthly')} style={cycleBtn(cycle === 'monthly')}>Monthly</button>
-        <button type="button" onClick={() => setCycle('annual')}  style={cycleBtn(cycle === 'annual')}>Annual · save ~20%</button>
-      </div>
+    <style>{`
+      .spin { animation: spin 1s linear infinite }
+      @keyframes spin { to { transform: rotate(360deg) } }
 
-      {plan && (
-        <>
-          <div style={{ marginTop: 20, display: 'flex', alignItems: 'baseline', gap: 4 }}>
-            <span style={{ fontSize: 40, fontWeight: 800, letterSpacing: '-0.03em' }}>${price.toFixed(0)}</span>
-            <span style={{ color: '#cbd5e1' }}>/mo</span>
-          </div>
-          <div style={{ fontSize: 12, color: '#94a3b8' }}>{cycle === 'annual' ? `Billed $${total}/year` : 'Billed monthly'}</div>
-          {plan.trialDays > 0 && (
-            <div style={{ marginTop: 10, padding: '6px 10px', background: 'rgba(34,197,94,0.15)', color: '#86efac', borderRadius: 999, fontSize: 11, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              <Zap size={11} /> {plan.trialDays}-day free trial
-            </div>
-          )}
-          {plan.tagline && <div style={{ marginTop: 14, fontSize: 13, color: '#cbd5e1' }}>{plan.tagline}</div>}
-          <ul style={{ margin: '18px 0 0', padding: 0, listStyle: 'none', display: 'grid', gap: 8 }}>
-            {(plan.features || []).slice(0, 12).map((f) => (
-              <li key={f} style={{ display: 'flex', gap: 8, fontSize: 12.5, color: '#e2e8f0' }}>
-                <Check size={14} color="#86efac" style={{ marginTop: 2, flexShrink: 0 }} />
-                {f.replace(/_/g, ' ')}
-              </li>
-            ))}
-            {plan.features?.length > 12 && (
-              <li style={{ fontSize: 11, color: '#94a3b8', fontStyle: 'italic', marginLeft: 22 }}>
-                + {plan.features.length - 12} more features
-              </li>
-            )}
-          </ul>
-        </>
-      )}
-    </div>
+      .su-shell { min-height:100vh; background:
+        radial-gradient(ellipse at top, #eef2ff, transparent 60%),
+        radial-gradient(ellipse at bottom right, #fff7ed, transparent 55%),
+        #f8fafc;
+        color:#0f172a; }
+      .su-top { background:#fff; border-bottom:1px solid #e5e7eb; }
+      .su-top-inner { max-width:1120px; margin:0 auto; padding:0 20px; height:64px; display:flex; align-items:center; }
+      .su-top-right { margin-left:auto; font-size:13px; color:#64748b; }
+      .su-main { max-width:1120px; margin:0 auto; padding:32px 20px 80px; }
+
+      .su-hero { text-align:center; margin-bottom:28px; }
+      .su-hero .su-chip {
+        display:inline-flex; align-items:center; gap:6px;
+        background:linear-gradient(90deg,#eff6ff,#f0f9ff); color:#1e40af;
+        border:1px solid #c7d7fe; padding:6px 14px; border-radius:999px;
+        font-size:12.5px; font-weight:600; margin-bottom:14px;
+      }
+      .su-hero h1 { margin:0; font-size:42px; font-weight:800; letter-spacing:-0.025em; line-height:1.08; color:#0f172a; }
+      .su-hero p { margin:12px auto 0; font-size:16.5px; color:#475569; max-width:620px; line-height:1.5; }
+
+      .su-banner { display:flex; align-items:center; gap:10px; padding:12px 14px; border-radius:10px; font-size:13px; margin-bottom:18px; }
+      .su-banner-red { background:#fef2f2; border:1px solid #fecaca; color:#991b1b; }
+      .su-banner-amber { background:#fffbeb; border:1px solid #fde68a; color:#92400e; }
+
+      .su-plans-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin:28px 0 14px; }
+      .su-plans-head h2 { margin:0; font-size:22px; font-weight:700; letter-spacing:-0.01em; }
+      .su-cycle { display:inline-flex; padding:3px; background:#eef2ff; border:1px solid #e0e7ff; border-radius:999px; }
+      .su-cycle button { padding:7px 14px; border:none; background:transparent; color:#475569; font-weight:600; font-size:13px; cursor:pointer; border-radius:999px; display:inline-flex; align-items:center; gap:6px; }
+      .su-cycle button.on { background:#fff; color:#0f172a; box-shadow:0 1px 3px rgba(0,0,0,.08); }
+      .su-save { font-size:10.5px; font-weight:700; color:#059669; background:#d1fae5; padding:2px 8px; border-radius:999px; }
+
+      .su-plan-cards { display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:14px; margin-bottom:28px; }
+      .su-plan {
+        text-align:left; cursor:pointer; background:#fff; border:2px solid #e5e7eb; border-radius:16px;
+        padding:22px 20px; position:relative; transition:border-color .15s, box-shadow .15s, transform .15s;
+        font: inherit; color:inherit;
+      }
+      .su-plan:hover { border-color:#cbd5e1; box-shadow:0 10px 25px rgba(15,23,42,.08); }
+      .su-plan.selected { border-color:#2554f5; box-shadow:0 10px 30px rgba(37,84,245,.18); }
+      .su-plan.popular { border-color:#f59e0b; }
+      .su-plan.popular.selected { border-color:#2554f5; }
+      .su-plan-badge {
+        position:absolute; top:-11px; left:20px;
+        background:linear-gradient(90deg,#f59e0b,#ea580c); color:#fff;
+        padding:4px 10px; border-radius:999px; font-size:10.5px; font-weight:700;
+        display:inline-flex; align-items:center; gap:4px; box-shadow:0 4px 10px rgba(245,158,11,.3);
+      }
+      .su-plan-name { font-size:19px; font-weight:800; letter-spacing:-0.01em; }
+      .su-plan-tag { margin-top:2px; font-size:12.5px; color:#64748b; line-height:1.4; }
+      .su-plan-price { display:flex; align-items:baseline; gap:4px; margin-top:14px; }
+      .su-plan-price .num { font-size:38px; font-weight:800; letter-spacing:-0.03em; color:#0f172a; }
+      .su-plan-price .per { font-size:14px; color:#64748b; }
+      .su-plan-cycle { font-size:12px; color:#64748b; }
+      .su-plan-trial { margin-top:10px; display:inline-flex; align-items:center; gap:5px; background:#ecfdf5; color:#047857; padding:3px 9px; border-radius:999px; font-size:11px; font-weight:700; }
+      .su-plan-features { list-style:none; margin:14px 0 0; padding:0; display:grid; gap:7px; }
+      .su-plan-features li { display:flex; gap:7px; align-items:flex-start; font-size:12.5px; color:#334155; line-height:1.4; }
+      .su-plan-features li svg { color:#10b981; flex-shrink:0; margin-top:2px; }
+      .su-plan-features li.more { font-style:italic; color:#94a3b8; font-size:12px; margin-left:20px; }
+      .su-plan-radio {
+        margin-top:16px; padding:10px 12px; text-align:center;
+        border-radius:10px; border:1px solid #e5e7eb;
+        font-size:13px; font-weight:600; color:#475569;
+        display:flex; align-items:center; justify-content:center; gap:6px;
+        transition:all .15s;
+      }
+      .su-plan-radio.on { background:#2554f5; color:#fff; border-color:#2554f5; }
+
+      .su-grid { display:grid; grid-template-columns:1fr 360px; gap:24px; align-items:start; }
+      .su-form { display:grid; gap:18px; }
+      .su-card { background:#fff; border:1px solid #e5e7eb; border-radius:14px; padding:22px; box-shadow:0 1px 2px rgba(0,0,0,.03); }
+      .su-grid2 { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; }
+
+      .su-sec-head { display:flex; gap:14px; align-items:flex-start; margin-bottom:14px; }
+      .su-sec-icon { width:36px; height:36px; border-radius:10px; background:linear-gradient(135deg,#3c6dff,#2554f5); color:#fff; display:grid; place-items:center; box-shadow:0 4px 10px rgba(37,84,245,.25); flex-shrink:0; }
+      .su-sec-step { font-size:11px; color:#2554f5; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
+      .su-sec-head h2 { margin:2px 0 0; font-size:17px; font-weight:700; color:#0f172a; }
+      .su-sec-sub { margin-top:2px; font-size:12.5px; color:#64748b; }
+
+      .su-field { display:block; }
+      .su-field-label { display:flex; align-items:center; gap:4px; font-size:12.5px; font-weight:600; color:#334155; margin-bottom:6px; }
+      .su-field-label .req { color:#ef4444; }
+      .su-field-wrap {
+        display:flex; align-items:center; gap:8px; background:#fff;
+        border:1.5px solid #e5e7eb; border-radius:10px; padding:0 12px; min-height:42px;
+        transition:border-color .15s, box-shadow .15s;
+      }
+      .su-field-wrap:focus-within { border-color:#2554f5; box-shadow:0 0 0 3px rgba(37,84,245,.12); }
+      .su-field-wrap.invalid { border-color:#ef4444; }
+      .su-field-icon { color:#94a3b8; display:flex; }
+      .su-field input { flex:1; border:none; outline:none; background:transparent; font-size:14px; color:#0f172a; padding:10px 0; min-width:0; }
+      .su-field-err { margin-top:5px; font-size:11.5px; color:#ef4444; }
+
+      .su-trust { display:flex; flex-wrap:wrap; gap:16px 20px; padding:14px 18px; background:#eff6ff; border-radius:12px; border:1px solid #dbeafe; color:#1e40af; font-size:13px; }
+      .su-trust span { display:flex; align-items:center; gap:6px; }
+
+      .su-cta {
+        padding:16px 24px; border-radius:12px; border:none;
+        background:linear-gradient(90deg,#2554f5,#1d4fd9); color:#fff;
+        font-size:16px; font-weight:700; cursor:pointer;
+        box-shadow:0 10px 25px rgba(37,84,245,.3);
+        display:flex; align-items:center; justify-content:center; gap:8px;
+        transition:filter .15s, box-shadow .15s, transform .1s;
+      }
+      .su-cta:hover:not(:disabled) { filter:brightness(1.05); }
+      .su-cta:active:not(:disabled) { transform:translateY(1px); }
+      .su-cta:disabled { background:#94a3b8; box-shadow:none; cursor:wait; }
+      .su-fine { margin:-4px 0 0; font-size:12px; color:#64748b; text-align:center; line-height:1.5; }
+      .su-fine a { color:#2554f5; }
+
+      .su-aside { position:sticky; top:20px; }
+      .su-summary {
+        background:linear-gradient(165deg,#1e293b,#0f172a); color:#fff;
+        border-radius:16px; padding:22px; box-shadow:0 20px 50px rgba(15,23,42,0.15);
+        border:1px solid rgba(255,255,255,0.08);
+      }
+      .su-summary-head { font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:#93c5fd; font-weight:700; }
+      .su-summary-name { font-size:22px; font-weight:800; margin-top:4px; letter-spacing:-0.01em; }
+      .su-summary-price { display:flex; align-items:baseline; gap:4px; margin-top:12px; }
+      .su-summary-price .num { font-size:38px; font-weight:800; letter-spacing:-0.03em; }
+      .su-summary-price .per { color:#cbd5e1; }
+      .su-summary-cycle { font-size:12px; color:#94a3b8; }
+      .su-summary-trial { margin-top:10px; display:inline-flex; align-items:center; gap:6px; background:rgba(34,197,94,0.15); color:#86efac; padding:5px 10px; border-radius:999px; font-size:11px; font-weight:700; }
+      .su-summary-tag { margin-top:14px; font-size:13px; color:#cbd5e1; line-height:1.4; }
+      .su-summary-features { list-style:none; margin:16px 0 0; padding:0; display:grid; gap:8px; }
+      .su-summary-features li { display:flex; gap:8px; font-size:12.5px; color:#e2e8f0; }
+      .su-summary-features li svg { color:#86efac; margin-top:2px; flex-shrink:0; }
+      .su-summary-features li.more { font-style:italic; color:#94a3b8; font-size:11px; margin-left:22px; }
+      .su-signin { margin-top:14px; text-align:center; font-size:12.5px; color:#64748b; }
+      .su-signin a { color:#2554f5; font-weight:600; }
+
+      .su-foot { border-top:1px solid #e5e7eb; background:#fff; }
+      .su-foot-inner { max-width:1120px; margin:0 auto; padding:18px 20px; color:#64748b; font-size:12px; display:flex; gap:16px; flex-wrap:wrap; justify-content:space-between; }
+      .su-foot-inner a { color:#64748b; margin-right:14px; }
+
+      /* ---------- Mobile ---------- */
+      @media (max-width: 900px) {
+        .su-hero h1 { font-size:30px; }
+        .su-hero p { font-size:15px; }
+        .su-plans-head { flex-direction:column; align-items:stretch; gap:12px; }
+        .su-plans-head h2 { text-align:center; }
+        .su-cycle { align-self:center; }
+        .su-grid { grid-template-columns:1fr; }
+        .su-aside { position:static; }
+      }
+      @media (max-width: 560px) {
+        .su-main { padding:20px 14px 60px; }
+        .su-top-right { display:none; }
+        .su-hero h1 { font-size:26px; }
+        .su-hero p { font-size:14.5px; }
+        .su-card { padding:18px; border-radius:12px; }
+        .su-grid2 { grid-template-columns:1fr; }
+        .su-plan { padding:18px 16px; }
+        .su-plan-price .num { font-size:32px; }
+        .su-cta { padding:14px 20px; font-size:15px; }
+        .su-trust { font-size:12px; padding:12px 14px; }
+        .su-foot-inner { flex-direction:column; gap:6px; text-align:center; }
+      }
+    `}</style>
   )
-}
-
-const cycleBtn = (active) => ({
-  flex: 1, padding: '7px 12px', borderRadius: 999, border: 'none',
-  background: active ? '#fff' : 'transparent',
-  color: active ? '#0f172a' : '#cbd5e1',
-  fontWeight: 600, fontSize: 12, cursor: 'pointer', transition: 'background .15s',
-})
-
-const ctaBtn = (busy) => ({
-  padding: '16px 24px', borderRadius: 12, border: 'none',
-  background: busy ? '#94a3b8' : 'linear-gradient(90deg,#2554f5,#1d4fd9)', color: '#fff',
-  fontSize: 16, fontWeight: 700, cursor: busy ? 'wait' : 'pointer',
-  boxShadow: busy ? 'none' : '0 10px 25px rgba(37,84,245,.3)',
-  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-  transition: 'filter .15s, box-shadow .15s',
-})
-
-function banner(kind) {
-  const colors = {
-    red:   { bg: '#fef2f2', border: '#fecaca', color: '#991b1b' },
-    amber: { bg: '#fffbeb', border: '#fde68a', color: '#92400e' },
-  }[kind] || { bg: '#f3f4f6', border: '#e5e7eb', color: '#374151' }
-  return {
-    display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 10,
-    background: colors.bg, border: `1px solid ${colors.border}`, color: colors.color, fontSize: 13,
-  }
 }

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 )
@@ -293,7 +294,11 @@ func platformEmailShell(fromName, title, body, footerNote string) string {
 	b.WriteString(`<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f3f4f6">`)
 	b.WriteString(`<tr><td align="center" style="padding:32px 16px">`)
 	// Logo row (above the card)
-	b.WriteString(`<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px"><tr><td style="padding:0 0 14px"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td style="padding-right:10px"><div style="width:34px;height:34px;border-radius:8px;background:linear-gradient(135deg,#3c6dff,#2554f5);color:#fff;text-align:center;line-height:34px;font-weight:700;font-size:15px">T</div></td><td style="font-weight:700;font-size:16px;color:#111827;letter-spacing:-0.01em">` + htmlEscape(fromName) + `</td></tr></table></td></tr></table>`)
+	appOrigin := strings.TrimSpace(os.Getenv("APP_ORIGIN"))
+	if appOrigin == "" {
+		appOrigin = "https://apps.2set.com"
+	}
+	b.WriteString(`<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px"><tr><td style="padding:0 0 14px;text-align:left"><img src="` + appOrigin + `/logo.png" alt="` + htmlEscape(fromName) + `" width="140" style="height:auto;display:inline-block;max-width:180px"></td></tr></table>`)
 	// Main card
 	b.WriteString(`<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;background:#ffffff;border-radius:14px;border:1px solid #e5e7eb;overflow:hidden">`)
 	// Hero

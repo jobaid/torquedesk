@@ -38,12 +38,9 @@ export default function OwnerLayout() {
   return (
     <div style={shellStyle}>
       <aside style={asideStyle}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '18px 16px', borderBottom: '1px solid #e2e8f0' }}>
-          <div style={{ background: 'linear-gradient(135deg,#2554f5,#7c3aed)', borderRadius: 8, padding: 6, display: 'flex' }}><ShieldCheck size={18} color="#fff" /></div>
-          <div>
-            <div style={{ fontSize: 15, fontWeight: 700, lineHeight: 1, color: '#000000' }}>Fixora</div>
-            <div style={{ fontSize: 10.5, color: '#000000', marginTop: 2 }}>Admin Portal</div>
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', borderBottom: '1px solid #e2e8f0' }}>
+          <img src="/logo.png" alt="Fixora" style={{ height: 56, width: 'auto', objectFit: 'contain' }} />
+          <div style={{ fontSize: 10.5, color: '#64748b', fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase' }}>Admin</div>
         </div>
         <nav style={{ padding: 10, overflow: 'auto', flex: 1 }}>
           {NAV.map((it) => (

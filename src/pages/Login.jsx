@@ -144,7 +144,7 @@ export default function Login() {
     <div className="login">
       <div className="login-aside">
         <div className="row gap-12">
-          <Logo size={72} />
+          <Logo size={45} />
         </div>
         <div className="stack gap-24 login-pitch">
           <h1>Repair information and shop workflow, built for the bay.</h1>

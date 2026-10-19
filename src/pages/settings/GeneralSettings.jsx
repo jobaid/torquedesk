@@ -55,25 +55,12 @@ export function ChangePassword() {
 }
 
 export function Appearance() {
-  const theme = useApp((s) => s.theme)
-  const setTheme = useApp((s) => s.setTheme)
   const collapsed = useApp((s) => s.sidebarCollapsed)
   const toggleSidebar = useApp((s) => s.toggleSidebar)
   return (
     <div className="stack gap-16">
       <SectionHead title="Appearance" description="Personal preferences for this browser." />
       <div className="card card-pad stack gap-16">
-        <div className="setting-row">
-          <div><div className="strong">Theme</div><div className="small muted">Dark mode is easier on the eyes in dim bays.</div></div>
-          <div className="theme-picker" role="radiogroup" aria-label="Theme">
-            {[['light', Sun, 'Light'], ['dark', Moon, 'Dark'], ['system', Monitor, 'System']].map(([v, I, l]) => (
-              <button key={v} role="radio" aria-checked={theme === v} className={`theme-opt${theme === v ? ' on' : ''}`} onClick={() => { setTheme(v); toast.success('Settings updated', `Theme: ${l}`) }}>
-                <span className={`theme-swatch ${v}`} /><span className="row gap-6 small strong"><I size={14} />{l}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="divider" />
         <div className="setting-row">
           <div><div className="strong row gap-6"><PanelLeftClose size={16} />Collapsed sidebar</div><div className="small muted">Show icons only. Shortcut: Alt + B.</div></div>
           <Switch checked={collapsed} onChange={toggleSidebar} label="Collapsed sidebar" />

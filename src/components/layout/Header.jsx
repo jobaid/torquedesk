@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Bell, ChevronRight, CircleHelp, Menu, Search, Car, Monitor, Moon, Sun, LogOut, Settings, UserRound, CheckCheck } from 'lucide-react'
+import { Bell, ChevronRight, CircleHelp, Menu, Search, Car, LogOut, Settings, UserRound, CheckCheck } from 'lucide-react'
 import { useApp, useUI, toast, ROLES } from '../../store/useApp'
 import { PAGE_META } from './nav'
 import { useOutside } from '../ui'
@@ -146,8 +146,6 @@ function Help() {
 function UserMenu() {
   const [open, setOpen] = useState(false)
   const user = useApp((s) => s.user)
-  const theme = useApp((s) => s.theme)
-  const setTheme = useApp((s) => s.setTheme)
   const logout = useApp((s) => s.logout)
   const navigate = useNavigate()
   const ref = useOutside(open, () => setOpen(false))
@@ -161,15 +159,6 @@ function UserMenu() {
             <div className="strong">{user?.name}</div>
             <div className="small subtle">{user?.email}</div>
             <span className="badge badge-brand mt-8">{ROLES[user?.role]?.label}</span>
-          </div>
-          <div className="menu-sep" />
-          <div style={{ padding: '4px 6px 8px' }}>
-            <div className="xs subtle strong" style={{ marginBottom: 6 }}>THEME</div>
-            <div className="segmented" role="group" aria-label="Theme" style={{ width: '100%' }}>
-              {[['light', Sun, 'Light'], ['dark', Moon, 'Dark'], ['system', Monitor, 'Auto']].map(([v, I, l]) => (
-                <button key={v} aria-pressed={theme === v} onClick={() => setTheme(v)} style={{ flex: 1, justifyContent: 'center', padding: '6px 4px' }}><I size={14} />{l}</button>
-              ))}
-            </div>
           </div>
           <div className="menu-sep" />
           <button className="menu-item" role="menuitem" onClick={() => go('/profile')}><UserRound size={16} />Profile</button>

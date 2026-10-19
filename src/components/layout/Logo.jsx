@@ -1,4 +1,4 @@
-export default function Logo({ size = 34 }) {
+export default function Logo({ size = 60 }) {
   return (
     <img
       src="/logo.png"

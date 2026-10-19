@@ -38,7 +38,7 @@ export default function Sidebar() {
   return (
     <aside className="sidebar" aria-label="Main navigation">
       <div className="sidebar-brand">
-        <Logo size={32} />
+        <Logo size={56} />
         <button className="icon-btn sm mobile-only" style={{ marginLeft: 'auto', color: '#a9b4c0' }} onClick={close} aria-label="Close navigation">
           <X size={18} />
         </button>

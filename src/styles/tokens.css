@@ -34,13 +34,13 @@
   --info: #1d63c9;
   --info-soft: #e8f0fc;
 
-  /* nav rail (always graphite) */
-  --nav-bg: #111820;
-  --nav-bg-2: #18212b;
-  --nav-text: #a9b4c0;
-  --nav-text-strong: #f2f5f8;
-  --nav-active: #1d2a35;
-  --nav-accent: #2fc4b6;
+  /* nav rail (white) */
+  --nav-bg: #ffffff;
+  --nav-bg-2: #f1f4f7;
+  --nav-text: #334155;
+  --nav-text-strong: #0f172a;
+  --nav-active: #eef2f7;
+  --nav-accent: #f58220;
 
   /* wiring wire colors */
   --wire-bg: #ffffff;

@@ -554,7 +554,18 @@ func (s *Server) migrationDelete(w http.ResponseWriter, r *http.Request) {
 // CSV helpers (shared)
 // ============================================================================
 
+// stripBOM removes the UTF-8 byte-order mark some exporters (Excel,
+// Windows PowerShell's -Encoding utf8) prepend. Without this both
+// encoding/csv and encoding/json choke on the first byte.
+func stripBOM(b []byte) []byte {
+	if len(b) >= 3 && b[0] == 0xEF && b[1] == 0xBB && b[2] == 0xBF {
+		return b[3:]
+	}
+	return b
+}
+
 func peekCSV(raw []byte) ([]string, int, error) {
+	raw = stripBOM(raw)
 	r := csv.NewReader(strings.NewReader(string(raw)))
 	r.FieldsPerRecord = -1
 	headers, err := r.Read()
@@ -588,6 +599,7 @@ func previewCSV(ctx context.Context, s *Server, id string, n int) ([]map[string]
 	if len(raw) == 0 {
 		return nil, nil
 	}
+	raw = stripBOM(raw)
 	r := csv.NewReader(strings.NewReader(string(raw)))
 	r.FieldsPerRecord = -1
 	if _, err := r.Read(); err != nil {
@@ -656,6 +668,7 @@ func quoteAll(ss []string) []string {
 
 // genericParse pulls each row as {field: trimmed cell value} using mapping.
 func genericParse(raw []byte, mapping map[string]string) []map[string]string {
+	raw = stripBOM(raw)
 	r := csv.NewReader(strings.NewReader(string(raw)))
 	r.FieldsPerRecord = -1
 	headers, _ := r.Read()

@@ -240,7 +240,7 @@ func importBundle(ctx context.Context, s *Server, companyID string, raw []byte) 
 
 func applyBundleSettings(ctx context.Context, s *Server, companyID string, raw []byte) error {
 	var settings bundleSettings
-	if err := json.Unmarshal(raw, &settings); err != nil {
+	if err := json.Unmarshal(stripBOM(raw), &settings); err != nil {
 		return err
 	}
 	tx, err := s.db.BeginTx(ctx, pgx.TxOptions{})

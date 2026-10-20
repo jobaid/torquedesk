@@ -983,13 +983,16 @@ func importInvoiceRows(ctx context.Context, s *Server, companyID string, raw []b
 		custSnapJSON, _ := json.Marshal(custSnap)
 
 		// Items: single summary line equal to the invoice total.
+		// Frontend keys line items by `kind` (labor|part|fee|note|discount);
+		// `fee` renders cleanly with no tax/labor-rate dependency.
 		items := []map[string]any{{
 			"id":          fmt.Sprintf("mig-%d-%d", time.Now().UnixNano(), line),
-			"type":        "service",
+			"kind":        "fee",
 			"description": firstNonEmpty(row["description"], "Imported historical invoice ("+row["invoice_number"]+")"),
 			"qty":         1,
 			"price":       total,
 			"amount":      total,
+			"taxable":     false,
 		}}
 		itemsJSON, _ := json.Marshal(items)
 

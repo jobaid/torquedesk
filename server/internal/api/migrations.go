@@ -761,17 +761,21 @@ func importCustomerRows(ctx context.Context, s *Server, companyID string, raw []
 			})
 		}
 		vehJSON, _ := json.Marshal(vehicles)
+		spName := fmt.Sprintf("cust_%d", i)
+		_, _ = tx.Exec(ctx, "SAVEPOINT "+spName)
 		_, err := tx.Exec(ctx, `
 			INSERT INTO customers (company_id, name, phone, email, address, notes, vehicles)
 			VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb)`,
 			companyID, row["name"], row["phone"], row["email"], row["address"], row["notes"], vehJSON)
 		if err != nil {
+			_, _ = tx.Exec(ctx, "ROLLBACK TO SAVEPOINT "+spName)
 			skipped++
 			if len(errs) < 20 {
 				errs = append(errs, fmt.Sprintf("line %d (%s): %s", line, row["name"], err.Error()))
 			}
 			continue
 		}
+		_, _ = tx.Exec(ctx, "RELEASE SAVEPOINT "+spName)
 		imported++
 	}
 	if err := tx.Commit(ctx); err != nil {
@@ -888,6 +892,8 @@ func importVehicleRows(ctx context.Context, s *Server, companyID string, raw []b
 			"color":        row["color"],
 		}
 		vehJSON, _ := json.Marshal(vehicle)
+		spName := fmt.Sprintf("veh_%d", i)
+		_, _ = tx.Exec(ctx, "SAVEPOINT "+spName)
 		_, err := tx.Exec(ctx, `
 			UPDATE customers
 			   SET vehicles = COALESCE(vehicles, '[]'::jsonb) || $2::jsonb,
@@ -895,12 +901,14 @@ func importVehicleRows(ctx context.Context, s *Server, companyID string, raw []b
 			 WHERE id=$1 AND company_id=$3`,
 			custID, vehJSON, companyID)
 		if err != nil {
+			_, _ = tx.Exec(ctx, "ROLLBACK TO SAVEPOINT "+spName)
 			skipped++
 			if len(errs) < 20 {
 				errs = append(errs, fmt.Sprintf("line %d: %s", line, err.Error()))
 			}
 			continue
 		}
+		_, _ = tx.Exec(ctx, "RELEASE SAVEPOINT "+spName)
 		imported++
 	}
 	if err := tx.Commit(ctx); err != nil {
@@ -922,11 +930,15 @@ func importInvoiceRows(ctx context.Context, s *Server, companyID string, raw []b
 	}
 	defer tx.Rollback(ctx)
 
-	// Ensure document_number_settings has 'invoice' for this company.
-	_, _ = tx.Exec(ctx, `
-		INSERT INTO document_number_settings (company_id, doc_type, prefix, next_number, pad_width)
-		VALUES ($1,'invoice','HIST-',1,0)
-		ON CONFLICT DO NOTHING`, companyID)
+	// Ensure document_number_settings has an 'invoice' row for this company.
+	// (pgx aborts the whole tx on any error, so this INSERT must match the
+	// real schema exactly — PK is (company_id, doc_type), no pad_width col.)
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO document_number_settings (company_id, doc_type, prefix, next_number)
+		VALUES ($1,'invoice','HIST-',10001)
+		ON CONFLICT (company_id, doc_type) DO NOTHING`, companyID); err != nil {
+		return 0, 0, []string{"document_number_settings seed: " + err.Error()}
+	}
 
 	// Reserve a starting number for this import to avoid colliding with new real invoices.
 	var startNum int64
@@ -994,7 +1006,15 @@ func importInvoiceRows(ctx context.Context, s *Server, companyID string, raw []b
 		docNumber := startNum + int64(i)
 
 		mileageIn := row["mileage"]
-		status := strings.ToLower(firstNonEmpty(row["status"], "paid"))
+		rawStatus := strings.ToLower(firstNonEmpty(row["status"], "paid"))
+		// documents.status is free-form text; payment_status has a CHECK:
+		// one of unpaid|partial|paid|overpaid. Historical imports are paid.
+		docStatus := "closed"
+		paymentStatus := "paid"
+		if rawStatus == "void" || rawStatus == "cancelled" || rawStatus == "canceled" {
+			docStatus = "cancelled"
+			paymentStatus = "unpaid"
+		}
 
 		// Parse invoice_date, default to today if unparseable.
 		invDate := time.Now()
@@ -1005,29 +1025,41 @@ func importInvoiceRows(ctx context.Context, s *Server, companyID string, raw []b
 			}
 		}
 
+		// Savepoint per row: a bad INSERT aborts only this row's work,
+		// not the whole transaction. Without this, one broken row poisons
+		// the tx and every subsequent INSERT fails with "current transaction
+		// is aborted".
+		spName := fmt.Sprintf("inv_%d", i)
+		if _, err := tx.Exec(ctx, "SAVEPOINT "+spName); err != nil {
+			errs = append(errs, fmt.Sprintf("line %d: savepoint: %s", line, err.Error()))
+			skipped++
+			continue
+		}
 		_, err = tx.Exec(ctx, `
 			INSERT INTO documents (
-			  company_id, number_type, number, display_number, type, status,
+			  company_id, number_type, number, display_number, type, status, payment_status,
 			  customer_id, customer_snapshot, vehicle_id, vehicle_snapshot,
 			  mileage_in, odometer_unit, items, payments, settings_snapshot,
 			  created_at, updated_at, created_by, updated_by
 			) VALUES (
-			  $1,'invoice',$2,$3,'invoice',$4,
-			  $5,$6::jsonb,'',$7::jsonb,
-			  $8,'mi',$9::jsonb,$10::jsonb,'{}'::jsonb,
-			  $11,$11,'migration','migration'
+			  $1,'invoice',$2,$3,'invoice',$4,$5,
+			  $6,$7::jsonb,'',$8::jsonb,
+			  $9,'mi',$10::jsonb,$11::jsonb,'{}'::jsonb,
+			  $12,$12,'migration','migration'
 			)`,
-			companyID, docNumber, display, status,
+			companyID, docNumber, display, docStatus, paymentStatus,
 			custID, custSnapJSON, vehSnapJSON,
 			mileageIn, itemsJSON, paymentsJSON,
 			invDate)
 		if err != nil {
+			_, _ = tx.Exec(ctx, "ROLLBACK TO SAVEPOINT "+spName)
 			skipped++
 			if len(errs) < 20 {
 				errs = append(errs, fmt.Sprintf("line %d (%s): %s", line, display, err.Error()))
 			}
 			continue
 		}
+		_, _ = tx.Exec(ctx, "RELEASE SAVEPOINT "+spName)
 		imported++
 	}
 	if err := tx.Commit(ctx); err != nil {

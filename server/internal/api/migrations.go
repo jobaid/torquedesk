@@ -189,6 +189,46 @@ var vendorPresets = map[string]map[string]map[string][]string{
 			"description":    {"description", "notes"},
 		},
 	},
+	"alldata": {
+		"customers": {
+			"name":                  {"customer name", "customer", "name", "full name"},
+			"phone":                 {"primary phone", "home phone", "cell phone", "phone"},
+			"email":                 {"email", "e-mail"},
+			"address":               {"street", "address", "address 1"},
+			"notes":                 {"notes", "comments", "memo"},
+			"vehicle_year":          {"year", "vehicle year"},
+			"vehicle_make":          {"make", "vehicle make"},
+			"vehicle_model":         {"model", "vehicle model"},
+			"vehicle_vin":           {"vin"},
+			"vehicle_license_plate": {"tag", "license", "plate", "license plate"},
+			"vehicle_mileage":       {"odometer", "mileage"},
+			"vehicle_trim":          {"submodel", "trim"},
+		},
+		"vehicles": {
+			"customer_phone": {"primary phone", "home phone", "cell phone", "phone"},
+			"customer_name":  {"customer name", "customer", "full name"},
+			"year":           {"year"},
+			"make":           {"make"},
+			"model":          {"model"},
+			"trim":           {"submodel", "trim"},
+			"vin":            {"vin"},
+			"license_plate":  {"tag", "license", "plate"},
+			"mileage":        {"odometer", "mileage"},
+			"color":          {"color"},
+		},
+		"invoices": {
+			"customer_phone":        {"primary phone", "home phone", "phone"},
+			"customer_name":         {"customer name", "customer"},
+			"vehicle_vin":           {"vin"},
+			"vehicle_license_plate": {"tag", "license"},
+			"invoice_number":        {"invoice #", "invoice number", "ro #", "ro number"},
+			"invoice_date":          {"invoice date", "ro date", "date closed", "date"},
+			"status":                {"status"},
+			"total":                 {"total", "grand total", "invoice total"},
+			"description":           {"complaint", "concern", "description", "notes"},
+			"mileage":               {"odometer", "mileage"},
+		},
+	},
 	"shopmonkey": {
 		"customers": {
 			"name":                  {"customer name", "name"},
@@ -267,6 +307,8 @@ func vendorLabel(k string) string {
 		return "R.O. Writer"
 	case "shopmonkey":
 		return "Shopmonkey"
+	case "alldata":
+		return "AllData Manage"
 	}
 	return k
 }

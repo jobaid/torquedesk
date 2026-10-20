@@ -993,15 +993,6 @@ func importInvoiceRows(ctx context.Context, s *Server, companyID string, raw []b
 		}}
 		itemsJSON, _ := json.Marshal(items)
 
-		// Payments: one full-payment entry so totals/status reconcile.
-		payments := []map[string]any{{
-			"id":     fmt.Sprintf("mig-pay-%d-%d", time.Now().UnixNano(), line),
-			"method": "other",
-			"amount": total,
-			"notes":  "Imported historical payment",
-		}}
-		paymentsJSON, _ := json.Marshal(payments)
-
 		display := "HIST-" + row["invoice_number"]
 		docNumber := startNum + int64(i)
 
@@ -1035,22 +1026,23 @@ func importInvoiceRows(ctx context.Context, s *Server, companyID string, raw []b
 			skipped++
 			continue
 		}
-		_, err = tx.Exec(ctx, `
+		var docID string
+		err = tx.QueryRow(ctx, `
 			INSERT INTO documents (
 			  company_id, number_type, number, display_number, type, status, payment_status,
 			  customer_id, customer_snapshot, vehicle_id, vehicle_snapshot,
-			  mileage_in, odometer_unit, items, payments, settings_snapshot,
+			  mileage_in, odometer_unit, items, settings_snapshot,
 			  created_at, updated_at, created_by, updated_by
 			) VALUES (
 			  $1,'invoice',$2,$3,'invoice',$4,$5,
 			  $6,$7::jsonb,'',$8::jsonb,
-			  $9,'mi',$10::jsonb,$11::jsonb,'{}'::jsonb,
-			  $12,$12,'migration','migration'
-			)`,
+			  $9,'mi',$10::jsonb,'{}'::jsonb,
+			  $11,$11,'migration','migration'
+			) RETURNING id::text`,
 			companyID, docNumber, display, docStatus, paymentStatus,
 			custID, custSnapJSON, vehSnapJSON,
-			mileageIn, itemsJSON, paymentsJSON,
-			invDate)
+			mileageIn, itemsJSON,
+			invDate).Scan(&docID)
 		if err != nil {
 			_, _ = tx.Exec(ctx, "ROLLBACK TO SAVEPOINT "+spName)
 			skipped++
@@ -1058,6 +1050,21 @@ func importInvoiceRows(ctx context.Context, s *Server, companyID string, raw []b
 				errs = append(errs, fmt.Sprintf("line %d (%s): %s", line, display, err.Error()))
 			}
 			continue
+		}
+		// Record the full historical payment in the normalized payments
+		// table (documents.payments JSONB was dropped in 003_reports.sql).
+		if paymentStatus == "paid" {
+			if _, err := tx.Exec(ctx, `
+				INSERT INTO payments (company_id, document_id, paid_at, method, amount, notes, recorded_by, updated_by)
+				VALUES ($1,$2,$3,'other',$4,'Imported historical payment','migration','migration')`,
+				companyID, docID, invDate, total); err != nil {
+				_, _ = tx.Exec(ctx, "ROLLBACK TO SAVEPOINT "+spName)
+				skipped++
+				if len(errs) < 20 {
+					errs = append(errs, fmt.Sprintf("line %d (%s) payment: %s", line, display, err.Error()))
+				}
+				continue
+			}
 		}
 		_, _ = tx.Exec(ctx, "RELEASE SAVEPOINT "+spName)
 		imported++

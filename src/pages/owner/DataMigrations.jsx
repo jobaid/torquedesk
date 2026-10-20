@@ -132,11 +132,21 @@ function NewJobCard({ companies, presets, onCreated, setErr }) {
           {entity === 'invoices' && 'Historical invoices are created as single-line records (status=paid). Customers must already exist in the target shop.'}
         </div>
       )}
-      <Field label="CSV file" style={{ marginTop: 14 }}>
+      {entity === 'backup_bundle' && (
+        <div style={{ marginTop: 10, padding: '10px 14px', background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 8, fontSize: 12, color: '#78350f', lineHeight: 1.5 }}>
+          <strong>Fixora Universal Migration Bundle (.zip)</strong><br />
+          Expected contents: <code>customers.csv</code> · <code>vehicles.csv</code> · <code>invoices.csv</code> · <code>settings.json</code> · <code>logo.png|jpg|webp</code> · <code>manifest.json</code> (optional). Each piece runs through its matching importer in one shot. CSV headers must use Fixora field names (name, phone, vehicle_year, …).
+        </div>
+      )}
+      <Field label={entity === 'backup_bundle' ? 'Bundle file' : 'CSV file'} style={{ marginTop: 14 }}>
         <label style={{ ...inp, display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', borderStyle: 'dashed' }}>
           <Upload size={16} color="#64748b" />
-          <span style={{ color: file ? '#0f172a' : '#94a3b8', flex: 1 }}>{file ? file.name : 'Click to choose a .csv file (max 20 MB)'}</span>
-          <input type="file" accept=".csv,text/csv" onChange={(e) => setFile(e.target.files?.[0] || null)} style={{ display: 'none' }} />
+          <span style={{ color: file ? '#0f172a' : '#94a3b8', flex: 1 }}>
+            {file ? file.name : entity === 'backup_bundle' ? 'Click to choose a .zip bundle (max 100 MB)' : 'Click to choose a .csv file (max 20 MB)'}
+          </span>
+          <input type="file"
+            accept={entity === 'backup_bundle' ? '.zip,application/zip' : '.csv,text/csv'}
+            onChange={(e) => setFile(e.target.files?.[0] || null)} style={{ display: 'none' }} />
         </label>
       </Field>
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 14 }}>
@@ -159,6 +169,7 @@ function JobDetail({ job: initialJob, presets, onClose, onReload }) {
   const fields = job.fields || []
   const headers = job.csv_headers || []
   const requiredField = job.entity === 'invoices' ? 'invoice_number' : (job.entity === 'vehicles' ? 'customer_phone' : 'name')
+  const isBundle = job.entity === 'backup_bundle'
 
   const saveMapping = async () => {
     setBusy('save'); setErr('')
@@ -205,7 +216,8 @@ function JobDetail({ job: initialJob, presets, onClose, onReload }) {
 
       {err && <div style={errBox}>{err}</div>}
 
-      {/* Mapping */}
+      {/* Mapping — bundles have fixed schema, no mapping needed */}
+      {!isBundle && (
       <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14, padding: 20, marginBottom: 20 }}>
         <div style={sectionHead}>1. Column mapping</div>
         <div style={{ fontSize: 13, color: '#64748b', marginBottom: 14 }}>
@@ -230,9 +242,10 @@ function JobDetail({ job: initialJob, presets, onClose, onReload }) {
           </button>
         </div>
       </div>
+      )}
 
-      {/* Preview */}
-      {job.preview && job.preview.length > 0 && (
+      {/* Preview — only for CSV entities */}
+      {!isBundle && job.preview && job.preview.length > 0 && (
         <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14, padding: 20, marginBottom: 20 }}>
           <div style={sectionHead}>2. First 10 rows (sanity check)</div>
           <div style={{ overflowX: 'auto' }}>
@@ -255,18 +268,25 @@ function JobDetail({ job: initialJob, presets, onClose, onReload }) {
 
       {/* Dry run */}
       <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14, padding: 20, marginBottom: 20 }}>
-        <div style={sectionHead}>3. Dry run (validate without inserting)</div>
-        <button onClick={dryRun} disabled={busy === 'dry' || !mapping[requiredField]} style={btnSecondary}>
+        <div style={sectionHead}>{isBundle ? '1.' : '3.'} Dry run ({isBundle ? 'inspect bundle contents' : 'validate without inserting'})</div>
+        <button onClick={dryRun} disabled={busy === 'dry' || (!isBundle && !mapping[requiredField])} style={btnSecondary}>
           {busy === 'dry' ? <Loader2 size={14} className="spin" /> : <Play size={14} />}
           {busy === 'dry' ? 'Validating…' : 'Run validation'}
         </button>
         {job.dry_run_report && (
           <div style={{ marginTop: 14 }}>
             <div style={{ display: 'flex', gap: 20 }}>
-              <Stat label="Total rows" value={job.dry_run_report.total} />
+              <Stat label={isBundle ? 'Sections found' : 'Total rows'} value={job.dry_run_report.total} />
               <Stat label="Valid" value={job.dry_run_report.valid} tone="green" />
               <Stat label="Invalid" value={job.dry_run_report.invalid} tone={job.dry_run_report.invalid ? 'red' : null} />
             </div>
+            {isBundle && job.dry_run_report.sections && (
+              <div style={{ marginTop: 14, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: 12, fontSize: 12, color: '#334155' }}>
+                <div><strong>CSVs:</strong> {Object.entries(job.dry_run_report.sections.csvs || {}).map(([k, v]) => `${k} (${v})`).join(', ') || '—'}</div>
+                <div><strong>Settings:</strong> {job.dry_run_report.sections.has_settings ? '✓ settings.json' : '—'}</div>
+                <div><strong>Logo:</strong> {job.dry_run_report.sections.has_logo ? '✓ included' : '—'}</div>
+              </div>
+            )}
             {job.dry_run_report.issues?.length > 0 && (
               <details style={{ marginTop: 12 }}>
                 <summary style={{ cursor: 'pointer', fontSize: 13, color: '#dc2626' }}>Show {job.dry_run_report.issues.length} issue(s)</summary>
@@ -281,7 +301,7 @@ function JobDetail({ job: initialJob, presets, onClose, onReload }) {
 
       {/* Commit */}
       <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14, padding: 20 }}>
-        <div style={sectionHead}>4. Commit import</div>
+        <div style={sectionHead}>{isBundle ? '2.' : '4.'} Commit import</div>
         <div style={{ fontSize: 13, color: '#64748b', marginBottom: 14 }}>
           Inserts valid rows into <strong>{job.company_name}</strong>. The uploaded CSV is wiped after a successful commit.
         </div>

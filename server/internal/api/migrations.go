@@ -40,6 +40,7 @@ var entityFields = map[string][]string{
 		"invoice_number", "invoice_date", "status", "total",
 		"description", "mileage",
 	},
+	"backup_bundle": {}, // bundle has no column mapping; see migration_bundle.go
 }
 
 // Preset per-vendor header guesses, keyed by {entity, our_field}.
@@ -245,7 +246,7 @@ func (s *Server) migrationPresets(w http.ResponseWriter, r *http.Request) {
 	}
 	vendors = append(vendors, map[string]any{"key": "custom", "label": "Custom CSV", "preset": map[string]map[string][]string{}})
 	entities := []map[string]any{}
-	for _, name := range []string{"customers", "vehicles", "invoices"} {
+	for _, name := range []string{"backup_bundle", "customers", "vehicles", "invoices"} {
 		entities = append(entities, map[string]any{"key": name, "label": entityLabel(name), "fields": entityFields[name]})
 	}
 	writeJSON(w, 200, map[string]any{
@@ -272,6 +273,8 @@ func vendorLabel(k string) string {
 
 func entityLabel(k string) string {
 	switch k {
+	case "backup_bundle":
+		return "Full Backup Bundle (.zip — everything)"
 	case "customers":
 		return "Customers (+ 1st vehicle)"
 	case "vehicles":
@@ -322,8 +325,10 @@ func (s *Server) migrationList(w http.ResponseWriter, r *http.Request) {
 // ---- Create job ----------------------------------------------------------
 
 func (s *Server) migrationCreate(w http.ResponseWriter, r *http.Request) {
-	r.Body = http.MaxBytesReader(w, r.Body, migrationMaxBytes+1<<20)
-	if err := r.ParseMultipartForm(migrationMaxBytes + 1<<20); err != nil {
+	// Allow bundle-sized uploads at the transport layer; the per-entity
+	// cap in io.LimitReader below enforces the real limit based on entity.
+	r.Body = http.MaxBytesReader(w, r.Body, bundleMaxBytes+1<<20)
+	if err := r.ParseMultipartForm(bundleMaxBytes + 1<<20); err != nil {
 		writeErr(w, 400, "Upload too large or malformed.")
 		return
 	}
@@ -347,20 +352,30 @@ func (s *Server) migrationCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer file.Close()
-	raw, err := io.ReadAll(io.LimitReader(file, migrationMaxBytes))
+	maxBytes := int64(migrationMaxBytes)
+	if entity == "backup_bundle" {
+		maxBytes = bundleMaxBytes
+	}
+	raw, err := io.ReadAll(io.LimitReader(file, maxBytes))
 	if err != nil {
-		writeErr(w, 400, "Failed to read CSV.")
+		writeErr(w, 400, "Failed to read file.")
 		return
 	}
-	headers, rowCount, err := peekCSV(raw)
-	if err != nil {
-		writeErr(w, 400, "CSV parse error: "+err.Error())
-		return
-	}
+	var headers []string
+	rowCount := 0
 	mapping := map[string]string{}
-	if preset, ok := vendorPresets[vendor]; ok {
-		if ep, ok := preset[entity]; ok {
-			mapping = applyPreset(ep, headers)
+	if entity == "backup_bundle" {
+		headers = []string{} // bundle has no columns to map
+	} else {
+		headers, rowCount, err = peekCSV(raw)
+		if err != nil {
+			writeErr(w, 400, "CSV parse error: "+err.Error())
+			return
+		}
+		if preset, ok := vendorPresets[vendor]; ok {
+			if ep, ok := preset[entity]; ok {
+				mapping = applyPreset(ep, headers)
+			}
 		}
 	}
 	mappingJSON, _ := json.Marshal(mapping)
@@ -460,6 +475,8 @@ func (s *Server) migrationDryRun(w http.ResponseWriter, r *http.Request) {
 		report = validateLookupRows(r.Context(), s, companyID, raw, mapping, "vehicles")
 	case "invoices":
 		report = validateLookupRows(r.Context(), s, companyID, raw, mapping, "invoices")
+	case "backup_bundle":
+		report = validateBundle(raw)
 	default:
 		writeErr(w, 400, "Unknown entity.")
 		return
@@ -499,6 +516,8 @@ func (s *Server) migrationCommit(w http.ResponseWriter, r *http.Request) {
 		imported, skipped, errs = importVehicleRows(r.Context(), s, companyID, raw, mapping)
 	case "invoices":
 		imported, skipped, errs = importInvoiceRows(r.Context(), s, companyID, raw, mapping)
+	case "backup_bundle":
+		imported, skipped, errs = importBundle(r.Context(), s, companyID, raw)
 	default:
 		writeErr(w, 400, "Unknown entity.")
 		return

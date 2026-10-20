@@ -26,14 +26,14 @@ export default function Companies() {
       <PageHeader
         title="Companies"
         subtitle="Every automobile store on Fixora."
-        actions={<Btn onClick={() => navigate(`${window.location.pathname.startsWith('/owner') ? '/owner' : '/p/admin'}/companies/new`)}><Plus size={14} />Add company</Btn>}
+        actions={<Btn onClick={() => navigate(`${window.location.pathname.startsWith('/owner') ? '/owner' : '/main/admin'}/companies/new`)}><Plus size={14} />Add company</Btn>}
       />
 
       <Card style={{ marginBottom: 14, padding: 14 }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 180px', gap: 10 }}>
           <div style={{ position: 'relative' }}>
             <Search size={14} style={{ position: 'absolute', left: 10, top: 11, color: '#000000' }} />
-            <Input placeholder="Search by name, email, company code, or slug…" value={search} onChange={(e) => setSearch(e.target.value)} style={{ paddingLeft: 32 }} />
+            <Input placeholder="Search by name, email, company code, or slugâ€¦" value={search} onChange={(e) => setSearch(e.target.value)} style={{ paddingLeft: 32 }} />
           </div>
           <Select value={status} onChange={(e) => setStatus(e.target.value)}>
             <option value="">All statuses</option>
@@ -43,7 +43,7 @@ export default function Companies() {
       </Card>
 
       {error && <Card style={{ color: '#dc2626' }}>Could not load companies: {error}</Card>}
-      {!rows && !error && <Card>Loading…</Card>}
+      {!rows && !error && <Card>Loadingâ€¦</Card>}
       {rows && (
         <Card style={{ padding: 0, overflowX: 'auto' }}>
           {empty ? (
@@ -57,23 +57,23 @@ export default function Companies() {
               </tr></thead>
               <tbody>
                 {rows.map((c) => (
-                  <tr key={c.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`${window.location.pathname.startsWith('/owner') ? '/owner' : '/p/admin'}/companies/${c.id}`)}>
+                  <tr key={c.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`${window.location.pathname.startsWith('/owner') ? '/owner' : '/main/admin'}/companies/${c.id}`)}>
                     <Td>
                       <div style={{ fontWeight: 600 }}>{c.name}</div>
                       <div style={{ fontSize: 11, color: '#000000' }}>{c.email || c.slug}</div>
                     </Td>
                     <Td style={{ fontFamily: 'monospace', color: '#000000', fontSize: 12 }}>{c.companyCode}</Td>
                     <Td><StatusPill status={c.status} /></Td>
-                    <Td style={{ textTransform: 'capitalize' }}>{c.subscription?.plan || '—'}</Td>
-                    <Td style={{ color: '#000000' }}>{c.subscription?.endDate || '—'}</Td>
+                    <Td style={{ textTransform: 'capitalize' }}>{c.subscription?.plan || 'â€”'}</Td>
+                    <Td style={{ color: '#000000' }}>{c.subscription?.endDate || 'â€”'}</Td>
                     <Td>
                       {c.applicationUrl ? (
                         <a href={c.applicationUrl} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ color: '#5b8def', fontSize: 12, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                           Open <ExternalLink size={11} />
                         </a>
-                      ) : <span style={{ color: '#000000' }}>—</span>}
+                      ) : <span style={{ color: '#000000' }}>â€”</span>}
                     </Td>
-                    <Td style={{ color: '#000000' }}>›</Td>
+                    <Td style={{ color: '#000000' }}>â€º</Td>
                   </tr>
                 ))}
               </tbody>

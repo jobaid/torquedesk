@@ -21,7 +21,7 @@ export default function OwnerLogin() {
     try {
       const res = await ownerApi('/auth/login', { method: 'POST', body: { email, password, mfaCode } })
       login({ token: res.token, user: res.user })
-      navigate(window.location.pathname === '/owner-login' ? '/owner' : '/p/admin', { replace: true })
+      navigate(window.location.pathname === '/owner-login' ? '/owner' : '/main/admin', { replace: true })
     } catch (err) {
       // Server signals MFA needed via a flag in the response body.
       if (err.mfaRequired) {
@@ -87,7 +87,7 @@ export default function OwnerLogin() {
         {resetSent && <div style={{ marginTop: 10, padding: '8px 10px', borderRadius: 8, background: '#0d3a15', color: '#95eab0', fontSize: 13 }}>If that email exists, a reset link has been sent.</div>}
 
         <button type="submit" disabled={loading} style={{ marginTop: 20, width: '100%', padding: '11px 14px', borderRadius: 10, border: 'none', background: 'linear-gradient(90deg,#2a6cf0,#5b8def)', color: '#fff', fontWeight: 600, fontSize: 14, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1 }}>
-          {loading ? 'Signing in…' : <><Lock size={14} style={{ verticalAlign: 'middle', marginRight: 6 }} />Sign in</>}
+          {loading ? 'Signing inâ€¦' : <><Lock size={14} style={{ verticalAlign: 'middle', marginRight: 6 }} />Sign in</>}
         </button>
 
         <div style={{ marginTop: 12, textAlign: 'center' }}>

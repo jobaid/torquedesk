@@ -31,7 +31,7 @@ export default function ResetPassword() {
     } catch (err) { setError(err.message) } finally { setBusy(false) }
   }
 
-  const dark = window.location.pathname.startsWith('/owner-reset-password') || window.location.pathname.startsWith('/p/admin/reset-password')
+  const dark = window.location.pathname.startsWith('/owner-reset-password') || window.location.pathname.startsWith('/main/admin/reset-password')
   const bg = dark ? '#0b1220' : 'var(--surface, #fff)'
   const panel = dark ? '#111a2b' : 'var(--surface-raised, #fff)'
   const fg = dark ? '#e5edf5' : 'var(--text, #111)'
@@ -50,7 +50,7 @@ export default function ResetPassword() {
 
         {done ? (
           <div style={{ padding: 12, borderRadius: 8, background: dark ? '#0d3a15' : '#e8f8ee', color: dark ? '#95eab0' : '#116632', fontSize: 13 }}>
-            Password updated. You can now sign in at <a href={dark ? '/p/admin/login' : '/'} style={{ color: 'inherit', textDecoration: 'underline' }}>the sign-in page</a>.
+            Password updated. You can now sign in at <a href={dark ? '/main/admin/login' : '/'} style={{ color: 'inherit', textDecoration: 'underline' }}>the sign-in page</a>.
           </div>
         ) : (
           <>
@@ -60,7 +60,7 @@ export default function ResetPassword() {
             <input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" required style={inputStyle} />
             {error && <div style={{ marginTop: 14, padding: '8px 10px', borderRadius: 8, background: dark ? '#3a0d12' : '#fde8ea', color: dark ? '#ffb3b8' : '#991b1f', fontSize: 13 }}>{error}</div>}
             <button type="submit" disabled={busy} style={{ marginTop: 18, width: '100%', padding: '11px 14px', borderRadius: 10, border: 'none', background: 'linear-gradient(90deg,#2a6cf0,#5b8def)', color: '#fff', fontWeight: 600, fontSize: 14, cursor: busy ? 'not-allowed' : 'pointer', opacity: busy ? 0.6 : 1 }}>
-              {busy ? 'Updating…' : 'Set new password'}
+              {busy ? 'Updatingâ€¦' : 'Set new password'}
             </button>
           </>
         )}

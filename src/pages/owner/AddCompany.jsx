@@ -33,7 +33,7 @@ export default function AddCompany() {
         const first = arr[0]
         setF((old) => ({ ...old, plan: first.key, monthlyPrice: String(first.monthlyPrice), annualPrice: String(first.annualPrice) }))
       }
-    }).catch(() => { /* ignore â€” form stays open with blank plan selector */ })
+    }).catch(() => { /* ignore Ã¢â‚¬â€ form stays open with blank plan selector */ })
   }, [])
 
   // When the chosen plan changes, auto-fill the prices to match (the owner
@@ -67,7 +67,7 @@ export default function AddCompany() {
         },
       }
       const created = await ownerApi('/companies', { method: 'POST', body })
-      navigate(`${window.location.pathname.startsWith('/owner') ? '/owner' : '/main/admin'}/companies/${created.id}`)
+      navigate(`${window.location.pathname.startsWith('/owner') ? '/owner' : '/lightspeed/admin'}/companies/${created.id}`)
     } catch (err) {
       setGeneralError(err.message)
       setErrors(err.fields || {})
@@ -124,11 +124,11 @@ export default function AddCompany() {
 
         <Section title="Subscription">
           <Grid cols={2}>
-            <Field label="Plan" hint={plans.length ? `${plans.length} plan(s) defined in Owner â†’ Plans` : 'Create plans in Owner â†’ Plans'}>
+            <Field label="Plan" hint={plans.length ? `${plans.length} plan(s) defined in Owner Ã¢â€ â€™ Plans` : 'Create plans in Owner Ã¢â€ â€™ Plans'}>
               <Select value={f.plan} onChange={(e) => setPlan(e.target.value)}>
-                {plans.length === 0 && <option value="">â€” no plans configured â€”</option>}
+                {plans.length === 0 && <option value="">Ã¢â‚¬â€ no plans configured Ã¢â‚¬â€</option>}
                 {plans.map((p) => (
-                  <option key={p.key} value={p.key}>{p.name} Â· ${p.monthlyPrice}/mo</option>
+                  <option key={p.key} value={p.key}>{p.name} Ã‚Â· ${p.monthlyPrice}/mo</option>
                 ))}
               </Select>
             </Field>
@@ -140,7 +140,7 @@ export default function AddCompany() {
         </Section>
 
         <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-          <Btn type="submit" disabled={saving}>{saving ? 'Creatingâ€¦' : 'Create company'}</Btn>
+          <Btn type="submit" disabled={saving}>{saving ? 'CreatingÃ¢â‚¬Â¦' : 'Create company'}</Btn>
           <Btn variant="secondary" type="button" onClick={() => navigate(-1)}>Cancel</Btn>
         </div>
       </form>

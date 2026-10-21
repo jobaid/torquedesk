@@ -66,14 +66,14 @@ export default function CompanyDetail() {
   }
 
   const deleteCompany = async () => {
-    const typed = prompt(`âš  PERMANENT DELETE for ${c.name}\n\nThis removes the company and ALL its data: customers, vehicles, documents, inspections, payments, add-on subscriptions, backups.\n\nType YOUR admin username (or email) to confirm:`)
+    const typed = prompt(`Ã¢Å¡Â  PERMANENT DELETE for ${c.name}\n\nThis removes the company and ALL its data: customers, vehicles, documents, inspections, payments, add-on subscriptions, backups.\n\nType YOUR admin username (or email) to confirm:`)
     if (typed === null || !typed.trim()) return
-    if (!confirm(`Last chance â€” delete ${c.name} FOREVER?`)) return
+    if (!confirm(`Last chance Ã¢â‚¬â€ delete ${c.name} FOREVER?`)) return
     setBusy(true)
     try {
       await ownerApi(`/companies/${id}`, { method: 'DELETE', body: { confirm: typed.trim() } })
       alert(c.name + ' deleted.')
-      navigate(window.location.pathname.startsWith('/owner') ? '/owner/companies' : '/main/admin/companies')
+      navigate(window.location.pathname.startsWith('/owner') ? '/owner/companies' : '/lightspeed/admin/companies')
     } catch (e) { alert(e.message); setBusy(false) }
   }
 
@@ -102,16 +102,16 @@ export default function CompanyDetail() {
   }
 
   if (error) return <Card style={{ color: '#dc2626' }}>{error}</Card>
-  if (!c) return <Card>Loadingâ€¦</Card>
+  if (!c) return <Card>LoadingÃ¢â‚¬Â¦</Card>
 
   const addr = c.address || {}
-  const addrLine = [addr.street, [addr.city, addr.state, addr.zip].filter(Boolean).join(', '), addr.country].filter(Boolean).join(' Â· ')
+  const addrLine = [addr.street, [addr.city, addr.state, addr.zip].filter(Boolean).join(', '), addr.country].filter(Boolean).join(' Ã‚Â· ')
 
   return (
     <div style={{ maxWidth: 1100 }}>
       <PageHeader
         title={c.name}
-        subtitle={<span style={{ display: 'inline-flex', gap: 10, alignItems: 'center' }}><code style={{ color: '#000000', fontSize: 12 }}>{c.companyCode}</code> Â· <StatusPill status={c.status} /></span>}
+        subtitle={<span style={{ display: 'inline-flex', gap: 10, alignItems: 'center' }}><code style={{ color: '#000000', fontSize: 12 }}>{c.companyCode}</code> Ã‚Â· <StatusPill status={c.status} /></span>}
         actions={<div style={{ display: 'flex', gap: 8 }}>
           <Btn variant="secondary" onClick={downloadBackup} disabled={busy}><Download size={14} />Download data</Btn>
           <Btn variant="secondary" onClick={() => navigate(-1)}><ArrowLeft size={14} />Back</Btn>
@@ -123,13 +123,13 @@ export default function CompanyDetail() {
           <Card>
             <h3 style={{ margin: '0 0 10px', fontSize: 14 }}>Overview</h3>
             <Grid>
-              <KV k="Legal name" v={c.legalName || 'â€”'} />
+              <KV k="Legal name" v={c.legalName || 'Ã¢â‚¬â€'} />
               <KV k="Industry" v={c.industry} />
               <KV k="Timezone" v={c.timezone} />
-              <KV k="Phone" v={c.phone || 'â€”'} />
-              <KV k="Email" v={c.email || 'â€”'} />
-              <KV k="Website" v={c.website ? <a href={c.website} target="_blank" rel="noreferrer" style={{ color: '#5b8def' }}>{c.website}</a> : 'â€”'} />
-              <KV k="Address" v={addrLine || 'â€”'} />
+              <KV k="Phone" v={c.phone || 'Ã¢â‚¬â€'} />
+              <KV k="Email" v={c.email || 'Ã¢â‚¬â€'} />
+              <KV k="Website" v={c.website ? <a href={c.website} target="_blank" rel="noreferrer" style={{ color: '#5b8def' }}>{c.website}</a> : 'Ã¢â‚¬â€'} />
+              <KV k="Address" v={addrLine || 'Ã¢â‚¬â€'} />
               <KV k="Created" v={new Date(c.createdAt).toLocaleString()} />
             </Grid>
           </Card>
@@ -146,8 +146,8 @@ export default function CompanyDetail() {
                   <KV k="Billing cycle" v={<span style={{ textTransform: 'capitalize' }}>{c.subscription.billingCycle}</span>} />
                   <KV k="Monthly price" v={money(c.subscription.monthlyPrice)} />
                   <KV k="Annual price" v={money(c.subscription.annualPrice)} />
-                  <KV k="Start" v={c.subscription.startDate || 'â€”'} />
-                  <KV k="End" v={<span>{c.subscription.endDate || 'â€”'}{typeof c.subscription.daysUntilExpiration === 'number' && (
+                  <KV k="Start" v={c.subscription.startDate || 'Ã¢â‚¬â€'} />
+                  <KV k="End" v={<span>{c.subscription.endDate || 'Ã¢â‚¬â€'}{typeof c.subscription.daysUntilExpiration === 'number' && (
                     <span style={{ color: c.subscription.daysUntilExpiration < 7 ? '#dc2626' : c.subscription.daysUntilExpiration < 30 ? '#fdba74' : '#000000', marginLeft: 8, fontSize: 11 }}>
                       ({c.subscription.daysUntilExpiration} days)
                     </span>
@@ -159,12 +159,12 @@ export default function CompanyDetail() {
                   <KV k="Payment method" v={c.subscription.cardBrand
                     ? <span style={{ textTransform: 'capitalize' }}>
                         {c.subscription.cardBrand === 'us_bank_account' ? 'Bank' : c.subscription.cardBrand}
-                        {c.subscription.cardLast4 ? ' â€¢â€¢â€¢â€¢ ' + c.subscription.cardLast4 : ''}
+                        {c.subscription.cardLast4 ? ' Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢ ' + c.subscription.cardLast4 : ''}
                         {c.subscription.cardExpMonth && c.subscription.cardExpYear
                           ? ` (exp ${String(c.subscription.cardExpMonth).padStart(2,'0')}/${String(c.subscription.cardExpYear).slice(-2)})`
                           : ''}
                       </span>
-                    : 'â€”'} />
+                    : 'Ã¢â‚¬â€'} />
                   <KV k="Stripe customer ID"
                     v={c.subscription.stripeCustomerId ? (
                       <a href={`https://dashboard.stripe.com/customers/${c.subscription.stripeCustomerId}`}
@@ -172,7 +172,7 @@ export default function CompanyDetail() {
                          style={{ fontFamily: 'monospace', fontSize: 12, color: '#5b8def' }}>
                         {c.subscription.stripeCustomerId}
                       </a>
-                    ) : <span style={{ color: '#000000' }}>â€” not linked â€”</span>} />
+                    ) : <span style={{ color: '#000000' }}>Ã¢â‚¬â€ not linked Ã¢â‚¬â€</span>} />
                   <KV k="Stripe subscription ID"
                     v={c.subscription.stripeSubscriptionId ? (
                       <a href={`https://dashboard.stripe.com/subscriptions/${c.subscription.stripeSubscriptionId}`}
@@ -180,7 +180,7 @@ export default function CompanyDetail() {
                          style={{ fontFamily: 'monospace', fontSize: 12, color: '#5b8def' }}>
                         {c.subscription.stripeSubscriptionId}
                       </a>
-                    ) : <span style={{ color: '#000000' }}>â€” not linked â€”</span>} />
+                    ) : <span style={{ color: '#000000' }}>Ã¢â‚¬â€ not linked Ã¢â‚¬â€</span>} />
                 </Grid>
                 <div style={{ fontSize: 11, color: '#000000', marginTop: 12, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '.06em' }}>Change status (emails the shop owner)</div>
                 <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
@@ -254,7 +254,7 @@ export default function CompanyDetail() {
               <Btn variant="secondary" onClick={() => changeStatus('expired')} disabled={busy || c.status === 'expired'}>Mark expired</Btn>
               <Btn variant="danger" onClick={() => {
                 const typed = prompt(`This CANCELS ${c.name} and blocks shop logins. Type the company name to confirm:`)
-                if (typed !== c.name) { alert('Cancellation aborted â€” company name did not match.'); return }
+                if (typed !== c.name) { alert('Cancellation aborted Ã¢â‚¬â€ company name did not match.'); return }
                 const reason = prompt('Reason? (optional)') || ''
                 changeStatus('cancelled', reason)
               }} disabled={busy || c.status === 'cancelled'}><XCircle size={14} />Cancel</Btn>
@@ -272,7 +272,7 @@ export default function CompanyDetail() {
 
           <Card>
             <h3 style={{ margin: '0 0 10px', fontSize: 14 }}>Application URL</h3>
-            <div style={{ fontSize: 12, color: '#000000', marginBottom: 8, wordBreak: 'break-all' }}>{c.applicationUrl || 'â€” not set â€”'}</div>
+            <div style={{ fontSize: 12, color: '#000000', marginBottom: 8, wordBreak: 'break-all' }}>{c.applicationUrl || 'Ã¢â‚¬â€ not set Ã¢â‚¬â€'}</div>
             <div style={{ display: 'flex', gap: 8 }}>
               <Btn variant="secondary" onClick={() => c.applicationUrl && navigator.clipboard?.writeText(c.applicationUrl)}><Copy size={13} />Copy</Btn>
               {c.applicationUrl && <Btn variant="secondary" onClick={() => window.open(c.applicationUrl, '_blank', 'noopener')}><ExternalLink size={13} />Open</Btn>}
@@ -288,7 +288,7 @@ export default function CompanyDetail() {
 
 // OwnerRow renders a single company_owner. The two actions (change email,
 // reset password) switch the row into a small inline form rather than open a
-// modal â€” fewer clicks when helping a shop over the phone.
+// modal Ã¢â‚¬â€ fewer clicks when helping a shop over the phone.
 function OwnerRow({ companyID, owner, onChanged }) {
   const [mode, setMode] = useState(null) // null | 'email' | 'password'
   const [email, setEmail] = useState(owner.email)
@@ -325,7 +325,7 @@ function OwnerRow({ companyID, owner, onChanged }) {
   if (mode === 'email') {
     return (
       <tr>
-        <Td>{[owner.firstName, owner.lastName].filter(Boolean).join(' ') || 'â€”'}</Td>
+        <Td>{[owner.firstName, owner.lastName].filter(Boolean).join(' ') || 'Ã¢â‚¬â€'}</Td>
         <Td colSpan={5}>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
@@ -342,7 +342,7 @@ function OwnerRow({ companyID, owner, onChanged }) {
   if (mode === 'password') {
     return (
       <tr>
-        <Td>{[owner.firstName, owner.lastName].filter(Boolean).join(' ') || 'â€”'}</Td>
+        <Td>{[owner.firstName, owner.lastName].filter(Boolean).join(' ') || 'Ã¢â‚¬â€'}</Td>
         <Td colSpan={5}>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
             <input type="text" value={password} onChange={(e) => setPassword(e.target.value)}
@@ -355,7 +355,7 @@ function OwnerRow({ companyID, owner, onChanged }) {
             {ok && <span style={{ color: '#86efac', fontSize: 12 }}>{ok}</span>}
           </div>
           <div style={{ fontSize: 11, color: '#000000', marginTop: 6 }}>
-            Give this password to the shop owner over a trusted channel. It overwrites their old password immediately â€” any active login tokens stay valid until expiry.
+            Give this password to the shop owner over a trusted channel. It overwrites their old password immediately Ã¢â‚¬â€ any active login tokens stay valid until expiry.
           </div>
         </Td>
       </tr>
@@ -363,7 +363,7 @@ function OwnerRow({ companyID, owner, onChanged }) {
   }
   return (
     <tr>
-      <Td>{[owner.firstName, owner.lastName].filter(Boolean).join(' ') || 'â€”'}</Td>
+      <Td>{[owner.firstName, owner.lastName].filter(Boolean).join(' ') || 'Ã¢â‚¬â€'}</Td>
       <Td>{owner.email}</Td>
       <Td style={{ fontFamily: 'monospace' }}>{owner.username}</Td>
       <Td><StatusPill status={owner.status} /></Td>
@@ -409,7 +409,7 @@ function AddonRow({ companyID, addon, onChanged }) {
       <Td style={{ color: '#000000', fontSize: 12 }}>
         {addon.status === 'trialing' && addon.trialEnd ? <>Trial ends {addon.trialEnd}</>
           : addon.currentPeriodEnd ? <>Renews {addon.currentPeriodEnd}</>
-          : 'â€”'}
+          : 'Ã¢â‚¬â€'}
       </Td>
       <Td>
         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
@@ -417,7 +417,7 @@ function AddonRow({ companyID, addon, onChanged }) {
           <Btn variant="secondary" onClick={() => call({ status: 'trialing' })} disabled={busy || addon.status === 'trialing'} style={{ padding: '2px 8px', fontSize: 11 }}>Trial</Btn>
           <Btn variant="secondary" onClick={() => call({ status: 'pending' })} disabled={busy || addon.status === 'pending'} style={{ padding: '2px 8px', fontSize: 11 }}>Pending</Btn>
           <Btn variant="secondary" onClick={() => call({ extendTrialDays: 7 })} disabled={busy} style={{ padding: '2px 8px', fontSize: 11 }}>+7 trial</Btn>
-          <Btn variant="danger" onClick={() => call({ status: 'canceled' }, 'Cancel this add-on immediately and disable the feature? (Does NOT cancel in Stripe â€” do that too if the shop is being terminated.)')} disabled={busy || addon.status === 'canceled'} style={{ padding: '2px 8px', fontSize: 11 }}>Cancel</Btn>
+          <Btn variant="danger" onClick={() => call({ status: 'canceled' }, 'Cancel this add-on immediately and disable the feature? (Does NOT cancel in Stripe Ã¢â‚¬â€ do that too if the shop is being terminated.)')} disabled={busy || addon.status === 'canceled'} style={{ padding: '2px 8px', fontSize: 11 }}>Cancel</Btn>
         </div>
       </Td>
     </tr>
@@ -470,7 +470,7 @@ function FeatureAccess({ companyId }) {
   const toggle = (k) => setDraft((d) => ({ ...d, [k]: !d[k] }))
   const groupToggle = (keys, on) => setDraft((d) => { const n = { ...d }; keys.forEach((k) => (n[k] = on)); return n })
 
-  if (!state) return <Card style={{ marginTop: 16 }}>Loading feature accessâ€¦</Card>
+  if (!state) return <Card style={{ marginTop: 16 }}>Loading feature accessÃ¢â‚¬Â¦</Card>
 
   // Group catalog by `group`.
   const groups = []
@@ -490,7 +490,7 @@ function FeatureAccess({ companyId }) {
         {dirty && (
           <>
             <Btn variant="ghost" onClick={reset} disabled={busy}>Reset</Btn>
-            <Btn onClick={save} disabled={busy}>{busy ? 'Savingâ€¦' : 'Save changes'}</Btn>
+            <Btn onClick={save} disabled={busy}>{busy ? 'SavingÃ¢â‚¬Â¦' : 'Save changes'}</Btn>
           </>
         )}
       </div>

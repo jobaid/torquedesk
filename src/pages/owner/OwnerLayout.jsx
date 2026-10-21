@@ -5,10 +5,10 @@ import {
 } from 'lucide-react'
 import { useOwner } from '../../store/useOwner'
 
-// Base path auto-detects so the same UI renders at /main/admin (production) and
+// Base path auto-detects so the same UI renders at /lightspeed/admin (production) and
 // legacy /owner (bookmarked links from pre-rename).
-const BASE = typeof window !== 'undefined' && window.location.pathname.startsWith('/owner') ? '/owner' : '/main/admin'
-const LOGIN_PATH = BASE === '/owner' ? '/owner-login' : '/main/admin/login'
+const BASE = typeof window !== 'undefined' && window.location.pathname.startsWith('/owner') ? '/owner' : '/lightspeed/admin'
+const LOGIN_PATH = BASE === '/owner' ? '/owner-login' : '/lightspeed/admin/login'
 
 const NAV = [
   { to: `${BASE}`, end: true, label: 'Dashboard', icon: LayoutDashboard },

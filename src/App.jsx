@@ -36,7 +36,7 @@ const Profile = lazy(() => import('./pages/Profile'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 const Inspections = lazy(() => import('./pages/Inspections'))
 
-// Toraquedesk SaaS Owner Portal â€” its own self-contained route tree. It does NOT
+// Toraquedesk SaaS Owner Portal Ã¢â‚¬â€ its own self-contained route tree. It does NOT
 // render inside AppShell and does NOT touch the main app's auth state.
 const OwnerLogin = lazy(() => import('./pages/owner/OwnerLogin'))
 const OwnerLayout = lazy(() => import('./pages/owner/OwnerLayout'))
@@ -80,16 +80,16 @@ const SignupComplete = lazy(() => import('./pages/SignupComplete'))
 
 export default function App() {
   useThemeSync()
-  // Password-reset lands outside normal auth gates â€” the link in the email
+  // Password-reset lands outside normal auth gates Ã¢â‚¬â€ the link in the email
   // works whether or not the user has an active session.
-  if (typeof window !== 'undefined' && (window.location.pathname === '/reset-password' || window.location.pathname === '/main/admin/reset-password' || window.location.pathname === '/owner-reset-password')) {
+  if (typeof window !== 'undefined' && (window.location.pathname === '/reset-password' || window.location.pathname === '/lightspeed/admin/reset-password' || window.location.pathname === '/owner-reset-password')) {
     return (
       <Suspense fallback={null}>
         <ResetPassword />
       </Suspense>
     )
   }
-  // Stripe Checkout return pages â€” public, no auth. The customer's browser
+  // Stripe Checkout return pages Ã¢â‚¬â€ public, no auth. The customer's browser
   // lands here after they pay (or cancel) on Stripe-hosted pages.
   if (typeof window !== 'undefined' && (window.location.pathname === '/pay/success' || window.location.pathname === '/pay/cancel')) {
     return (
@@ -98,7 +98,7 @@ export default function App() {
       </Suspense>
     )
   }
-  // Public legal pages â€” about / privacy / terms / agreement. No auth.
+  // Public legal pages Ã¢â‚¬â€ about / privacy / terms / agreement. No auth.
   if (typeof window !== 'undefined' && window.location.pathname.startsWith('/legal')) {
     return (
       <Suspense fallback={null}>
@@ -108,7 +108,7 @@ export default function App() {
       </Suspense>
     )
   }
-  // Customer-facing document share link â€” public, no auth, token in URL.
+  // Customer-facing document share link Ã¢â‚¬â€ public, no auth, token in URL.
   if (typeof window !== 'undefined' && window.location.pathname.startsWith('/share/doc/')) {
     return (
       <Suspense fallback={null}>
@@ -116,7 +116,7 @@ export default function App() {
       </Suspense>
     )
   }
-  // Technician mobile inspection â€” public, token in URL, no pricing.
+  // Technician mobile inspection Ã¢â‚¬â€ public, token in URL, no pricing.
   if (typeof window !== 'undefined' && window.location.pathname.startsWith('/technician/inspection/')) {
     return (
       <Suspense fallback={null}>
@@ -124,7 +124,7 @@ export default function App() {
       </Suspense>
     )
   }
-  // Self-serve signup â€” public (no auth). Lands here from the marketing
+  // Self-serve signup Ã¢â‚¬â€ public (no auth). Lands here from the marketing
   // site's pricing CTA. Stripe redirects back to /signup/complete.
   if (typeof window !== 'undefined' && window.location.pathname.startsWith('/signup/complete')) {
     return (
@@ -141,20 +141,20 @@ export default function App() {
     )
   }
   // The owner-portal routes own their own auth and chrome; keep them separate
-  // from the customer app's gating so a company user can never land in /main/admin
+  // from the customer app's gating so a company user can never land in /lightspeed/admin
   // and vice-versa. Legacy /owner paths still redirect in so bookmarks keep working.
   if (typeof window !== 'undefined' && (
-    window.location.pathname === '/main/admin/login' ||
-    window.location.pathname.startsWith('/main/admin') ||
+    window.location.pathname === '/lightspeed/admin/login' ||
+    window.location.pathname.startsWith('/lightspeed/admin') ||
     window.location.pathname === '/owner-login' ||
     window.location.pathname.startsWith('/owner')
   )) {
     return (
       <Suspense fallback={null}>
         <Routes>
-          <Route path="/main/admin/login" element={<OwnerLogin />} />
+          <Route path="/lightspeed/admin/login" element={<OwnerLogin />} />
           <Route path="/owner-login" element={<OwnerLogin />} />
-          <Route path="/main/admin" element={<OwnerLayout />}>
+          <Route path="/lightspeed/admin" element={<OwnerLayout />}>
             <Route index element={<OwnerDashboard />} />
             <Route path="companies" element={<OwnerCompanies />} />
             <Route path="companies/new" element={<OwnerAddCompany />} />
@@ -238,7 +238,7 @@ function Boot() {
 
   if (error && !data) {
     // 401 is handled by the API client (auto-logout). 403 here means the token
-    // is valid but the role doesn't have settings.view â€” almost always because
+    // is valid but the role doesn't have settings.view Ã¢â‚¬â€ almost always because
     // this is a stale session from before the multi-tenancy migration (role
     // not in rolePerms map, or empty role). Offer a clean sign-out.
     const isAuth = errorStatus === 401 || errorStatus === 403

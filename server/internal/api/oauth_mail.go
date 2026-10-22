@@ -1,14 +1,14 @@
 package api
 
-// Email OAuth for Gmail (Google) and Outlook (Microsoft) — XOAUTH2 SMTP.
+// Email OAuth for Gmail (Google) and Outlook (Microsoft) â€” XOAUTH2 SMTP.
 //
 // Flow:
-//  1. Shop user clicks "Sign in with Google" (or Microsoft) in Settings →
-//     Notifications → wizard. Frontend POSTs to /api/mail/oauth/{provider}/start
+//  1. Shop user clicks "Sign in with Google" (or Microsoft) in Settings â†’
+//     Notifications â†’ wizard. Frontend POSTs to /api/mail/oauth/{provider}/start
 //     which returns the provider's authorize URL (built from env-var client ID,
 //     signed state token).
 //  2. User signs in at Google/Microsoft, approves SMTP scope, is redirected
-//     back to /api/mail/oauth/{provider}/callback?code=…&state=…
+//     back to /api/mail/oauth/{provider}/callback?code=â€¦&state=â€¦
 //  3. Callback exchanges the code for an access_token + refresh_token, stores
 //     the refresh token encrypted at rest, closes the popup with a success
 //     postMessage so the opener can refresh its status.
@@ -114,7 +114,7 @@ func (s *Server) oauthMailRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/mail/oauth/status", s.auth("settings.view", s.oauthMailStatus))
 	mux.HandleFunc("POST /api/mail/oauth/{provider}/start", s.auth("shop.edit", s.oauthMailStart))
 	mux.HandleFunc("DELETE /api/mail/oauth/{provider}", s.auth("shop.edit", s.oauthMailDisconnect))
-	// Public callback — authenticated via the signed state (not a Bearer).
+	// Public callback â€” authenticated via the signed state (not a Bearer).
 	mux.HandleFunc("GET /api/mail/oauth/{provider}/callback", s.oauthMailCallback)
 }
 
@@ -213,7 +213,7 @@ func (s *Server) oauthMailCallback(w http.ResponseWriter, r *http.Request) {
 	// Fetch the authenticated email.
 	email, err := fetchUserEmail(r.Context(), p, tok.AccessToken)
 	if err != nil || email == "" {
-		// Fallback — some providers may hide email behind extra scopes; use a
+		// Fallback â€” some providers may hide email behind extra scopes; use a
 		// placeholder but still save the token.
 		email = "connected@" + provider + ".oauth"
 	}
@@ -344,7 +344,7 @@ func fetchUserEmail(ctx context.Context, p oauthProvider, accessToken string) (s
 // getOAuthAccessToken returns a fresh access token for (companyID, provider),
 // refreshing from the stored refresh token if the cached one is expired or
 // missing. Returns ("", "", nil) if no OAuth connection is configured for
-// that tenant — callers fall back to password-based SMTP.
+// that tenant â€” callers fall back to password-based SMTP.
 func (s *Server) getOAuthAccessToken(ctx context.Context, cid, provider string) (string, string, error) {
 	p, ok := oauthProviders[provider]
 	if !ok {
@@ -448,7 +448,7 @@ func verifyOAuthState(secret []byte, state string) (cid, provider, user string, 
 }
 
 // oauthRedirectURI resolves the callback URL. Prefers OAUTH_REDIRECT_BASE
-// (full origin, e.g. https://apps.2set.com) so the deployed URL stays stable
+// (full origin, e.g. https://my.fixoraerp.com) so the deployed URL stays stable
 // even if the request's Host header is weird behind a proxy; otherwise falls
 // back to publicOrigin(r).
 func oauthRedirectURI(r *http.Request, provider string) string {

@@ -17,7 +17,7 @@ import (
 )
 
 // ----------------------------------------------------------------------------
-// Public self-serve signup — Phase B of the marketing / signup build-out.
+// Public self-serve signup â€” Phase B of the marketing / signup build-out.
 //
 // Flow:
 //   1. Marketing site redirects visitor to /signup?plan=starter.
@@ -29,7 +29,7 @@ import (
 //      against the SaaS owner's platform Stripe account.
 //   4. On return, the frontend polls /api/public/signup/sync/{session}
 //      which asks Stripe directly whether the session is paid, and if so
-//      flips everything from pending → trialing/active and emails the
+//      flips everything from pending â†’ trialing/active and emails the
 //      shop owner a welcome message.
 //   5. The platform webhook does the same in response to
 //      checkout.session.completed so the activation isn't dependent on
@@ -170,7 +170,7 @@ func (s *Server) publicSignup(w http.ResponseWriter, r *http.Request) {
 		ve["owner.password"] = "Password must be at least 8 characters."
 	}
 	// Reject obvious duplicates upfront. A race with another signup is still
-	// possible — the unique index on company_owners.email catches that at
+	// possible â€” the unique index on company_owners.email catches that at
 	// commit time.
 	var existingCount int
 	_ = s.db.QueryRow(r.Context(), `SELECT count(*) FROM company_owners WHERE lower(email) = $1`, in.Owner.Email).Scan(&existingCount)
@@ -263,7 +263,7 @@ func (s *Server) publicSignup(w http.ResponseWriter, r *http.Request) {
 		).Scan(&subscriptionID); err != nil {
 			return err
 		}
-		// Default feature set during trial — same bundle the webhook /
+		// Default feature set during trial â€” same bundle the webhook /
 		// sync will confirm once Stripe reports the trial as started.
 		b, _ := json.Marshal(featuresFromPlan(plan))
 		_, err := tx.Exec(r.Context(), `INSERT INTO company_features (company_id, features)
@@ -397,7 +397,7 @@ func (s *Server) publicSignupSync(w http.ResponseWriter, r *http.Request) {
 // company is already active, nothing changes. Returns a welcome email through
 // the platform mailer the first time it activates.
 //
-// stripeCustomerID is optional — passed from the Checkout session so the
+// stripeCustomerID is optional â€” passed from the Checkout session so the
 // customer-portal link works later without a round-trip. If empty the
 // subscription row keeps whatever's there (usually '').
 func (s *Server) activateSignup(ctx context.Context, companyID, subID, planKey, cycle, stripeSubID string) error {
@@ -408,7 +408,7 @@ func (s *Server) activateSignupV2(ctx context.Context, companyID, subID, planKey
 	if companyID == "" {
 		return errors.New("missing company id")
 	}
-	// Unknown plan is not fatal — still link Stripe IDs. This covers shops
+	// Unknown plan is not fatal â€” still link Stripe IDs. This covers shops
 	// manually created on legacy plans ('enterprise', custom) that aren't
 	// in the hardcoded signupPlans catalog. Features stay at whatever the
 	// Owner Portal already has toggled.
@@ -418,7 +418,7 @@ func (s *Server) activateSignupV2(ctx context.Context, companyID, subID, planKey
 		plan, known = signupPlans[planKey]
 	}
 	if !known {
-		log.Printf("activateSignupV2: unknown plan %q for company %s — writing Stripe IDs only", planKey, companyID)
+		log.Printf("activateSignupV2: unknown plan %q for company %s â€” writing Stripe IDs only", planKey, companyID)
 	}
 	var prevStatus string
 	err := s.db.QueryRow(ctx, `SELECT status FROM companies WHERE id::text = $1`, companyID).Scan(&prevStatus)
@@ -428,7 +428,7 @@ func (s *Server) activateSignupV2(ctx context.Context, companyID, subID, planKey
 	// Always proceed to attach / refresh the Stripe IDs even when the shop
 	// is already active (manual activation path, re-attach after dashboard
 	// delete, etc.). The welcome email at the end is still gated on a
-	// pending→active transition.
+	// pendingâ†’active transition.
 	wasPending := prevStatus != "active" && prevStatus != "trial"
 	notePart := ""
 	if stripeSubID != "" {
@@ -495,7 +495,7 @@ func (s *Server) activateSignupV2(ctx context.Context, companyID, subID, planKey
 	}
 	invalidateCompanyStatus(companyID)
 	// Trial-abuse check: one card/bank per trial. Only runs on the
-	// pending→active transition; a re-attach for an already-active shop
+	// pendingâ†’active transition; a re-attach for an already-active shop
 	// shouldn't be able to retroactively lock their own fingerprint out.
 	if wasPending && stripeCustomerID != "" {
 		if abuseErr := s.enforceTrialAbuse(ctx, companyID, stripeCustomerID, stripeSubID); errors.Is(abuseErr, ErrTrialAlreadyUsed) {
@@ -503,7 +503,7 @@ func (s *Server) activateSignupV2(ctx context.Context, companyID, subID, planKey
 			return abuseErr
 		}
 	}
-	// Welcome email only on the first activation — not every re-attach.
+	// Welcome email only on the first activation â€” not every re-attach.
 	if !wasPending {
 		return nil
 	}
@@ -514,7 +514,7 @@ func (s *Server) activateSignupV2(ctx context.Context, companyID, subID, planKey
 	_ = s.db.QueryRow(ctx, `SELECT name FROM companies WHERE id::text = $1`, companyID).Scan(&companyName)
 	appURL := strings.TrimSpace(os.Getenv("APP_ORIGIN"))
 	if appURL == "" {
-		appURL = "https://apps.2set.com"
+		appURL = "https://my.fixoraerp.com"
 	}
 	go s.NotifyCompanyCreated(context.Background(), ownerEmail, ownerName, companyName, appURL)
 	return nil
@@ -524,8 +524,8 @@ func (s *Server) activateSignupV2(ctx context.Context, companyID, subID, planKey
 // customer.subscription.{created,updated,deleted} events whose metadata has
 // torquedesk_signup=true. It mirrors the Stripe state onto the main
 // subscriptions table so renewals, cancels, past-due, and plan changes
-// automatically reflect in Owner → Companies → Subscription without manual
-// SQL. Idempotent — safe on webhook retries.
+// automatically reflect in Owner â†’ Companies â†’ Subscription without manual
+// SQL. Idempotent â€” safe on webhook retries.
 func (s *Server) applySignupSubscriptionEvent(ctx context.Context, sub stripeSubscription) error {
 	// Map Stripe status to our enum.
 	ourStatus := "active"
@@ -640,11 +640,11 @@ func signupStripePriceFor(ctx context.Context, _ *Server, secret string, plan si
 		interval = "year"
 	}
 	// Reuse the addon helper to create a product + price in one call. We
-	// deliberately do NOT persist these ids to the DB — Phase C can add a
+	// deliberately do NOT persist these ids to the DB â€” Phase C can add a
 	// subscription_plan_prices table if you want them survivable across
 	// restarts.
 	productID, priceID, err := stripeCreateProductAndPriceWithInterval(ctx, secret,
-		"Fixora — "+plan.Name+" ("+cycle+")",
+		"Fixora â€” "+plan.Name+" ("+cycle+")",
 		"Fixora subscription", amount, "usd", interval)
 	if err != nil {
 		return "", err

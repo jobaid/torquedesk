@@ -22,13 +22,13 @@ import (
 // the SaaS owner can send a renewal link to the shop's primary owner. The
 // link points at either:
 //   - a Stripe Billing Portal session (if the shop was previously linked
-//     via setupBilling / signup — portal lets them update card + reactivate)
+//     via setupBilling / signup â€” portal lets them update card + reactivate)
 //   - the public /signup page prefilled with their current plan (if the
 //     shop was never linked to Stripe or the customer was deleted)
 //
 // Once the shop manager pays through Stripe, the existing webhook /
 // setupBillingSync path re-attaches the Stripe IDs and the company status
-// goes back to active — no further admin action needed.
+// goes back to active â€” no further admin action needed.
 //
 // A tiny ticker runs daily to auto-send once per expired shop so operators
 // don't have to click a button for every renewal.
@@ -69,7 +69,7 @@ func (s *Server) buildRenewalMessage(ctx context.Context, cid string) (string, s
 	if email == "" {
 		return "", "", "", fmt.Errorf("no primary owner email on file")
 	}
-	appOrigin := strings.TrimSpace(getEnv("APP_ORIGIN", "https://apps.2set.com"))
+	appOrigin := strings.TrimSpace(getEnv("APP_ORIGIN", "https://my.fixoraerp.com"))
 	// Preferred: Stripe Billing Portal if the shop was previously linked.
 	if stripeCust != "" {
 		if secret, ok := s.platformStripeSecret(ctx); ok {
@@ -99,12 +99,12 @@ func (s *Server) sendRenewalEmail(ctx context.Context, cid, email, companyName, 
 	subject := "Renew your " + companyName + " subscription to keep access"
 	html := `<p>Hi,</p>
 <p>Your Fixora subscription for <strong>` + htmlEscape(companyName) + `</strong> has expired, so you can't sign in right now.</p>
-<p>Pick up where you left off — click the button below to renew. Your shop data, customers, and documents are all preserved and come back online the moment payment goes through.</p>
+<p>Pick up where you left off â€” click the button below to renew. Your shop data, customers, and documents are all preserved and come back online the moment payment goes through.</p>
 <p><a href="` + htmlEscape(link) + `" style="display:inline-block;padding:12px 22px;background:#2a6cf0;color:#fff;text-decoration:none;border-radius:8px;font-weight:600">Renew subscription</a></p>
 <p style="color:#6b7280;font-size:12px">Or copy and paste this link into your browser:<br>` + htmlEscape(link) + `</p>
 <p>Questions? Just reply to this email.</p>`
 	text := "Hi,\n\nYour Fixora subscription for " + companyName + " has expired, so you can't sign in right now.\n\n" +
-		"Pick up where you left off — renew here:\n\n" + link + "\n\nYour shop data is preserved and comes back online the moment payment goes through.\n\nQuestions? Just reply to this email.\n"
+		"Pick up where you left off â€” renew here:\n\n" + link + "\n\nYour shop data is preserved and comes back online the moment payment goes through.\n\nQuestions? Just reply to this email.\n"
 	today := time.Now().UTC().Format("2006-01-02")
 	s.SendPlatformEmail(ctx, []string{email},
 		subject,
@@ -122,7 +122,7 @@ var renewalTickerOnce sync.Once
 // StartRenewalTicker wakes once an hour, finds companies whose subscription
 // end_date has passed and status is expired/cancelled, and emails the
 // primary owner a renewal link. Dedup key limits to one email per shop
-// per day — operators can also hit the manual button in between.
+// per day â€” operators can also hit the manual button in between.
 func (s *Server) StartRenewalTicker(ctx context.Context) {
 	renewalTickerOnce.Do(func() {
 		go func() {

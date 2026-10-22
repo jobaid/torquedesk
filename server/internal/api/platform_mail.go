@@ -196,7 +196,7 @@ func (s *Server) testPlatformMail(w http.ResponseWriter, r *http.Request) {
 
 // loadPlatformMailer returns the platform mailer configuration and decrypted
 // password. Returns an error if the platform mailer is not enabled or
-// configured — callers should treat that as "skip the send" rather than fail
+// configured â€” callers should treat that as "skip the send" rather than fail
 // the originating request.
 func (s *Server) loadPlatformMailer(ctx context.Context) (mailer, string, error) {
 	dto, pwBlob, err := s.scanPlatformMail(ctx)
@@ -230,7 +230,7 @@ func (s *Server) loadPlatformMailer(ctx context.Context) (mailer, string, error)
 // SendPlatformEmail is the public helper the owner-side flows call. It
 // enqueues one email_jobs row per recipient; the background worker handles
 // the actual send with retries. If the platform mailer is disabled it still
-// enqueues — the worker will mark the attempt failed and surface it in the
+// enqueues â€” the worker will mark the attempt failed and surface it in the
 // delivery log. kind/dedupeKey/related* are optional context passed through
 // to the job row.
 func (s *Server) SendPlatformEmail(ctx context.Context, to []string, subject, htmlBody, textBody, kind, dedupeKey string) {
@@ -247,7 +247,7 @@ func (s *Server) SendPlatformEmail(ctx context.Context, to []string, subject, ht
 			Subject: subject, HTML: htmlBody, Text: textBody,
 			Kind: kind, DedupeKey: dk,
 		}); err != nil {
-			log.Printf("platform mail enqueue failed (%s → %s): %v", subject, addr, err)
+			log.Printf("platform mail enqueue failed (%s â†’ %s): %v", subject, addr, err)
 		}
 	}
 }
@@ -281,7 +281,7 @@ func platformEmailShell(fromName, title, body, footerNote string) string {
 	if fromName == "" {
 		fromName = "Fixora"
 	}
-	// Preheader is the first bit of plain text in the email body — most
+	// Preheader is the first bit of plain text in the email body â€” most
 	// mail clients show it next to the subject in the inbox list.
 	preheader := title
 	// Light grey background with a 600px white card. Mobile breakpoint
@@ -296,7 +296,7 @@ func platformEmailShell(fromName, title, body, footerNote string) string {
 	// Logo row (above the card)
 	appOrigin := strings.TrimSpace(os.Getenv("APP_ORIGIN"))
 	if appOrigin == "" {
-		appOrigin = "https://apps.2set.com"
+		appOrigin = "https://my.fixoraerp.com"
 	}
 	b.WriteString(`<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px"><tr><td style="padding:0 0 14px;text-align:left"><img src="` + appOrigin + `/logo.png" alt="` + htmlEscape(fromName) + `" width="140" style="height:auto;display:inline-block;max-width:180px"></td></tr></table>`)
 	// Main card
@@ -315,7 +315,7 @@ func platformEmailShell(fromName, title, body, footerNote string) string {
 	b.WriteString(`<strong style="color:#4b5563">` + htmlEscape(fromName) + `</strong><br>`)
 	b.WriteString(`Modern shop management for independent auto repair shops.<br>`)
 	b.WriteString(`Questions? Reply to this email and we'll help.<br>`)
-	b.WriteString(`<span style="color:#9ca3af">© ` + fmt.Sprintf("%d", time.Now().Year()) + ` ` + htmlEscape(fromName) + `. All rights reserved.</span>`)
+	b.WriteString(`<span style="color:#9ca3af">Â© ` + fmt.Sprintf("%d", time.Now().Year()) + ` ` + htmlEscape(fromName) + `. All rights reserved.</span>`)
 	b.WriteString(`</td></tr></table>`)
 	b.WriteString(`</td></tr></table></body></html>`)
 	return b.String()
@@ -408,7 +408,7 @@ func (s *Server) NotifySubscriptionChange(ctx context.Context, ownerEmail, compa
 		intro = "Your Fixora subscription for <strong>" + htmlEscape(companyName) + "</strong> has been placed into a trial period."
 	case "pending_set":
 		title = "Subscription pending"
-		intro = "Your Fixora subscription for <strong>" + htmlEscape(companyName) + "</strong> is now pending — the Fixora team is reviewing the account."
+		intro = "Your Fixora subscription for <strong>" + htmlEscape(companyName) + "</strong> is now pending â€” the Fixora team is reviewing the account."
 	case "suspended_set":
 		title = "Subscription suspended"
 		intro = "Your Fixora subscription for <strong>" + htmlEscape(companyName) + "</strong> has been suspended. Contact support for details."

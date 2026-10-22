@@ -4,7 +4,7 @@ package api
 //
 // Shop managers submit tickets from the shop UI; the SaaS Owner reads and
 // replies from the Owner Service Desk. One backend file to keep the surface
-// small — DB access, routes, email, and audit all live here.
+// small â€” DB access, routes, email, and audit all live here.
 //
 // Deferred (not shipped this pass): file attachments, knowledge base,
 // reusable response templates, business-hours/holiday SLA engine (we ship
@@ -41,7 +41,7 @@ var supportStatuses = map[string]bool{
 	"resolved": true, "closed": true,
 }
 
-// Wall-clock SLA defaults — in hours — applied at ticket creation time.
+// Wall-clock SLA defaults â€” in hours â€” applied at ticket creation time.
 // Not business-hours aware; see "Deferred" note above.
 var slaResponseHours = map[string]int{"urgent": 1, "high": 2, "normal": 8, "low": 24}
 var slaResolveHours = map[string]int{"urgent": 4, "high": 24, "normal": 72, "low": 120}
@@ -691,7 +691,7 @@ func supportPortalBase() string {
 	if v := strings.TrimRight(os.Getenv("APP_ORIGIN"), "/"); v != "" {
 		return v
 	}
-	return "https://apps.2set.com"
+	return "https://my.fixoraerp.com"
 }
 
 func supportEmailShell(title, body string) string {
@@ -703,7 +703,7 @@ func supportEmailShell(title, body string) string {
   </div>
   <div style="padding:24px 28px;line-height:1.55;font-size:14px">` + body + `</div>
   <div style="padding:14px 28px;background:#f8fafc;color:#64748b;font-size:11px;border-top:1px solid #e2e8f0">
-    You received this because you have an active Fixora account. Reply by signing in — do not reply to this email.
+    You received this because you have an active Fixora account. Reply by signing in â€” do not reply to this email.
   </div>
 </div></body></html>`
 }
@@ -765,7 +765,7 @@ func (s *Server) sendTicketCreatedEmails(ctx context.Context, ticketID, number, 
 		if _, err := s.enqueueEmail(ctx, emailEnqueue{
 			Scope:       "platform",
 			To:          email,
-			Subject:     fmt.Sprintf("[Service Desk] %s — %s (%s)", number, subject, priority),
+			Subject:     fmt.Sprintf("[Service Desk] %s â€” %s (%s)", number, subject, priority),
 			HTML:        supportEmailShell("New support ticket", ownerBody),
 			Text:        fmt.Sprintf("New ticket %s from %s. Open: %s/owner/support/%s", number, companyName, portal, ticketID),
 			Kind:        "support_created_owner",
@@ -816,7 +816,7 @@ func (s *Server) notifyOwnerReply(ctx context.Context, ticketID, number, subject
 func (s *Server) notifyShopReply(ctx context.Context, ticketID, number, subject, email, name, companyID string) {
 	portal := supportPortalBase()
 	body := fmt.Sprintf(`<p>Hi %s,</p>
-<p>Our support team replied on ticket <strong>%s — %s</strong>. Sign in to view the message.</p>
+<p>Our support team replied on ticket <strong>%s â€” %s</strong>. Sign in to view the message.</p>
 <p><a href="%s/support/%s" style="display:inline-block;background:#2554f5;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:600">View support ticket</a></p>`,
 		html.EscapeString(name), html.EscapeString(number), html.EscapeString(subject), portal, ticketID)
 	stamp := strconv.FormatInt(time.Now().UnixNano(), 36)
@@ -839,7 +839,7 @@ func (s *Server) notifyShopStatus(ctx context.Context, ticketID, number, subject
 	portal := supportPortalBase()
 	label := strings.ReplaceAll(newStatus, "_", " ")
 	body := fmt.Sprintf(`<p>Hi %s,</p>
-<p>Ticket <strong>%s — %s</strong> was marked <strong>%s</strong>.</p>
+<p>Ticket <strong>%s â€” %s</strong> was marked <strong>%s</strong>.</p>
 <p>If the problem persists, you can reopen the ticket from the support portal.</p>
 <p><a href="%s/support/%s" style="display:inline-block;background:#2554f5;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:600">View ticket</a></p>`,
 		html.EscapeString(name), html.EscapeString(number), html.EscapeString(subject),

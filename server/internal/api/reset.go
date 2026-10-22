@@ -82,7 +82,7 @@ func sendResetEmail(toEmail, link string) error {
 // resetBaseURL builds the reset link base. Preference order:
 //   1. RESET_BASE_URL env var (explicit override)
 //   2. The incoming request's public origin (honours nginx X-Forwarded-*),
-//      so production emails naturally link to https://apps.2set.com
+//      so production emails naturally link to https://my.fixoraerp.com
 //   3. http://localhost:5173 (dev fallback for scripted / background jobs)
 func resetBaseURL(r *http.Request) string {
 	if u := strings.TrimSpace(os.Getenv("RESET_BASE_URL")); u != "" {
@@ -94,7 +94,7 @@ func resetBaseURL(r *http.Request) string {
 	return "http://localhost:5173"
 }
 
-// ---------- HTTP handlers (public — no auth) ----------
+// ---------- HTTP handlers (public â€” no auth) ----------
 
 type resetRequest struct {
 	Email string `json:"email"`
@@ -123,7 +123,7 @@ func (s *Server) requestPasswordReset(w http.ResponseWriter, r *http.Request) {
 		kind = kindSaasAdmin
 		pathHint = "owner-reset-password"
 	}
-	// Check whether this email is actually in our system first — the UX
+	// Check whether this email is actually in our system first â€” the UX
 	// requested verifies the address so the user knows if they typo'd it.
 	// (This gives up anti-enumeration protection in exchange for a clearer
 	// forgot-password flow; the SaaS owner accepted that trade-off.)
@@ -158,7 +158,7 @@ func (s *Server) issueResetToken(r *http.Request, kind resetTargetKind, email, p
 		err = s.db.QueryRow(ctx, `SELECT id::text, company_id::text FROM company_owners WHERE lower(email) = $1 AND status = 'active' LIMIT 1`, email).Scan(&userID, &companyID)
 	}
 	if err != nil {
-		// No such user — don't surface this to the caller.
+		// No such user â€” don't surface this to the caller.
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil
 		}
@@ -173,8 +173,8 @@ func (s *Server) issueResetToken(r *http.Request, kind resetTargetKind, email, p
 	link := fmt.Sprintf("%s/%s?token=%s&email=%s", resetBaseURL(r), pathHint, plain, email)
 
 	// Preferred paths:
-	//   - saas_admin  → platform mailer (noreply@torquedesk.com), queued
-	//   - shop user   → tenant SMTP, queued
+	//   - saas_admin  â†’ platform mailer (noreply@torquedesk.com), queued
+	//   - shop user   â†’ tenant SMTP, queued
 	// Fallback: env-var SMTP / log when the matching mailer isn't configured.
 	if kind == kindSaasAdmin {
 		if _, _, err := s.loadPlatformMailer(ctx); err == nil {

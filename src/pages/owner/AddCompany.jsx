@@ -33,7 +33,7 @@ export default function AddCompany() {
         const first = arr[0]
         setF((old) => ({ ...old, plan: first.key, monthlyPrice: String(first.monthlyPrice), annualPrice: String(first.annualPrice) }))
       }
-    }).catch(() => { /* ignore ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â form stays open with blank plan selector */ })
+    }).catch(() => { /* ignore — form stays open with blank plan selector */ })
   }, [])
 
   // When the chosen plan changes, auto-fill the prices to match (the owner
@@ -124,11 +124,11 @@ export default function AddCompany() {
 
         <Section title="Subscription">
           <Grid cols={2}>
-            <Field label="Plan" hint={plans.length ? `${plans.length} plan(s) defined in Owner ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Plans` : 'Create plans in Owner ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ Plans'}>
+            <Field label="Plan" hint={plans.length ? `${plans.length} plan(s) defined in Owner → Plans` : 'Create plans in Owner → Plans'}>
               <Select value={f.plan} onChange={(e) => setPlan(e.target.value)}>
-                {plans.length === 0 && <option value="">ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â no plans configured ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</option>}
+                {plans.length === 0 && <option value="">— no plans configured —</option>}
                 {plans.map((p) => (
-                  <option key={p.key} value={p.key}>{p.name} Ãƒâ€šÃ‚Â· ${p.monthlyPrice}/mo</option>
+                  <option key={p.key} value={p.key}>{p.name} · ${p.monthlyPrice}/mo</option>
                 ))}
               </Select>
             </Field>
@@ -140,7 +140,7 @@ export default function AddCompany() {
         </Section>
 
         <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
-          <Btn type="submit" disabled={saving}>{saving ? 'CreatingÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦' : 'Create company'}</Btn>
+          <Btn type="submit" disabled={saving}>{saving ? 'Creating…' : 'Create company'}</Btn>
           <Btn variant="secondary" type="button" onClick={() => navigate(-1)}>Cancel</Btn>
         </div>
       </form>

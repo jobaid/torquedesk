@@ -12,7 +12,7 @@ export default function Subscriptions() {
   const [busy, setBusy] = useState('')
 
   const removeSub = async (s) => {
-    if (!confirm(`Delete the subscription for ${s.companyName}? The company stays ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â only this subscription row is removed.`)) return
+    if (!confirm(`Delete the subscription for ${s.companyName}? The company stays — only this subscription row is removed.`)) return
     setBusy(s.id)
     try {
       await ownerApi(`/subscriptions/${s.id}`, { method: 'DELETE', body: {} })
@@ -52,7 +52,7 @@ export default function Subscriptions() {
       </Card>
 
       {error && <Card style={{ color: '#dc2626' }}>{error}</Card>}
-      {!rows && !error && <Card>LoadingÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦</Card>}
+      {!rows && !error && <Card>Loading…</Card>}
       {rows && (
         <Card style={{ padding: 0, overflowX: 'auto' }}>
           {rows.length === 0 ? (
@@ -73,27 +73,27 @@ export default function Subscriptions() {
                     <Td style={{ textTransform: 'capitalize' }}>{s.billingCycle}</Td>
                     <Td right>{money(s.monthlyPrice)}</Td>
                     <Td right>{money(s.annualPrice)}</Td>
-                    <Td>{s.endDate || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â'}</Td>
+                    <Td>{s.endDate || '—'}</Td>
                     <Td right style={{ color: typeof s.daysUntilExpiration === 'number' && s.daysUntilExpiration < 30 ? '#fdba74' : '#000000' }}>
-                      {s.daysUntilExpiration ?? 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â'}
+                      {s.daysUntilExpiration ?? '—'}
                     </Td>
                     <Td>
                       {s.stripeCustomerId ? (
                         <a href={`https://dashboard.stripe.com/customers/${s.stripeCustomerId}`} target="_blank" rel="noreferrer"
                            title={s.stripeCustomerId}
                            style={{ color: '#5b8def', fontFamily: 'monospace', fontSize: 11 }}>
-                          {s.stripeCustomerId.slice(0, 10)}ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦
+                          {s.stripeCustomerId.slice(0, 10)}…
                         </a>
-                      ) : <span style={{ color: '#000000' }}>ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</span>}
+                      ) : <span style={{ color: '#000000' }}>—</span>}
                     </Td>
                     <Td>
                       {s.stripeSubscriptionId ? (
                         <a href={`https://dashboard.stripe.com/subscriptions/${s.stripeSubscriptionId}`} target="_blank" rel="noreferrer"
                            title={s.stripeSubscriptionId}
                            style={{ color: '#5b8def', fontFamily: 'monospace', fontSize: 11 }}>
-                          {s.stripeSubscriptionId.slice(0, 10)}ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦
+                          {s.stripeSubscriptionId.slice(0, 10)}…
                         </a>
-                      ) : <span style={{ color: '#000000' }}>ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â</span>}
+                      ) : <span style={{ color: '#000000' }}>—</span>}
                     </Td>
                     <Td>
                       <Btn variant="danger" onClick={() => removeSub(s)} disabled={busy === s.id} style={{ padding: '2px 8px', fontSize: 11 }} title="Delete this subscription row">

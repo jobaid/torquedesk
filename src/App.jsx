@@ -36,7 +36,7 @@ const Profile = lazy(() => import('./pages/Profile'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 const Inspections = lazy(() => import('./pages/Inspections'))
 
-// Toraquedesk SaaS Owner Portal ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â its own self-contained route tree. It does NOT
+// Toraquedesk SaaS Owner Portal — its own self-contained route tree. It does NOT
 // render inside AppShell and does NOT touch the main app's auth state.
 const OwnerLogin = lazy(() => import('./pages/owner/OwnerLogin'))
 const OwnerLayout = lazy(() => import('./pages/owner/OwnerLayout'))
@@ -49,18 +49,15 @@ const OwnerAuditLog = lazy(() => import('./pages/owner/AuditLog'))
 const OwnerPlaceholder = lazy(() => import('./pages/owner/Placeholder'))
 const OwnerSettings = lazy(() => import('./pages/owner/Settings'))
 const OwnerPlatformEmail = lazy(() => import('./pages/owner/PlatformEmail'))
-const OwnerBroadcast = lazy(() => import('./pages/owner/Broadcast'))
 const OwnerPlatformTemplates = lazy(() => import('./pages/owner/PlatformTemplates'))
 const OwnerSupport = lazy(() => import('./pages/owner/Support'))
 const OwnerUsers = lazy(() => import('./pages/owner/Users'))
 const Legal = lazy(() => import('./pages/Legal'))
 const Support = lazy(() => import('./pages/Support'))
-const CustomerBroadcast = lazy(() => import('./pages/CustomerBroadcast'))
 const OwnerAddons = lazy(() => import('./pages/owner/Addons'))
 const OwnerPlans = lazy(() => import('./pages/owner/Plans'))
 const OwnerBilling = lazy(() => import('./pages/owner/Billing'))
 const OwnerBackups = lazy(() => import('./pages/owner/Backups'))
-const OwnerDataMigrations = lazy(() => import('./pages/owner/DataMigrations'))
 
 function PageFallback() {
   return (
@@ -80,7 +77,7 @@ const SignupComplete = lazy(() => import('./pages/SignupComplete'))
 
 export default function App() {
   useThemeSync()
-  // Password-reset lands outside normal auth gates ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â the link in the email
+  // Password-reset lands outside normal auth gates — the link in the email
   // works whether or not the user has an active session.
   if (typeof window !== 'undefined' && (window.location.pathname === '/reset-password' || window.location.pathname === '/portal/admin/reset-password' || window.location.pathname === '/owner-reset-password')) {
     return (
@@ -89,7 +86,7 @@ export default function App() {
       </Suspense>
     )
   }
-  // Stripe Checkout return pages ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â public, no auth. The customer's browser
+  // Stripe Checkout return pages — public, no auth. The customer's browser
   // lands here after they pay (or cancel) on Stripe-hosted pages.
   if (typeof window !== 'undefined' && (window.location.pathname === '/pay/success' || window.location.pathname === '/pay/cancel')) {
     return (
@@ -98,7 +95,7 @@ export default function App() {
       </Suspense>
     )
   }
-  // Public legal pages ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â about / privacy / terms / agreement. No auth.
+  // Public legal pages — about / privacy / terms / agreement. No auth.
   if (typeof window !== 'undefined' && window.location.pathname.startsWith('/legal')) {
     return (
       <Suspense fallback={null}>
@@ -108,7 +105,7 @@ export default function App() {
       </Suspense>
     )
   }
-  // Customer-facing document share link ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â public, no auth, token in URL.
+  // Customer-facing document share link — public, no auth, token in URL.
   if (typeof window !== 'undefined' && window.location.pathname.startsWith('/share/doc/')) {
     return (
       <Suspense fallback={null}>
@@ -116,7 +113,7 @@ export default function App() {
       </Suspense>
     )
   }
-  // Technician mobile inspection ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â public, token in URL, no pricing.
+  // Technician mobile inspection — public, token in URL, no pricing.
   if (typeof window !== 'undefined' && window.location.pathname.startsWith('/technician/inspection/')) {
     return (
       <Suspense fallback={null}>
@@ -124,7 +121,7 @@ export default function App() {
       </Suspense>
     )
   }
-  // Self-serve signup ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â public (no auth). Lands here from the marketing
+  // Self-serve signup — public (no auth). Lands here from the marketing
   // site's pricing CTA. Stripe redirects back to /signup/complete.
   if (typeof window !== 'undefined' && window.location.pathname.startsWith('/signup/complete')) {
     return (
@@ -168,12 +165,10 @@ export default function App() {
             <Route path="backups" element={<OwnerBackups />} />
             <Route path="email" element={<OwnerPlatformEmail />} />
             <Route path="email-templates" element={<OwnerPlatformTemplates />} />
-            <Route path="broadcast" element={<OwnerBroadcast />} />
             <Route path="addons" element={<OwnerAddons />} />
             <Route path="plans" element={<OwnerPlans />} />
             <Route path="support" element={<OwnerSupport />} />
             <Route path="support/:id" element={<OwnerSupport />} />
-            <Route path="migrations" element={<OwnerDataMigrations />} />
             <Route path="security" element={<OwnerPlaceholder title="Security" body="MFA is on the login page; broader security settings arrive later." />} />
             <Route path="settings" element={<OwnerSettings />} />
           </Route>
@@ -191,12 +186,10 @@ export default function App() {
             <Route path="backups" element={<OwnerBackups />} />
             <Route path="email" element={<OwnerPlatformEmail />} />
             <Route path="email-templates" element={<OwnerPlatformTemplates />} />
-            <Route path="broadcast" element={<OwnerBroadcast />} />
             <Route path="addons" element={<OwnerAddons />} />
             <Route path="plans" element={<OwnerPlans />} />
             <Route path="support" element={<OwnerSupport />} />
             <Route path="support/:id" element={<OwnerSupport />} />
-            <Route path="migrations" element={<OwnerDataMigrations />} />
             <Route path="security" element={<OwnerPlaceholder title="Security" body="MFA, session management, and SSO settings are planned for a later phase. For now, owner passwords use Argon2id hashing." />} />
             <Route path="settings" element={<OwnerSettings />} />
           </Route>
@@ -238,7 +231,7 @@ function Boot() {
 
   if (error && !data) {
     // 401 is handled by the API client (auto-logout). 403 here means the token
-    // is valid but the role doesn't have settings.view ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â almost always because
+    // is valid but the role doesn't have settings.view — almost always because
     // this is a stale session from before the multi-tenancy migration (role
     // not in rolePerms map, or empty role). Offer a clean sign-out.
     const isAuth = errorStatus === 401 || errorStatus === 403
@@ -247,7 +240,7 @@ function Boot() {
         <div className="card">
           <EmptyState
             icon={ServerOff}
-            title={isAuth ? 'Your session is no longer valid' : "Can't reach the Fixora server"}
+            title={isAuth ? 'Your session is no longer valid' : "Can't reach the TorqueDesk server"}
             action={
               isAuth
                 ? <button className="btn btn-primary" onClick={() => logout()}>Sign in again</button>
@@ -293,7 +286,6 @@ function Boot() {
           <Route path="orders" element={<S><Orders /></S>} />
           <Route path="orders/:id" element={<S><OrderEditor /></S>} />
           <Route path="customers" element={<S><Customers /></S>} />
-          <Route path="customer-broadcast" element={<S><CustomerBroadcast /></S>} />
           <Route path="customers/:id" element={<S><Customers /></S>} />
           <Route path="inspections" element={<S><Inspections /></S>} />
           <Route path="inspections/:id" element={<S><Inspections /></S>} />

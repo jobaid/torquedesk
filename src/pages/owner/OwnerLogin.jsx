@@ -53,7 +53,7 @@ export default function OwnerLogin() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
           <div style={{ background: 'linear-gradient(135deg,#5b8def,#8b5cf6)', borderRadius: 10, padding: 8, display: 'flex' }}><ShieldCheck size={20} color="#fff" /></div>
           <div>
-            <div style={{ fontSize: 20, fontWeight: 700 }}>Fixora</div>
+            <div style={{ fontSize: 20, fontWeight: 700 }}>Toraquedesk</div>
             <div style={{ fontSize: 12, color: '#000000' }}>SaaS Owner Portal</div>
           </div>
         </div>
@@ -87,7 +87,7 @@ export default function OwnerLogin() {
         {resetSent && <div style={{ marginTop: 10, padding: '8px 10px', borderRadius: 8, background: '#0d3a15', color: '#95eab0', fontSize: 13 }}>If that email exists, a reset link has been sent.</div>}
 
         <button type="submit" disabled={loading} style={{ marginTop: 20, width: '100%', padding: '11px 14px', borderRadius: 10, border: 'none', background: 'linear-gradient(90deg,#2a6cf0,#5b8def)', color: '#fff', fontWeight: 600, fontSize: 14, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1 }}>
-          {loading ? 'Signing inÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦' : <><Lock size={14} style={{ verticalAlign: 'middle', marginRight: 6 }} />Sign in</>}
+          {loading ? 'Signing in…' : <><Lock size={14} style={{ verticalAlign: 'middle', marginRight: 6 }} />Sign in</>}
         </button>
 
         <div style={{ marginTop: 12, textAlign: 'center' }}>
@@ -95,7 +95,7 @@ export default function OwnerLogin() {
         </div>
 
         <div style={{ marginTop: 10, fontSize: 11, color: '#000000', textAlign: 'center' }}>
-          Not a Fixora administrator? <a href="/" style={{ color: '#000000' }}>Go to the main app</a>.
+          Not a TorqueDesk administrator? <a href="/" style={{ color: '#000000' }}>Go to the main app</a>.
         </div>
       </form>
     </div>

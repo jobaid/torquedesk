@@ -67,7 +67,7 @@ function OwnerDesk() {
         <div style={{ width: 44, height: 44, borderRadius: 10, background: 'linear-gradient(135deg,#2554f5,#7c3aed)', display: 'grid', placeItems: 'center', color: '#fff' }}><LifeBuoy size={22} /></div>
         <div>
           <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0 }}>Service Desk</h1>
-          <div style={{ color: '#000000', fontSize: 13 }}>Tickets across every Fixora company.</div>
+          <div style={{ color: '#000000', fontSize: 13 }}>Tickets across every TorqueDesk company.</div>
         </div>
       </div>
 
@@ -87,13 +87,13 @@ function OwnerDesk() {
       <form onSubmit={applySearch} style={{ ...card, padding: 12, marginBottom: 16, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
         <div style={{ position: 'relative', flex: 1, minWidth: 220 }}>
           <Search size={14} style={{ position: 'absolute', left: 10, top: 11, color: '#000000' }} />
-          <input value={filters.q} onChange={(e) => setFilters({ ...filters, q: e.target.value })} placeholder="Ticket #, subject, company, submitterÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦" style={{ ...inp, paddingLeft: 32 }} />
+          <input value={filters.q} onChange={(e) => setFilters({ ...filters, q: e.target.value })} placeholder="Ticket #, subject, company, submitter…" style={{ ...inp, paddingLeft: 32 }} />
         </div>
         <select value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })} style={inp}><option value="">Any status</option>{STATUSES.map((s) => <option key={s} value={s}>{STATUS_META[s].label}</option>)}</select>
         <select value={filters.priority} onChange={(e) => setFilters({ ...filters, priority: e.target.value })} style={inp}><option value="">Any priority</option>{PRIORITIES.map((p) => <option key={p} value={p}>{PRIORITY_META[p].label}</option>)}</select>
         <select value={filters.category} onChange={(e) => setFilters({ ...filters, category: e.target.value })} style={inp}><option value="">Any category</option>{CATEGORY_KEYS.map((k) => <option key={k} value={k}>{CATEGORIES[k]}</option>)}</select>
         <button type="submit" style={btnPrimary}>Search</button>
-        <button type="button" onClick={load} style={btnPrimary} title="Reload">ÃƒÂ¢Ã¢â‚¬Â Ã‚Â»</button>
+        <button type="button" onClick={load} style={btnPrimary} title="Reload">↻</button>
       </form>
 
       {err && <div style={errBox}>{err}</div>}
@@ -120,7 +120,7 @@ function OwnerDesk() {
                   <td style={td}>{t.company}</td>
                   <td style={td}><Pill {...PRIORITY_META[t.priority]} /></td>
                   <td style={td}><Pill {...STATUS_META[t.status]} /></td>
-                  <td style={{ ...td, color: '#000000', fontSize: 13 }}>{t.assignee || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â'}</td>
+                  <td style={{ ...td, color: '#000000', fontSize: 13 }}>{t.assignee || '—'}</td>
                   <td style={{ ...td, color: '#000000', fontSize: 12 }}>{fmtDate(t.updatedAt)}</td>
                 </tr>
               ))}
@@ -196,8 +196,8 @@ function OwnerTicket({ id }) {
               }}>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12, color: '#000000', marginBottom: 4 }}>
                   <strong style={{ color: '#000000' }}>{m.authorName}</strong>
-                  <span>Ãƒâ€šÃ‚Â· {m.authorType === 'shop' ? 'Shop' : 'Support'}</span>
-                  <span>Ãƒâ€šÃ‚Â· {fmtDate(m.createdAt)}</span>
+                  <span>· {m.authorType === 'shop' ? 'Shop' : 'Support'}</span>
+                  <span>· {fmtDate(m.createdAt)}</span>
                   {m.visibility === 'internal' && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, color: '#92400e', fontWeight: 700 }}><Lock size={11} /> Internal note</span>}
                 </div>
                 <div style={{ whiteSpace: 'pre-wrap', fontSize: 14 }}>{m.body}</div>
@@ -206,13 +206,13 @@ function OwnerTicket({ id }) {
             {(t.messages || []).length === 0 && <div style={{ color: '#000000', fontSize: 13 }}>No messages yet.</div>}
           </div>
           <form onSubmit={send} style={{ display: 'grid', gap: 8 }}>
-            <textarea value={reply.body} onChange={(e) => setReply({ ...reply, body: e.target.value })} rows={3} placeholder={reply.internal ? 'Internal note (shop will not see this)ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦' : 'Reply to shopÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦'} style={{ ...inp, fontFamily: 'inherit', background: reply.internal ? '#fffbeb' : '#fff' }} />
+            <textarea value={reply.body} onChange={(e) => setReply({ ...reply, body: e.target.value })} rows={3} placeholder={reply.internal ? 'Internal note (shop will not see this)…' : 'Reply to shop…'} style={{ ...inp, fontFamily: 'inherit', background: reply.internal ? '#fffbeb' : '#fff' }} />
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <label style={{ fontSize: 13, display: 'flex', gap: 6, alignItems: 'center', color: reply.internal ? '#92400e' : '#000000' }}>
                 <input type="checkbox" checked={reply.internal} onChange={(e) => setReply({ ...reply, internal: e.target.checked })} />
                 <Lock size={13} /> Internal note (owner-only)
               </label>
-              <button type="submit" disabled={busy || !reply.body.trim()} style={btnPrimary}><Send size={14} /> {busy ? 'SendingÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦' : (reply.internal ? 'Save note' : 'Send reply')}</button>
+              <button type="submit" disabled={busy || !reply.body.trim()} style={btnPrimary}><Send size={14} /> {busy ? 'Sending…' : (reply.internal ? 'Save note' : 'Send reply')}</button>
             </div>
           </form>
         </div>
@@ -222,7 +222,7 @@ function OwnerTicket({ id }) {
             <SectionLabel>Activity</SectionLabel>
             <ul style={{ margin: 0, padding: 0, listStyle: 'none', fontSize: 13, color: '#000000', display: 'grid', gap: 6 }}>
               {t.audit.map((a, i) => (
-                <li key={i}><strong>{a.actorName}</strong> {prettyAction(a)} <span style={{ color: '#000000' }}>Ãƒâ€šÃ‚Â· {fmtDate(a.createdAt)}</span></li>
+                <li key={i}><strong>{a.actorName}</strong> {prettyAction(a)} <span style={{ color: '#000000' }}>· {fmtDate(a.createdAt)}</span></li>
               ))}
             </ul>
           </div>
@@ -263,7 +263,7 @@ function OwnerTicket({ id }) {
 function prettyAction(a) {
   const map = { status_changed: 'changed status', priority_changed: 'changed priority', category_changed: 'changed category', assigned: 'assigned', unassigned: 'unassigned', created: 'created the ticket', reopened: 'reopened the ticket' }
   const verb = map[a.action] || a.action
-  if (a.from && a.to) return `${verb} ${a.from} ÃƒÂ¢Ã¢â‚¬Â Ã¢â‚¬â„¢ ${a.to}`
+  if (a.from && a.to) return `${verb} ${a.from} → ${a.to}`
   if (a.to) return `${verb} ${a.to}`
   return verb
 }
@@ -278,7 +278,7 @@ function Stat({ label, value, tone, icon: Icon }) {
 function Pill({ label, color, bg }) { return <span style={{ display: 'inline-block', padding: '2px 10px', borderRadius: 999, fontSize: 11, fontWeight: 600, color, background: bg || (color + '18') }}>{label}</span> }
 function Field({ label, children }) { return <label style={{ display: 'grid', gap: 4 }}><span style={{ fontSize: 12, fontWeight: 600, color: '#000000' }}>{label}</span>{children}</label> }
 function SectionLabel({ children }) { return <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5, color: '#000000', fontWeight: 700, marginBottom: 8 }}>{children}</div> }
-function fmtDate(d) { if (!d) return 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â'; const t = new Date(d); return t.toLocaleString() }
+function fmtDate(d) { if (!d) return '—'; const t = new Date(d); return t.toLocaleString() }
 
 const card = { background: '#fff', border: '1px solid #e2e8f0', borderRadius: 10, overflow: 'hidden' }
 const th = { textAlign: 'left', padding: '10px 14px', fontWeight: 600 }

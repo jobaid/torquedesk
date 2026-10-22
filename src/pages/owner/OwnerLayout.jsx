@@ -1,7 +1,7 @@
 import { NavLink, Navigate, Outlet, useNavigate } from 'react-router-dom'
 import {
   ShieldCheck, LayoutDashboard, Building2, CreditCard, Users, KeyRound,
-  Globe, Receipt, ScrollText, Lock, Settings, LogOut, HardDrive, Mail, FileText, Package, LifeBuoy, Megaphone, Database,
+  Globe, Receipt, ScrollText, Lock, Settings, LogOut, HardDrive, Mail, FileText, Package, LifeBuoy,
 } from 'lucide-react'
 import { useOwner } from '../../store/useOwner'
 
@@ -22,10 +22,8 @@ const NAV = [
   { to: `${BASE}/backups`, label: 'Backups', icon: HardDrive },
   { to: `${BASE}/email`, label: 'Platform Email', icon: Mail },
   { to: `${BASE}/email-templates`, label: 'Email Templates', icon: FileText },
-  { to: `${BASE}/broadcast`, label: 'Broadcast Email', icon: Megaphone },
   { to: `${BASE}/addons`, label: 'Add-ons', icon: Package },
   { to: `${BASE}/support`, label: 'Service Desk', icon: LifeBuoy },
-  { to: `${BASE}/migrations`, label: 'Data Migration', icon: Database },
   { to: `${BASE}/audit`, label: 'Audit Logs', icon: ScrollText },
   { to: `${BASE}/security`, label: 'Security', icon: Lock },
   { to: `${BASE}/settings`, label: 'Settings', icon: Settings },
@@ -39,9 +37,12 @@ export default function OwnerLayout() {
   return (
     <div style={shellStyle}>
       <aside style={asideStyle}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', borderBottom: '1px solid #e2e8f0' }}>
-          <img src="/logo.png" alt="Fixora" style={{ height: 29, width: 'auto', objectFit: 'contain' }} />
-          <div style={{ fontSize: 10.5, color: '#64748b', fontWeight: 600, letterSpacing: '.04em', textTransform: 'uppercase' }}>Admin</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '18px 16px', borderBottom: '1px solid #e2e8f0' }}>
+          <div style={{ background: 'linear-gradient(135deg,#2554f5,#7c3aed)', borderRadius: 8, padding: 6, display: 'flex' }}><ShieldCheck size={18} color="#fff" /></div>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 700, lineHeight: 1, color: '#000000' }}>TorqueDesk</div>
+            <div style={{ fontSize: 10.5, color: '#000000', marginTop: 2 }}>Admin Portal</div>
+          </div>
         </div>
         <nav style={{ padding: 10, overflow: 'auto', flex: 1 }}>
           {NAV.map((it) => (

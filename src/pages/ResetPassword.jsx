@@ -60,7 +60,7 @@ export default function ResetPassword() {
             <input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" required style={inputStyle} />
             {error && <div style={{ marginTop: 14, padding: '8px 10px', borderRadius: 8, background: dark ? '#3a0d12' : '#fde8ea', color: dark ? '#ffb3b8' : '#991b1f', fontSize: 13 }}>{error}</div>}
             <button type="submit" disabled={busy} style={{ marginTop: 18, width: '100%', padding: '11px 14px', borderRadius: 10, border: 'none', background: 'linear-gradient(90deg,#2a6cf0,#5b8def)', color: '#fff', fontWeight: 600, fontSize: 14, cursor: busy ? 'not-allowed' : 'pointer', opacity: busy ? 0.6 : 1 }}>
-              {busy ? 'UpdatingÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦' : 'Set new password'}
+              {busy ? 'Updating…' : 'Set new password'}
             </button>
           </>
         )}

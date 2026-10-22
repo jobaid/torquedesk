@@ -27,6 +27,7 @@ func (s *Server) billingRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /api/me/billing/setup/sync/{session}", s.auth("shop.edit", s.setupBillingSync))
 	mux.HandleFunc("POST /api/me/billing/cancel",     s.auth("shop.edit",     s.cancelMySubscription))
 	mux.HandleFunc("POST /api/me/billing/resume",     s.auth("shop.edit",     s.resumeMySubscription))
+	s.registerChangePlanRoute(mux)
 }
 
 type myBillingDTO struct {

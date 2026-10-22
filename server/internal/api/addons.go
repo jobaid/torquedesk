@@ -328,6 +328,44 @@ func (s *Server) subscribeAddon(w http.ResponseWriter, r *http.Request) {
 		handleErr(w, err)
 		return
 	}
+
+	// If the shop already has a Stripe customer with a saved default payment
+	// method, create the subscription directly against that customer — no
+	// Checkout, no re-entering the card. The webhook flow still finalises
+	// the row via metadata lookup.
+	var stripeCustID string
+	_ = s.db.QueryRow(r.Context(),
+		`SELECT coalesce(stripe_customer_id, '') FROM subscriptions WHERE company_id::text = $1`,
+		cid).Scan(&stripeCustID)
+	if stripeCustID != "" && stripeCustomerHasDefaultPM(r.Context(), secret, stripeCustID) {
+		subID, dErr := stripeCreateSubscriptionOnCustomer(r.Context(), secret, stripeDirectSubInput{
+			CustomerID: stripeCustID,
+			PriceID:    stripePrice,
+			TrialDays:  trial,
+			Metadata: map[string]string{
+				"torquedesk_company_id":  cid,
+				"torquedesk_feature_key": key,
+				"torquedesk_addon_id":    addonID,
+				"torquedesk_sub_row_id":  subRowID,
+			},
+		})
+		if dErr == nil {
+			_, _ = s.db.Exec(r.Context(), `UPDATE shop_addon_subscriptions
+				SET status = CASE WHEN $3 > 0 THEN 'trialing' ELSE 'active' END,
+				    stripe_subscription_id = $1,
+				    stripe_customer_id = $2,
+				    updated_at = now()
+				WHERE id::text = $4`, subID, stripeCustID, trial, subRowID)
+			writeJSON(w, 200, map[string]any{
+				"charged_saved_pm": true,
+				"subscription_id":  subID,
+				"message":          "Add-on activated using your saved payment method.",
+			})
+			return
+		}
+		// Fall through to Checkout on any direct-charge error.
+	}
+
 	origin := publicOrigin(r)
 	sessURL, sessID, err := stripeCreateSubscriptionCheckoutV2(r.Context(), secret, stripeSubscriptionCheckoutInput{
 		PriceID:   stripePrice,

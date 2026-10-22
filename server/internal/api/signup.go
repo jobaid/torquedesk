@@ -640,11 +640,11 @@ func signupStripePriceFor(ctx context.Context, _ *Server, secret string, plan si
 		interval = "year"
 	}
 	// Reuse the addon helper to create a product + price in one call. We
-	// deliberately do NOT persist these ids to the DB â€” Phase C can add a
+	// deliberately do NOT persist these ids to the DB — Phase C can add a
 	// subscription_plan_prices table if you want them survivable across
 	// restarts.
 	productID, priceID, err := stripeCreateProductAndPriceWithInterval(ctx, secret,
-		"Fixora â€” "+plan.Name+" ("+cycle+")",
+		"Fixora — "+plan.Name+" ("+cycle+")",
 		"Fixora subscription", amount, "usd", interval)
 	if err != nil {
 		return "", err

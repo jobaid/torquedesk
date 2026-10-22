@@ -146,12 +146,108 @@ export function Billing() {
         )}
       </div>
 
+      {data.hasStripeCustomer && (
+        <ChangePlanCard data={data} plans={plans} onDone={load} />
+      )}
+
       <div className="card card-pad" style={{ marginTop: 16 }}>
         <h3 style={{ margin: 0, fontSize: 14 }}>Add-on subscriptions</h3>
         <div className="muted" style={{ fontSize: 13, marginTop: 6 }}>
           Individual features you've subscribed to live under{' '}
           <a href="/settings/general/addons" style={{ color: '#2563eb', fontWeight: 600 }}>Settings → Add-ons</a>.
         </div>
+      </div>
+    </div>
+  )
+}
+
+// ChangePlanCard lets a shop already set up with Stripe upgrade or
+// downgrade to any published plan. Stripe prorates the difference on
+// the next invoice using the already-saved card/bank — no re-entering
+// payment details, no new checkout session.
+function ChangePlanCard({ data, plans, onDone }) {
+  const [plan, setPlan] = useState(data.plan)
+  const [cycle, setCycle] = useState(data.billingCycle || 'monthly')
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState('')
+  const [err, setErr] = useState('')
+  const current = plans.find((p) => p.key === data.plan)
+  const picked = plans.find((p) => p.key === plan)
+  const noChange = plan === data.plan && cycle === (data.billingCycle || 'monthly')
+
+  const submit = async () => {
+    setBusy(true); setErr(''); setMsg('')
+    try {
+      const r = await api('/me/billing/change-plan', { method: 'POST',
+        body: { plan_key: plan, billing_cycle: cycle } })
+      if (r?.needs_payment_method) {
+        setErr(r.message || 'Add a payment method first.'); return
+      }
+      setMsg(r?.message || 'Plan updated.')
+      toast.success('Plan changed', 'Stripe will prorate the difference on your next invoice.')
+      await onDone()
+    } catch (e) {
+      setErr(e.message)
+    } finally { setBusy(false) }
+  }
+
+  return (
+    <div className="card card-pad" style={{ marginTop: 16 }}>
+      <h3 style={{ margin: 0, fontSize: 15 }}>Upgrade or downgrade plan</h3>
+      <div className="muted" style={{ fontSize: 13, marginTop: 6 }}>
+        Switch plans instantly. Your saved payment method is charged (or credited)
+        the prorated difference on your next invoice.
+      </div>
+      <div style={{ display: 'grid', gap: 10, marginTop: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
+        {plans.filter((p) => p.published !== false).map((p) => {
+          const sel = p.key === plan
+          return (
+            <button key={p.key} type="button" onClick={() => setPlan(p.key)}
+              style={{
+                textAlign: 'left', padding: 14, borderRadius: 10, cursor: 'pointer',
+                background: sel ? '#eff6ff' : '#fff',
+                border: `1.5px solid ${sel ? '#2554f5' : '#e5e7eb'}`,
+                position: 'relative',
+              }}>
+              {p.key === data.plan && (
+                <span style={{ position: 'absolute', top: 8, right: 10, fontSize: 10, fontWeight: 700, color: '#047857', background: '#ecfdf5', padding: '2px 8px', borderRadius: 99 }}>
+                  CURRENT
+                </span>
+              )}
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>{p.name}</div>
+              <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>{p.tagline}</div>
+              <div style={{ fontSize: 20, fontWeight: 700, marginTop: 10, color: '#0f172a' }}>
+                ${cycle === 'annual' ? p.annualPrice : p.monthlyPrice}
+                <span style={{ fontSize: 12, color: '#64748b', fontWeight: 500 }}> /{cycle === 'annual' ? 'yr' : 'mo'}</span>
+              </div>
+            </button>
+          )
+        })}
+      </div>
+
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 14 }}>
+        <div className="segmented" role="group" aria-label="Billing cycle">
+          <button type="button" aria-pressed={cycle === 'monthly'} onClick={() => setCycle('monthly')}>Monthly</button>
+          <button type="button" aria-pressed={cycle === 'annual'} onClick={() => setCycle('annual')}>Annual (save ~20%)</button>
+        </div>
+      </div>
+
+      {picked && current && picked.key !== current.key && (
+        <div style={{ marginTop: 10, fontSize: 12, color: '#64748b' }}>
+          {(cycle === 'annual' ? picked.annualPrice : picked.monthlyPrice) > (cycle === 'annual' ? current.annualPrice : current.monthlyPrice)
+            ? `Upgrading from ${current.name} → ${picked.name}. The difference charges to your saved payment method now.`
+            : `Downgrading from ${current.name} → ${picked.name}. The unused balance credits to your account.`}
+        </div>
+      )}
+
+      {err && <div className="callout callout-danger" style={{ marginTop: 10 }}>{err}</div>}
+      {msg && <div className="callout callout-success" style={{ marginTop: 10 }}>{msg}</div>}
+
+      <div style={{ marginTop: 14 }}>
+        <button className="btn btn-primary" onClick={submit} disabled={busy || noChange}>
+          {busy ? <Loader2 size={14} className="spin" /> : <Zap size={14} />}
+          {busy ? 'Changing…' : noChange ? 'Choose a different plan' : `Change to ${picked?.name || plan} (${cycle})`}
+        </button>
       </div>
     </div>
   )

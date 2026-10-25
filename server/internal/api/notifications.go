@@ -377,6 +377,14 @@ func (m mailer) send(password string, to []string, subject, htmlBody, textBody s
 		"To":           strings.Join(to, ", "),
 		"Subject":      subject,
 		"MIME-Version": "1.0",
+		// Mailgun honors these headers on SMTP sends. We disable per-recipient
+		// click/open tracking so password-reset and other transactional links
+		// go directly to our domain instead of being rewritten through
+		// email.mg.<domain>/c/... (which triggers browser cert warnings on
+		// unverified tracking subdomains). Harmless no-op on non-Mailgun SMTP.
+		"X-Mailgun-Track":        "no",
+		"X-Mailgun-Track-Clicks": "no",
+		"X-Mailgun-Track-Opens":  "no",
 	}
 	if m.ReplyTo != "" {
 		headers["Reply-To"] = m.ReplyTo

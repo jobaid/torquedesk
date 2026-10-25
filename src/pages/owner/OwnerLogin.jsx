@@ -112,10 +112,14 @@ function OwnerForgotPasswordModal({ initialEmail, onClose }) {
       })
       const body = await res.json().catch(() => ({}))
       if (!res.ok) {
-        setErr(body?.error || `That email is not registered in the owner portal. (${res.status})`)
+        if (res.status === 404) {
+          setErr('Email is incorrect — no active owner admin uses this address.')
+        } else {
+          setErr(body?.error || `Could not send reset link. (${res.status})`)
+        }
         return
       }
-      setSuccess(`A reset link has been sent to ${addr}. Please check your inbox — and your spam folder if you don't see it within a minute.`)
+      setSuccess(`Your password reset link has been sent to ${addr}. Please check your inbox — and your spam folder if you don't see it within a minute.`)
     } catch { setErr('Could not reach the server. Please try again.') }
     finally { setBusy(false) }
   }

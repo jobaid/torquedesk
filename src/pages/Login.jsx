@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Eye, EyeOff, LogIn, ShieldCheck, Zap, Wrench } from 'lucide-react'
 import { useApp, toast } from '../store/useApp'
 import { api } from '../lib/api'
@@ -52,7 +53,7 @@ function ForgotPasswordModal({ initialEmail, onClose }) {
     finally { setBusy(false) }
   }
 
-  return (
+  return createPortal(
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'grid', placeItems: 'center', padding: 16 }}>
       <form onSubmit={submit} onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: 12, padding: 24, maxWidth: 400, width: '100%', boxShadow: '0 20px 50px rgba(0,0,0,0.25)' }}>
         <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 6 }}>Reset your password</div>
@@ -76,7 +77,8 @@ function ForgotPasswordModal({ initialEmail, onClose }) {
           )}
         </div>
       </form>
-    </div>
+    </div>,
+    document.body
   )
 }
 

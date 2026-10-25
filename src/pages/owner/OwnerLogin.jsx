@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { ShieldCheck, Lock } from 'lucide-react'
 import { useOwner, ownerApi } from '../../store/useOwner'
@@ -124,7 +125,7 @@ function OwnerForgotPasswordModal({ initialEmail, onClose }) {
     finally { setBusy(false) }
   }
 
-  return (
+  return createPortal(
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'grid', placeItems: 'center', padding: 16 }}>
       <form onSubmit={submit} onClick={(e) => e.stopPropagation()} style={{ background: '#fff', color: '#0f172a', borderRadius: 12, padding: 24, maxWidth: 420, width: '100%', boxShadow: '0 20px 50px rgba(0,0,0,0.25)' }}>
         <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 6 }}>Reset your owner password</div>
@@ -148,7 +149,8 @@ function OwnerForgotPasswordModal({ initialEmail, onClose }) {
           )}
         </div>
       </form>
-    </div>
+    </div>,
+    document.body
   )
 }
 

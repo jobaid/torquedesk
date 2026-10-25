@@ -50,6 +50,8 @@ const OwnerPlaceholder = lazy(() => import('./pages/owner/Placeholder'))
 const OwnerSettings = lazy(() => import('./pages/owner/Settings'))
 const OwnerPlatformEmail = lazy(() => import('./pages/owner/PlatformEmail'))
 const OwnerPlatformTemplates = lazy(() => import('./pages/owner/PlatformTemplates'))
+const OwnerBroadcast = lazy(() => import('./pages/owner/Broadcast'))
+const OwnerDataMigrations = lazy(() => import('./pages/owner/DataMigrations'))
 const OwnerSupport = lazy(() => import('./pages/owner/Support'))
 const OwnerUsers = lazy(() => import('./pages/owner/Users'))
 const Legal = lazy(() => import('./pages/Legal'))
@@ -165,6 +167,8 @@ export default function App() {
             <Route path="backups" element={<OwnerBackups />} />
             <Route path="email" element={<OwnerPlatformEmail />} />
             <Route path="email-templates" element={<OwnerPlatformTemplates />} />
+            <Route path="broadcast" element={<OwnerBroadcast />} />
+            <Route path="migrations" element={<OwnerDataMigrations />} />
             <Route path="addons" element={<OwnerAddons />} />
             <Route path="plans" element={<OwnerPlans />} />
             <Route path="support" element={<OwnerSupport />} />
@@ -186,6 +190,8 @@ export default function App() {
             <Route path="backups" element={<OwnerBackups />} />
             <Route path="email" element={<OwnerPlatformEmail />} />
             <Route path="email-templates" element={<OwnerPlatformTemplates />} />
+            <Route path="broadcast" element={<OwnerBroadcast />} />
+            <Route path="migrations" element={<OwnerDataMigrations />} />
             <Route path="addons" element={<OwnerAddons />} />
             <Route path="plans" element={<OwnerPlans />} />
             <Route path="support" element={<OwnerSupport />} />

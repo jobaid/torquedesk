@@ -112,9 +112,9 @@ export default function SignupComplete() {
                 </ul>
               </div>
 
-              <Link to="/" className="sc-cta">
+              <a href="https://my.fixoraerp.com/" className="sc-cta">
                 <Rocket size={18} /> Sign in to your shop
-              </Link>
+              </a>
               <div className="sc-fine">
                 <Mail size={13} /> We've emailed a copy of your welcome message. Check your inbox (and spam folder, just in case).
               </div>
@@ -141,7 +141,7 @@ export default function SignupComplete() {
                   Only one Fixora trial per email, card, or bank account is allowed. If this is in error, contact support.
                 </p>
               )}
-              <Link to="/" className="sc-cta sc-cta-dark">Back to sign in</Link>
+              <a href="https://my.fixoraerp.com/" className="sc-cta sc-cta-dark">Back to sign in</a>
             </>
           )}
         </div>

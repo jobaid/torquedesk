@@ -53,7 +53,7 @@ export default function OwnerLogin() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
           <div style={{ background: 'linear-gradient(135deg,#5b8def,#8b5cf6)', borderRadius: 10, padding: 8, display: 'flex' }}><ShieldCheck size={20} color="#fff" /></div>
           <div>
-            <div style={{ fontSize: 20, fontWeight: 700 }}>Toraquedesk</div>
+            <div style={{ fontSize: 20, fontWeight: 700 }}>Fixora</div>
             <div style={{ fontSize: 12, color: '#000000' }}>SaaS Owner Portal</div>
           </div>
         </div>
@@ -95,7 +95,7 @@ export default function OwnerLogin() {
         </div>
 
         <div style={{ marginTop: 10, fontSize: 11, color: '#000000', textAlign: 'center' }}>
-          Not a TorqueDesk administrator? <a href="/" style={{ color: '#000000' }}>Go to the main app</a>.
+          Not a Fixora administrator? <a href="/" style={{ color: '#000000' }}>Go to the main app</a>.
         </div>
       </form>
     </div>

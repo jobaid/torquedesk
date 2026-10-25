@@ -115,7 +115,7 @@ function OwnerForgotPasswordModal({ initialEmail, onClose }) {
         setErr(body?.error || `That email is not registered in the owner portal. (${res.status})`)
         return
       }
-      setSuccess(body?.message || `A reset link has been sent to ${addr}.`)
+      setSuccess(`A reset link has been sent to ${addr}. Please check your inbox — and your spam folder if you don't see it within a minute.`)
     } catch { setErr('Could not reach the server. Please try again.') }
     finally { setBusy(false) }
   }

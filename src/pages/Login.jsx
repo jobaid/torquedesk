@@ -43,7 +43,7 @@ function ForgotPasswordModal({ initialEmail, onClose }) {
         setErr(body?.error || 'That email is not registered. Check the address and try again.')
         return
       }
-      setSuccess(body?.message || 'A reset link has been sent to ' + addr + '.')
+      setSuccess(`A reset link has been sent to ${addr}. Please check your inbox — and your spam folder if you don't see it within a minute.`)
     } catch { setErr('Could not reach the server. Please try again.') }
     finally { setBusy(false) }
   }

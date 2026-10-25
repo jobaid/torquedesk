@@ -10,7 +10,7 @@ export default function OwnerLogin() {
   const [mfaRequired, setMfaRequired] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
-  const [resetSent, setResetSent] = useState(false)
+  const [forgotOpen, setForgotOpen] = useState(false)
   const login = useOwner((s) => s.login)
   const navigate = useNavigate()
 
@@ -33,18 +33,6 @@ export default function OwnerLogin() {
     } finally {
       setLoading(false)
     }
-  }
-
-  const forgot = async () => {
-    setError(null); setResetSent(false)
-    if (!email) { setError('Enter your email first, then click "Forgot password?".'); return }
-    try {
-      await fetch('/api/password-reset/request', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, kind: 'owner' }),
-      })
-      setResetSent(true)
-    } catch { setError('Could not request password reset.') }
   }
 
   return (
@@ -84,18 +72,76 @@ export default function OwnerLogin() {
         )}
 
         {error && <div style={{ marginTop: 14, padding: '8px 10px', borderRadius: 8, background: '#3a0d12', color: '#dc2626', fontSize: 13 }}>{error}</div>}
-        {resetSent && <div style={{ marginTop: 10, padding: '8px 10px', borderRadius: 8, background: '#0d3a15', color: '#95eab0', fontSize: 13 }}>If that email exists, a reset link has been sent.</div>}
 
         <button type="submit" disabled={loading} style={{ marginTop: 20, width: '100%', padding: '11px 14px', borderRadius: 10, border: 'none', background: 'linear-gradient(90deg,#2a6cf0,#5b8def)', color: '#fff', fontWeight: 600, fontSize: 14, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.6 : 1 }}>
           {loading ? 'Signing in…' : <><Lock size={14} style={{ verticalAlign: 'middle', marginRight: 6 }} />Sign in</>}
         </button>
 
         <div style={{ marginTop: 12, textAlign: 'center' }}>
-          <button type="button" onClick={forgot} style={{ background: 'none', border: 'none', color: '#000000', fontSize: 12, cursor: 'pointer', textDecoration: 'underline' }}>Forgot password?</button>
+          <button type="button" onClick={() => setForgotOpen(true)} style={{ background: 'none', border: 'none', color: '#000000', fontSize: 12, cursor: 'pointer', textDecoration: 'underline' }}>Forgot password?</button>
         </div>
 
         <div style={{ marginTop: 10, fontSize: 11, color: '#000000', textAlign: 'center' }}>
           Not a Fixora administrator? <a href="/" style={{ color: '#000000' }}>Go to the main app</a>.
+        </div>
+      </form>
+      {forgotOpen && <OwnerForgotPasswordModal initialEmail={email} onClose={() => setForgotOpen(false)} />}
+    </div>
+  )
+}
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
+
+function OwnerForgotPasswordModal({ initialEmail, onClose }) {
+  const [email, setEmail] = useState(initialEmail || '')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const [success, setSuccess] = useState('')
+
+  const submit = async (e) => {
+    e?.preventDefault()
+    setErr(''); setSuccess('')
+    const addr = email.trim().toLowerCase()
+    if (!EMAIL_RE.test(addr)) { setErr('Enter a valid email address.'); return }
+    setBusy(true)
+    try {
+      // Note: fetch doesn't throw on non-2xx, so we must check res.ok ourselves.
+      const res = await fetch('/api/password-reset/request', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: addr, kind: 'owner' }),
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setErr(body?.error || `That email is not registered in the owner portal. (${res.status})`)
+        return
+      }
+      setSuccess(body?.message || `A reset link has been sent to ${addr}.`)
+    } catch { setErr('Could not reach the server. Please try again.') }
+    finally { setBusy(false) }
+  }
+
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'grid', placeItems: 'center', padding: 16 }}>
+      <form onSubmit={submit} onClick={(e) => e.stopPropagation()} style={{ background: '#fff', color: '#0f172a', borderRadius: 12, padding: 24, maxWidth: 420, width: '100%', boxShadow: '0 20px 50px rgba(0,0,0,0.25)' }}>
+        <div style={{ fontSize: 17, fontWeight: 700, marginBottom: 6 }}>Reset your owner password</div>
+        <div style={{ fontSize: 13, color: '#6b7280', marginBottom: 16 }}>
+          Enter the email you use to sign in to the owner portal. If it matches an active admin we'll email you a reset link.
+        </div>
+        <label style={{ display: 'block', marginBottom: 10 }}>
+          <div style={{ fontSize: 12, color: '#374151', marginBottom: 4 }}>Email address</div>
+          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus
+            placeholder="you@fixoraerp.com"
+            style={{ width: '100%', padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: 8, fontSize: 14 }} />
+        </label>
+        {err && <div style={{ padding: 10, background: '#fee2e2', border: '1px solid #fca5a5', color: '#991b1b', borderRadius: 6, fontSize: 13, marginBottom: 10 }}>{err}</div>}
+        {success && <div style={{ padding: 10, background: '#dcfce7', border: '1px solid #86efac', color: '#065f46', borderRadius: 6, fontSize: 13, marginBottom: 10 }}>{success}</div>}
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button type="button" onClick={onClose} style={{ padding: '8px 14px', borderRadius: 8, border: '1px solid #d1d5db', background: '#fff', cursor: 'pointer', fontSize: 13 }}>{success ? 'Close' : 'Cancel'}</button>
+          {!success && (
+            <button type="submit" disabled={busy || !email.trim()} style={{ padding: '8px 14px', borderRadius: 8, border: 'none', background: '#2554f5', color: '#fff', cursor: busy ? 'not-allowed' : 'pointer', fontSize: 13, opacity: busy ? 0.6 : 1 }}>
+              {busy ? 'Sending…' : 'Send reset link'}
+            </button>
+          )}
         </div>
       </form>
     </div>

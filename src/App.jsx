@@ -25,6 +25,7 @@ const HistoryPage = lazy(() => import('./pages/HistoryPage'))
 const Orders = lazy(() => import('./pages/Orders'))
 const OrderEditor = lazy(() => import('./pages/OrderEditor'))
 const Customers = lazy(() => import('./pages/Customers'))
+const CustomerBroadcast = lazy(() => import('./pages/CustomerBroadcast'))
 const SettingsLayout = lazy(() => import('./pages/settings/SettingsLayout'))
 const ReportsLayout = lazy(() => import('./pages/reports/ReportsLayout'))
 const SalesDashboard = lazy(() => import('./pages/reports/SalesDashboard'))
@@ -293,6 +294,7 @@ function Boot() {
           <Route path="orders/:id" element={<S><OrderEditor /></S>} />
           <Route path="customers" element={<S><Customers /></S>} />
           <Route path="customers/:id" element={<S><Customers /></S>} />
+          <Route path="customer-broadcast" element={<S><CustomerBroadcast /></S>} />
           <Route path="inspections" element={<S><Inspections /></S>} />
           <Route path="inspections/:id" element={<S><Inspections /></S>} />
           <Route path="settings/*" element={<S><SettingsLayout /></S>} />

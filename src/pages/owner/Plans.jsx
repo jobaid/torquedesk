@@ -10,7 +10,7 @@ import { ownerApi } from '../../store/useOwner'
 const FEATURE_GROUPS = [
   { name: 'Core', keys: ['dashboard', 'customers', 'vehicles', 'orders', 'invoices', 'payments', 'settings'] },
   { name: 'Technical', keys: ['repair_info', 'diagnostics', 'dtc', 'wiring', 'maintenance', 'bulletins'] },
-  { name: 'Shop add-ons', keys: ['inspections', 'inspection_photos', 'technician_submit', 'share_link', 'chat', 'authorization', 'online_payments', 'payment_receipts', 'email_templates', 'integrations_hub'] },
+  { name: 'Shop add-ons', keys: ['inspections', 'inspection_photos', 'technician_submit', 'share_link', 'chat', 'authorization', 'online_payments', 'payment_receipts', 'email_templates', 'customer_broadcast', 'integrations_hub'] },
   { name: 'Reporting', keys: ['reports', 'sales_reports', 'advanced_reports', 'parts_profit', 'payments_report', 'tax_report'] },
   { name: 'Workflow', keys: ['void_documents', 'reopen_documents', 'deposit_payments'] },
   { name: 'Operations', keys: ['backup', 'notifications', 'audit_log', 'mfa', 'password_reset'] },

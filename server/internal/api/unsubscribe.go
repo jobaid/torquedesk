@@ -29,6 +29,12 @@ import (
 func (s *Server) unsubscribeRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/public/unsubscribe", s.publicUnsubscribe)
 	mux.HandleFunc("POST /api/public/unsubscribe", s.publicUnsubscribe) // RFC 8058 One-Click
+	// Public-facing path exposed under the marketing domain
+	// (www.fixoraerp.com/email/settingsubscription) via an nginx proxy
+	// rule — this registration lets the Go server answer either path
+	// directly, so the link works even if nginx forwards the whole path.
+	mux.HandleFunc("GET /email/settingsubscription", s.publicUnsubscribe)
+	mux.HandleFunc("POST /email/settingsubscription", s.publicUnsubscribe)
 }
 
 func (s *Server) publicUnsubscribe(w http.ResponseWriter, r *http.Request) {
@@ -97,12 +103,19 @@ func (s *Server) unsubscribeFooter(email string) (htmlFooter, textFooter string)
 }
 
 // unsubscribeURL builds the HMAC-signed one-click opt-out link.
+// Public-facing URL lives on the marketing site:
+//   https://www.fixoraerp.com/email/settingsubscription?token=...
+// Override with UNSUBSCRIBE_BASE_URL env var if your domain differs.
 func (s *Server) unsubscribeURL(email string) string {
-	origin := strings.TrimSpace(os.Getenv("APP_ORIGIN"))
-	if origin == "" {
-		origin = "https://my.fixoraerp.com"
+	base := strings.TrimSpace(os.Getenv("UNSUBSCRIBE_BASE_URL"))
+	if base == "" {
+		base = "https://www.fixoraerp.com/email/settingsubscription"
 	}
-	return origin + "/api/public/unsubscribe?token=" + url.QueryEscape(unsubscribeToken(email, s.secret))
+	sep := "?"
+	if strings.Contains(base, "?") {
+		sep = "&"
+	}
+	return base + sep + "token=" + url.QueryEscape(unsubscribeToken(email, s.secret))
 }
 
 // unsubscribeToken = base64url(email) + "." + hex(HMAC_SHA256(secret, email))

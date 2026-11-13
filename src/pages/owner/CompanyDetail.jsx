@@ -52,6 +52,19 @@ export default function CompanyDetail() {
     }
   }
 
+  const setBilling = async (mode) => {
+    if (!c?.subscription?.id) return
+    const label = mode === 'net14' ? 'auto-invoice with 14-day terms' : 'auto-charge the saved card'
+    if (!confirm(`Switch Stripe subscription to ${label}?`)) return
+    setBusy(true)
+    try {
+      const r = await ownerApi(`/subscriptions/${c.subscription.id}/net14`, { method: 'POST', body: { mode } })
+      await load()
+      alert(r?.message || 'Updated.')
+    } catch (e) { alert(e.message) }
+    finally { setBusy(false) }
+  }
+
   const extend = async (days) => {
     if (!c?.subscription?.id) return
     setBusy(true)
@@ -194,6 +207,15 @@ export default function CompanyDetail() {
                   <Btn variant="secondary" onClick={() => extend(30)} disabled={busy}><CalendarPlus size={13} />Extend 30 days</Btn>
                   <Btn variant="secondary" onClick={() => extend(90)} disabled={busy}><CalendarPlus size={13} />Extend 90 days</Btn>
                   <Btn variant="secondary" onClick={() => extend(365)} disabled={busy}><CalendarPlus size={13} />Extend 1 year</Btn>
+                </div>
+                <div style={{ fontSize: 11, color: '#000000', marginTop: 12, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '.06em' }}>Stripe billing mode</div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <Btn variant="secondary" onClick={() => setBilling('net14')} disabled={busy}>📧 Auto-invoice · Net 14</Btn>
+                  <Btn variant="secondary" onClick={() => setBilling('auto_charge')} disabled={busy}>💳 Auto-charge card</Btn>
+                </div>
+                <div style={{ fontSize: 11, color: '#64748b', marginTop: 4 }}>
+                  Net-14: Stripe emails the shop a hosted invoice each cycle, 14 days to pay.
+                  Auto-charge: Stripe charges the saved card immediately each cycle.
                 </div>
               </>
             ) : <div style={{ color: '#000000' }}>No subscription on file.</div>}

@@ -1018,6 +1018,12 @@ type stripeSubscriptionCheckoutInput struct {
 	// account. Pass ["card", "us_bank_account"] to allow ACH alongside
 	// cards for subscription checkouts.
 	PaymentMethods []string
+	// TrialActivationCents charges a one-time amount at checkout
+	// (immediately, even when the subscription itself is in trial).
+	// Used to collect a nominal card-validation fee at signup so the
+	// trial isn't an open door for abusive signups.
+	TrialActivationCents int64
+	TrialActivationLabel string // defaults to "Trial activation"
 }
 
 // stripeCreateSubscriptionCheckoutV2 returns both the URL and the session ID
@@ -1029,6 +1035,20 @@ func stripeCreateSubscriptionCheckoutV2(ctx context.Context, secret string, in s
 	form.Set("cancel_url", in.CancelURL)
 	form.Set("line_items[0][price]", in.PriceID)
 	form.Set("line_items[0][quantity]", "1")
+	if in.TrialActivationCents > 0 {
+		// Second line_item is an inline one-time price. Stripe charges
+		// one-time items immediately at checkout, even when the
+		// subscription itself is in trial — exactly what we want for a
+		// card-validation / anti-abuse fee at signup.
+		label := in.TrialActivationLabel
+		if label == "" {
+			label = "Trial activation"
+		}
+		form.Set("line_items[1][price_data][currency]", "usd")
+		form.Set("line_items[1][price_data][unit_amount]", strconv.FormatInt(in.TrialActivationCents, 10))
+		form.Set("line_items[1][price_data][product_data][name]", label)
+		form.Set("line_items[1][quantity]", "1")
+	}
 	if in.TrialDays > 0 {
 		form.Set("subscription_data[trial_period_days]", strconv.Itoa(in.TrialDays))
 	}

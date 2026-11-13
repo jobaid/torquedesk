@@ -285,7 +285,14 @@ func (s *Server) publicSignup(w http.ResponseWriter, r *http.Request) {
 	}
 
 	origin := publicOrigin(r)
+	// $0.30 card-validation / anti-abuse fee at signup. Stripe charges
+	// one-time line items immediately at checkout, even when the
+	// subscription itself is in trial — so this hits the card now while
+	// the trial starts clean.
+	const trialActivationCents int64 = 30
 	sessURL, sessID, cErr := stripeCreateSubscriptionCheckoutV2(r.Context(), secret, stripeSubscriptionCheckoutInput{
+		TrialActivationCents: trialActivationCents,
+		TrialActivationLabel: "Fixora trial activation",
 		PriceID:   priceID,
 		TrialDays: plan.TrialDays,
 		Email:     in.Owner.Email,

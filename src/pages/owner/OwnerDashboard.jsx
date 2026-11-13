@@ -23,7 +23,7 @@ export default function OwnerDashboard() {
 
   return (
     <div>
-      <PageHeader title="Dashboard" subtitle="Overview of all customer companies on Fixora." />
+      <PageHeader title="Dashboard" subtitle="Overview of all customer companies on CuraNex." />
       {error && <Card style={{ color: '#dc2626', marginBottom: 16 }}>Could not load dashboard: {error}</Card>}
       {!data && !error && <Card>Loading…</Card>}
       {data && (

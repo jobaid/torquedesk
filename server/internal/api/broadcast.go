@@ -60,8 +60,6 @@ func (s *Server) broadcastSend(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 500, err.Error())
 		return
 	}
-	// Respect marketing opt-outs.
-	emails = s.filterUnsubscribed(r.Context(), emails)
 	if in.DryRun {
 		writeJSON(w, 200, map[string]any{"recipients": len(emails), "dryRun": true})
 		return
@@ -81,6 +79,8 @@ func (s *Server) broadcastSend(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fromName := s.platformFromName(r.Context())
+	shell := platformEmailShell(fromName, in.Subject, htmlBody,
+		"You are receiving this because your Fixora shop is on our platform mailing list.")
 
 	// Dedupe key timestamps the batch so retries within the same minute
 	// don't double-send.
@@ -90,12 +90,7 @@ func (s *Server) broadcastSend(w http.ResponseWriter, r *http.Request) {
 	go func() {
 		ctx := context.Background()
 		for _, email := range emails {
-			htmlFoot, textFoot := s.unsubscribeFooter(email)
-			perRecipientHTML := htmlBody + htmlFoot
-			perRecipientText := textBody + textFoot
-			shell := platformEmailShell(fromName, in.Subject, perRecipientHTML,
-				"You are receiving this because your Fixora shop is on our platform mailing list.")
-			s.SendPlatformEmail(ctx, []string{email}, in.Subject, shell, perRecipientText,
+			s.SendPlatformEmail(ctx, []string{email}, in.Subject, shell, textBody,
 				"broadcast", "broadcast:"+batch+":"+strings.ToLower(email))
 		}
 	}()

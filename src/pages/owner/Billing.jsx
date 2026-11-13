@@ -3,7 +3,7 @@ import { CreditCard, CheckCircle2, AlertCircle, KeyRound, RefreshCw, Save, Trash
 import { Card, Btn, Input, Select, Field, PageHeader, StatusPill } from './primitives'
 import { ownerApi } from '../../store/useOwner'
 
-// SaaS-owner billing-processor settings. The Fixora operator uses these to
+// SaaS-owner billing-processor settings. The CuraNex operator uses these to
 // charge shops for their subscription. Separate table from the shop-side
 // gateways in payment settings — a shop never sees these credentials.
 
@@ -118,7 +118,7 @@ function ProcessorCard({ provider, row, loading, onChanged }) {
   }
 
   const remove = async () => {
-    if (!confirm(`Remove the saved ${provider.name} credentials? Fixora will no longer be able to charge subscriptions through ${provider.name}.`)) return
+    if (!confirm(`Remove the saved ${provider.name} credentials? CuraNex will no longer be able to charge subscriptions through ${provider.name}.`)) return
     setBusy(true); setErr(''); setNotice('')
     try {
       await ownerApi(`/billing-processors/${provider.id}`, { method: 'DELETE' })
@@ -202,7 +202,7 @@ function ProcessorCard({ provider, row, loading, onChanged }) {
         </div>
         <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, color: '#000000', fontSize: 13 }}>
           <input type="checkbox" checked={active} onChange={(e) => setActive(e.target.checked)} disabled={busy || loading} />
-          Active — Fixora can charge subscriptions through {provider.name}
+          Active — CuraNex can charge subscriptions through {provider.name}
         </label>
       </div>
 

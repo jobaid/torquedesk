@@ -351,6 +351,7 @@ func (s *Server) publicSignupSync(w http.ResponseWriter, r *http.Request) {
 		} `json:"metadata"`
 		SubscriptionID any `json:"subscription"`
 		CustomerID     any `json:"customer"`
+		PaymentIntent  any `json:"payment_intent"`
 	}
 	if err := json.Unmarshal(resp, &dto); err != nil {
 		writeErr(w, 502, "Could not parse Stripe response.")
@@ -383,6 +384,26 @@ func (s *Server) publicSignupSync(w http.ResponseWriter, r *http.Request) {
 		if id, ok := v["id"].(string); ok {
 			stripeCustID = id
 		}
+	}
+	// Capture the one-time trial-activation PaymentIntent so the refund
+	// ticker can refund it 5 days from now.
+	trialActPI := ""
+	switch v := dto.PaymentIntent.(type) {
+	case string:
+		trialActPI = v
+	case map[string]any:
+		if id, ok := v["id"].(string); ok {
+			trialActPI = id
+		}
+	}
+	if trialActPI != "" && dto.Metadata.CompanyID != "" {
+		_, _ = s.db.Exec(r.Context(), `
+			UPDATE subscriptions
+			   SET trial_activation_pi = $2,
+			       trial_activation_charged_at = coalesce(trial_activation_charged_at, now()),
+			       updated_at = now()
+			 WHERE company_id::text = $1 AND coalesce(trial_activation_pi, '') = ''`,
+			dto.Metadata.CompanyID, trialActPI)
 	}
 	if err := s.activateSignupV2(r.Context(), dto.Metadata.CompanyID, dto.Metadata.Subscription,
 		dto.Metadata.Plan, dto.Metadata.BillingCycle, stripeSubID, stripeCustID); err != nil {

@@ -124,6 +124,7 @@ func main() {
 	srv.StartEmailJobWorker(ctx)
 	srv.StartRenewalTicker(ctx)
 	srv.StartRenewalReminderTicker(ctx)
+	srv.StartTrialActivationRefundTicker(ctx)
 	srv.StartReportsRepairAtBoot(ctx)
 
 	httpSrv := &http.Server{Addr: *addr, Handler: srv.Handler(*static), ReadHeaderTimeout: 10 * time.Second}

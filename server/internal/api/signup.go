@@ -291,8 +291,9 @@ func (s *Server) publicSignup(w http.ResponseWriter, r *http.Request) {
 	// the trial starts clean.
 	const trialActivationCents int64 = 30
 	sessURL, sessID, cErr := stripeCreateSubscriptionCheckoutV2(r.Context(), secret, stripeSubscriptionCheckoutInput{
-		TrialActivationCents: trialActivationCents,
-		TrialActivationLabel: "Fixora trial activation",
+		TrialActivationCents:       trialActivationCents,
+		TrialActivationLabel:       "Refundable trial activation",
+		TrialActivationDescription: "One-time card verification. Automatically refunded 5 days after signup.",
 		PriceID:   priceID,
 		TrialDays: plan.TrialDays,
 		Email:     in.Owner.Email,

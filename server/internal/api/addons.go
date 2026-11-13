@@ -1022,8 +1022,9 @@ type stripeSubscriptionCheckoutInput struct {
 	// (immediately, even when the subscription itself is in trial).
 	// Used to collect a nominal card-validation fee at signup so the
 	// trial isn't an open door for abusive signups.
-	TrialActivationCents int64
-	TrialActivationLabel string // defaults to "Trial activation"
+	TrialActivationCents       int64
+	TrialActivationLabel       string // defaults to "Trial activation"
+	TrialActivationDescription string // sub-label shown under the name
 }
 
 // stripeCreateSubscriptionCheckoutV2 returns both the URL and the session ID
@@ -1047,6 +1048,9 @@ func stripeCreateSubscriptionCheckoutV2(ctx context.Context, secret string, in s
 		form.Set("line_items[1][price_data][currency]", "usd")
 		form.Set("line_items[1][price_data][unit_amount]", strconv.FormatInt(in.TrialActivationCents, 10))
 		form.Set("line_items[1][price_data][product_data][name]", label)
+		if in.TrialActivationDescription != "" {
+			form.Set("line_items[1][price_data][product_data][description]", in.TrialActivationDescription)
+		}
 		form.Set("line_items[1][quantity]", "1")
 	}
 	if in.TrialDays > 0 {

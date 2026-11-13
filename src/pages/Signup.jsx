@@ -95,7 +95,7 @@ export default function Signup() {
         <div className="su-hero">
           <div className="su-chip"><Sparkles size={14} /> Start free · no credit card charges today</div>
           <h1>Launch your shop with Fixora</h1>
-          <p>Everything you need — repair orders, invoices, customer management, and reports — in one modern app.</p>
+          <p>Everything you need repair orders, invoices, customer management, and reports — in one modern app.</p>
         </div>
 
         {cancelled && (

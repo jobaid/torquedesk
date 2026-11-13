@@ -33,12 +33,12 @@ export async function ownerApi(path, { method = 'GET', body } = {}) {
   try {
     res = await fetch(`/api/owner${path}`, { method, headers, body: body !== undefined ? JSON.stringify(body) : undefined })
   } catch {
-    throw new OwnerApiError(0, 'Cannot reach the CuraNex Owner Portal API. Start the Go server with: npm run api')
+    throw new OwnerApiError(0, 'Cannot reach the Fixora Owner Portal. Check your internet connection or try again in a moment.')
   }
   if (res.status === 204) return null
   const data = await res.json().catch(() => null)
   if (!res.ok && !data && res.status >= 500) {
-    throw new OwnerApiError(0, 'Cannot reach the CuraNex Owner Portal API server.')
+    throw new OwnerApiError(0, 'Cannot reach the Fixora Owner Portal. Check your internet connection or try again in a moment.')
   }
   if (!res.ok) {
     // Only clear the session for true "session gone" 401s. A 401 with mfaRequired

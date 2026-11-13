@@ -92,6 +92,7 @@ func (s *Server) Handler(staticDir string) http.Handler {
 	s.broadcastRoutes(mux)
 	s.customerBroadcastRoutes(mux)
 	s.migrationRoutes(mux)
+	s.unsubscribeRoutes(mux)
 
 	if st, err := os.Stat(staticDir); err == nil && st.IsDir() {
 		fsrv := http.FileServer(http.Dir(staticDir))

@@ -250,6 +250,7 @@ func (s *Server) shopBroadcastSend(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	rows.Close()
+	emails = s.filterUnsubscribed(r.Context(), emails)
 	if in.DryRun {
 		writeJSON(w, 200, map[string]any{"recipients": len(emails), "dryRun": true})
 		return
@@ -279,16 +280,18 @@ func (s *Server) shopBroadcastSend(w http.ResponseWriter, r *http.Request) {
 	if fromName == "" {
 		fromName = s.platformFromName(r.Context())
 	}
-	shell := platformEmailShell(fromName, in.Subject, htmlBody,
-		"You are receiving this because you are a customer of "+htmlEscape(fromName)+".")
-
 	batch := time.Now().UTC().Format("20060102150405")
 	// Use context.Background() — r.Context() cancels when the HTTP response
 	// returns, which would kill every enqueue in the goroutine below.
 	go func() {
 		ctx := context.Background()
 		for _, email := range emails {
-			s.SendPlatformEmail(ctx, []string{email}, in.Subject, shell, textBody,
+			htmlFoot, textFoot := s.unsubscribeFooter(email)
+			perRecipientHTML := htmlBody + htmlFoot
+			perRecipientText := textBody + textFoot
+			shell := platformEmailShell(fromName, in.Subject, perRecipientHTML,
+				"You are receiving this because you are a customer of "+htmlEscape(fromName)+".")
+			s.SendPlatformEmail(ctx, []string{email}, in.Subject, shell, perRecipientText,
 				"customer_broadcast", "cbr:"+u.CompanyID+":"+batch+":"+strings.ToLower(email))
 		}
 		log.Printf("customer_broadcast: queued %d emails for company %s batch %s", len(emails), u.CompanyID, batch)

@@ -5,6 +5,7 @@ import AppShell from './components/layout/AppShell'
 import Login from './pages/Login'
 import { useApp } from './store/useApp'
 import { useThemeSync } from './lib/useTheme'
+import SecurityShield from './lib/SecurityShield'
 import { SkeletonCard, EmptyState } from './components/ui'
 import { useSettings } from './store/useSettings'
 import { useShop } from './store/useShop'
@@ -48,6 +49,7 @@ const OwnerCompanyDetail = lazy(() => import('./pages/owner/CompanyDetail'))
 const OwnerSubscriptions = lazy(() => import('./pages/owner/Subscriptions'))
 const OwnerAuditLog = lazy(() => import('./pages/owner/AuditLog'))
 const OwnerPlaceholder = lazy(() => import('./pages/owner/Placeholder'))
+const OwnerSecurity = lazy(() => import('./pages/owner/SecuritySettings'))
 const OwnerSettings = lazy(() => import('./pages/owner/Settings'))
 const OwnerPlatformEmail = lazy(() => import('./pages/owner/PlatformEmail'))
 const OwnerPlatformTemplates = lazy(() => import('./pages/owner/PlatformTemplates'))
@@ -174,7 +176,8 @@ export default function App() {
             <Route path="plans" element={<OwnerPlans />} />
             <Route path="support" element={<OwnerSupport />} />
             <Route path="support/:id" element={<OwnerSupport />} />
-            <Route path="security" element={<OwnerPlaceholder title="Security" body="MFA is on the login page; broader security settings arrive later." />} />
+            <Route path="security" element={<OwnerSecurity />} />
+            <Route path="security-settings" element={<OwnerSecurity />} />
             <Route path="settings" element={<OwnerSettings />} />
           </Route>
           <Route path="/owner" element={<OwnerLayout />}>
@@ -197,16 +200,18 @@ export default function App() {
             <Route path="plans" element={<OwnerPlans />} />
             <Route path="support" element={<OwnerSupport />} />
             <Route path="support/:id" element={<OwnerSupport />} />
-            <Route path="security" element={<OwnerPlaceholder title="Security" body="MFA, session management, and SSO settings are planned for a later phase. For now, owner passwords use Argon2id hashing." />} />
+            <Route path="security" element={<OwnerSecurity />} />
+            <Route path="security-settings" element={<OwnerSecurity />} />
             <Route path="settings" element={<OwnerSettings />} />
           </Route>
         </Routes>
+        <SecurityShield />
       </Suspense>
     )
   }
   const user = useApp((s) => s.user)
-  if (!user?.token) return <Login />
-  return <Boot />
+  if (!user?.token) return <><Login /><SecurityShield /></>
+  return <><Boot /><SecurityShield /></>
 }
 
 /** Loads settings and documents from the API before showing the app. */

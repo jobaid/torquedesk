@@ -52,6 +52,7 @@ type User struct {
 	Role      string `json:"role"`
 	Exp       int64  `json:"exp"`
 	CompanyID string `json:"companyId,omitempty"` // tenant for main-app users; empty for saas_owner
+	Iat       int64  `json:"iat,omitempty"`       // issued-at; lets admins revoke older sessions
 }
 
 func (u User) Perms() []string {
@@ -80,6 +81,9 @@ var jwtHeader = base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"HS256","typ
 // Token shape: base64url(header) . base64url(payload) . base64url(hmac-sha256).
 // Any standard JWT library can decode and verify these tokens.
 func (s *Server) sign(u User) string {
+	if u.Iat == 0 {
+		u.Iat = time.Now().Unix()
+	}
 	body, _ := json.Marshal(u)
 	payload := base64.RawURLEncoding.EncodeToString(body)
 	signing := jwtHeader + "." + payload
@@ -116,6 +120,9 @@ func (s *Server) verify(tok string) (User, bool) {
 	}
 	var u User
 	if json.Unmarshal(body, &u) != nil || u.Exp < time.Now().Unix() {
+		return User{}, false
+	}
+	if s.isRevoked(u) {
 		return User{}, false
 	}
 	return u, true
@@ -280,6 +287,7 @@ func (s *Server) companyLogin(w http.ResponseWriter, r *http.Request) {
 				VALUES ($1::uuid, $2, 'auth', 'login', $2, 'update', 'failed', '', $3)`,
 				companyID, req.Email, clientIP(r))
 		}
+		s.recordLoginEvent(r, false, req.Email, companyID, "", "shop_login")
 		writeErr(w, 401, "Invalid email or password.")
 		return
 	}
@@ -355,6 +363,7 @@ func (s *Server) companyLogin(w http.ResponseWriter, r *http.Request) {
 		VALUES ($1::uuid, $2, $3, 'login', $4, 'update', 'ip', '', $5)`,
 		companyID, name, role, ownerID, clientIP(r))
 	u := User{Name: name, Email: req.Email, Role: role, Exp: time.Now().Add(7 * 24 * time.Hour).Unix(), CompanyID: companyID}
+	s.recordLoginEvent(r, true, req.Email, companyID, role, "shop_login")
 	writeJSON(w, 200, map[string]any{"token": s.sign(u), "user": u, "permissions": u.Perms()})
 }
 

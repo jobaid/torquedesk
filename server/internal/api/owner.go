@@ -371,6 +371,7 @@ func (s *Server) ownerLogin(w http.ResponseWriter, r *http.Request) {
 	okPass := VerifyPassword(req.Password, hash)
 	if !okUser || !okPass {
 		_ = s.recordSaasAudit(r.Context(), nil, req.Email, "login_failed", "saas_admin", req.Email, nil, map[string]any{"email": req.Email}, clientIP(r))
+		s.recordLoginEvent(r, false, req.Email, "", saasOwnerRole, "admin_login")
 		writeErr(w, 401, "Invalid email or password.")
 		return
 	}
@@ -389,6 +390,7 @@ func (s *Server) ownerLogin(w http.ResponseWriter, r *http.Request) {
 	_, _ = s.db.Exec(r.Context(), `UPDATE saas_admin_users SET last_login_at = now() WHERE id::text = $1`, id)
 	u := User{Name: name, Email: req.Email, Role: saasOwnerRole, Exp: time.Now().Add(12 * time.Hour).Unix()}
 	_ = s.recordSaasAudit(r.Context(), &id, name, "login", "saas_admin", id, nil, map[string]any{"mfa": mfaEnabled}, clientIP(r))
+	s.recordLoginEvent(r, true, req.Email, "", saasOwnerRole, "admin_login")
 	writeJSON(w, 200, map[string]any{"token": s.sign(u), "user": u})
 }
 

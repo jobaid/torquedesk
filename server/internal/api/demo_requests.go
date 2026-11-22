@@ -232,10 +232,10 @@ func (s *Server) ownerListDemoRequests(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) ownerSendSignupLink(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	var name, email string
+	var name, email, shop string
 	var count int
 	err := s.db.QueryRow(r.Context(),
-		`SELECT name, email, link_sent_count FROM demo_requests WHERE id::text = $1`, id).Scan(&name, &email, &count)
+		`SELECT name, email, shop, link_sent_count FROM demo_requests WHERE id::text = $1`, id).Scan(&name, &email, &shop, &count)
 	if errors.Is(err, pgx.ErrNoRows) {
 		writeErr(w, 404, "Demo request not found.")
 		return
@@ -245,20 +245,22 @@ func (s *Server) ownerSendSignupLink(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Editable under SaaS Admin → Email Templates → "Demo request — signup link".
 	link := signupLinkURL()
-	body := fmt.Sprintf(`<p>Hi %s,</p>
-<p>Thanks for your interest in Fixora ERP. You can create your shop's account using the link below.</p>
-<p style="margin:22px 0"><a href="%s" style="display:inline-block;background:#ea580c;color:#fff;padding:11px 20px;border-radius:8px;text-decoration:none;font-weight:600">Create your Fixora ERP account</a></p>
-<p style="font-size:12px;color:#64748b">Or copy this link into your browser: %s</p>
-<p>If you have any questions, reply to info@fixoraerp.com and we'll be glad to help.</p>
-<p>— The Fixora ERP team</p>`, html.EscapeString(name), html.EscapeString(link), html.EscapeString(link))
+	subject, body, _ := s.renderTemplate(r.Context(), "platform", "", "demo_signup_link", map[string]string{
+		"name": html.EscapeString(name), "shop": html.EscapeString(shop),
+		"email": html.EscapeString(email), "signup_url": html.EscapeString(link),
+	})
+	_, _, text := s.renderTemplate(r.Context(), "platform", "", "demo_signup_link", map[string]string{
+		"name": name, "shop": shop, "email": email, "signup_url": link,
+	})
 
 	if _, err := s.enqueueEmail(r.Context(), emailEnqueue{
 		Scope:       "platform",
 		To:          email,
-		Subject:     "Your Fixora ERP signup link",
+		Subject:     subject,
 		HTML:        demoEmailShell("Get started with Fixora ERP", body),
-		Text:        fmt.Sprintf("Hi %s,\n\nThanks for your interest in Fixora ERP. Create your shop's account here:\n%s\n\nQuestions? Email info@fixoraerp.com.\n\n— The Fixora ERP team", name, link),
+		Text:        text,
 		Kind:        "demo_signup_link",
 		RelatedType: "demo_request",
 		RelatedID:   id,

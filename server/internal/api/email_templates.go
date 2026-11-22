@@ -89,6 +89,21 @@ Sign in with the credentials you were provided and start setting up your workspa
 		Text:         "{{intro}}\n",
 	},
 
+	"demo_signup_link": {
+		Kind: "demo_signup_link", Scope: "platform",
+		Label:        "Demo request — signup link",
+		Description:  "Sent from Demo Requests when you click “Send signup link” for a website enquiry.",
+		Placeholders: []string{"name", "shop", "email", "signup_url"},
+		Subject:      "Your Fixora ERP signup link",
+		HTML: `<p>Hi {{name}},</p>
+<p>Thanks for your interest in Fixora ERP. You can create your shop's account using the link below.</p>
+<p style="margin:22px 0"><a href="{{signup_url}}" style="display:inline-block;background:#ea580c;color:#fff;padding:11px 20px;border-radius:8px;text-decoration:none;font-weight:600">Create your Fixora ERP account</a></p>
+<p style="font-size:12px;color:#64748b">Or copy this link into your browser: {{signup_url}}</p>
+<p>If you have any questions, reply to info@fixoraerp.com and we'll be glad to help.</p>
+<p>— The Fixora ERP team</p>`,
+		Text: "Hi {{name}},\n\nThanks for your interest in Fixora ERP. Create your shop's account here:\n{{signup_url}}\n\nQuestions? Email info@fixoraerp.com.\n\n— The Fixora ERP team\n",
+	},
+
 	// -------- tenant --------
 	"password_reset": {
 		Kind: "password_reset", Scope: "tenant",

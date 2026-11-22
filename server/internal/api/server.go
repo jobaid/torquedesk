@@ -85,6 +85,7 @@ func (s *Server) Handler(staticDir string) http.Handler {
 	s.resetRoutes(mux)
 	s.customerRoutes(mux)
 	s.supportRoutes(mux)
+	s.demoRequestRoutes(mux)
 	s.adminUserRoutes(mux)
 	s.fullDumpRoutes(mux)
 	s.securityQuestionRoutes(mux)

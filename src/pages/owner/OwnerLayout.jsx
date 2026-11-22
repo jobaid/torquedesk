@@ -2,6 +2,7 @@ import { NavLink, Navigate, Outlet, useNavigate } from 'react-router-dom'
 import {
   ShieldCheck, LayoutDashboard, Building2, CreditCard, Users, KeyRound,
   Globe, Receipt, ScrollText, Lock, Settings, LogOut, HardDrive, Mail, FileText, Package, LifeBuoy, Megaphone, Database,
+  CalendarCheck,
 } from 'lucide-react'
 import { useOwner } from '../../store/useOwner'
 
@@ -24,6 +25,7 @@ const NAV = [
   { to: `${BASE}/email-templates`, label: 'Email Templates', icon: FileText },
   { to: `${BASE}/broadcast`, label: 'Broadcast Email', icon: Megaphone },
   { to: `${BASE}/addons`, label: 'Add-ons', icon: Package },
+  { to: `${BASE}/demo-requests`, label: 'Demo Requests', icon: CalendarCheck },
   { to: `${BASE}/support`, label: 'Service Desk', icon: LifeBuoy },
   { to: `${BASE}/migrations`, label: 'Data Migration', icon: Database },
   { to: `${BASE}/audit`, label: 'Audit Logs', icon: ScrollText },

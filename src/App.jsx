@@ -56,6 +56,7 @@ const OwnerPlatformTemplates = lazy(() => import('./pages/owner/PlatformTemplate
 const OwnerBroadcast = lazy(() => import('./pages/owner/Broadcast'))
 const OwnerDataMigrations = lazy(() => import('./pages/owner/DataMigrations'))
 const OwnerSupport = lazy(() => import('./pages/owner/Support'))
+const OwnerDemoRequests = lazy(() => import('./pages/owner/DemoRequests'))
 const OwnerUsers = lazy(() => import('./pages/owner/Users'))
 const Legal = lazy(() => import('./pages/Legal'))
 const Support = lazy(() => import('./pages/Support'))
@@ -176,6 +177,7 @@ export default function App() {
             <Route path="plans" element={<OwnerPlans />} />
             <Route path="support" element={<OwnerSupport />} />
             <Route path="support/:id" element={<OwnerSupport />} />
+            <Route path="demo-requests" element={<OwnerDemoRequests />} />
             <Route path="security" element={<OwnerSecurity />} />
             <Route path="security-settings" element={<OwnerSecurity />} />
             <Route path="settings" element={<OwnerSettings />} />
@@ -200,6 +202,7 @@ export default function App() {
             <Route path="plans" element={<OwnerPlans />} />
             <Route path="support" element={<OwnerSupport />} />
             <Route path="support/:id" element={<OwnerSupport />} />
+            <Route path="demo-requests" element={<OwnerDemoRequests />} />
             <Route path="security" element={<OwnerSecurity />} />
             <Route path="security-settings" element={<OwnerSecurity />} />
             <Route path="settings" element={<OwnerSettings />} />

@@ -16,7 +16,10 @@ CREATE TABLE IF NOT EXISTS email_templates (
     enabled     boolean NOT NULL DEFAULT true,
     updated_by  text NOT NULL DEFAULT '',
     updated_at  timestamptz NOT NULL DEFAULT now(),
-    CONSTRAINT email_templates_scope_check CHECK (
+    -- Must not be named email_templates_scope_check: Postgres auto-assigns
+    -- that name to the column CHECK above, and the clash made this whole
+    -- migration fail on fresh databases (repaired by 040).
+    CONSTRAINT email_templates_scope_company_check CHECK (
         (scope = 'platform' AND company_id IS NULL) OR
         (scope = 'tenant'   AND company_id IS NOT NULL)
     )
@@ -25,7 +28,7 @@ CREATE TABLE IF NOT EXISTS email_templates (
 -- If an earlier partial run created the table without the named CHECK (or
 -- vice versa), fix either half without blowing up when both already exist.
 DO $$ BEGIN
-    ALTER TABLE email_templates ADD CONSTRAINT email_templates_scope_check CHECK (
+    ALTER TABLE email_templates ADD CONSTRAINT email_templates_scope_company_check CHECK (
         (scope = 'platform' AND company_id IS NULL) OR
         (scope = 'tenant'   AND company_id IS NOT NULL)
     );

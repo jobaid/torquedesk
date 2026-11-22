@@ -15,7 +15,10 @@ export default function PlatformTemplates() {
   const [err, setErr] = useState('')
 
   const load = async () => {
-    setLoading(true); setErr('')
+    // Only show the full-page loader the first time; a reload after save must
+    // keep the editor mounted so its "Saved" / error message stays visible.
+    if (!list.length) setLoading(true)
+    setErr('')
     try {
       const r = await ownerApi('/mail/templates')
       setList(Array.isArray(r) ? r : [])
@@ -33,7 +36,7 @@ export default function PlatformTemplates() {
         title="Platform Email Templates"
         subtitle="Customize the welcome, status-change, and subscription emails that the platform sends to shop owners. Revert to default any time."
       />
-      {err && <div style={{ padding: 10, borderRadius: 8, marginBottom: 12, fontSize: 13, background: 'rgba(220,53,69,0.12)', border: '1px solid rgba(220,53,69,0.35)', color: '#fda1aa' }}>{err}</div>}
+      {err && <div style={{ padding: 10, borderRadius: 8, marginBottom: 12, fontSize: 13, background: 'rgba(220,53,69,0.12)', border: '1px solid rgba(220,53,69,0.35)', color: '#991b1b' }}>{err}</div>}
       {loading ? <div style={{ color: '#000000' }}>Loading…</div> : (
         <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 16 }}>
           <aside style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -66,6 +69,7 @@ function TemplateEditor({ template, onSaved }) {
   const [enabled, setEnabled] = useState(true)
   const [busy, setBusy] = useState(false)
   const [tab, setTab] = useState('edit')
+  const [status, setStatus] = useState(null) // { ok: bool, msg: string }
 
   useEffect(() => {
     setSubject(template.subject || '')
@@ -73,21 +77,28 @@ function TemplateEditor({ template, onSaved }) {
     setText(template.text || '')
     setEnabled(template.enabled)
     setTab('edit')
-  }, [template.kind])
+    setStatus(null)
+  }, [template.kind, template.updatedAt])
 
   const save = async () => {
-    setBusy(true)
+    setBusy(true); setStatus(null)
     try {
       await ownerApi(`/mail/templates/${template.kind}`, { method: 'PUT', body: { subject, html, text, enabled } })
+      setStatus({ ok: true, msg: 'Saved. The next email of this type uses this version.' })
       onSaved()
+    } catch (e) {
+      setStatus({ ok: false, msg: `Not saved: ${e.message}` })
     } finally { setBusy(false) }
   }
   const revert = async () => {
     if (!confirm('Revert this template to the built-in default?')) return
-    setBusy(true)
+    setBusy(true); setStatus(null)
     try {
       await ownerApi(`/mail/templates/${template.kind}`, { method: 'DELETE' })
+      setStatus({ ok: true, msg: 'Reverted to the built-in default.' })
       onSaved()
+    } catch (e) {
+      setStatus({ ok: false, msg: `Not reverted: ${e.message}` })
     } finally { setBusy(false) }
   }
   const resetFromDefault = () => {
@@ -112,10 +123,10 @@ function TemplateEditor({ template, onSaved }) {
       </div>
 
       {template.placeholders?.length > 0 && (
-        <div style={{ padding: '8px 10px', background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 6, fontSize: 12, color: '#c5d2e1', marginBottom: 12 }}>
+        <div style={{ padding: '8px 10px', background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 6, fontSize: 12, color: '#334155', marginBottom: 12 }}>
           <strong>Placeholders:</strong>{' '}
           {template.placeholders.map((p) => (
-            <code key={p} style={{ padding: '1px 6px', margin: 2, background: '#e2e8f0', color: '#93c5fd', borderRadius: 4 }}>{`{{${p}}}`}</code>
+            <code key={p} style={{ padding: '1px 6px', margin: 2, background: '#e2e8f0', color: '#1d4ed8', borderRadius: 4 }}>{`{{${p}}}`}</code>
           ))}
         </div>
       )}
@@ -133,7 +144,7 @@ function TemplateEditor({ template, onSaved }) {
             <textarea value={text} onChange={(e) => setText(e.target.value)} rows={6}
               style={{ width: '100%', padding: '9px 11px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#ffffff', color: '#000000', fontSize: 12, fontFamily: 'ui-monospace, Menlo, monospace' }} />
           </Field>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#c5d2e1' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#334155' }}>
             <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
             Use this customization (uncheck to send the built-in default instead)
           </label>
@@ -141,12 +152,21 @@ function TemplateEditor({ template, onSaved }) {
       ) : (
         <div>
           <div style={{ fontSize: 11, color: '#000000', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 4 }}>Subject</div>
-          <div style={{ padding: '8px 10px', background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 6, color: '#c5d2e1', marginBottom: 10 }}>{preview(subject)}</div>
+          <div style={{ padding: '8px 10px', background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 6, color: '#334155', marginBottom: 10 }}>{preview(subject)}</div>
           <div style={{ fontSize: 11, color: '#000000', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: 4 }}>HTML preview</div>
           <div style={{ padding: 14, background: '#fff', color: '#111', border: '1px solid #e2e8f0', borderRadius: 6 }} dangerouslySetInnerHTML={{ __html: preview(html) }} />
           <div style={{ fontSize: 11, color: '#000000', textTransform: 'uppercase', letterSpacing: '.05em', margin: '10px 0 4px' }}>Plain text preview</div>
-          <pre style={{ padding: 10, background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 6, fontSize: 12, color: '#c5d2e1', whiteSpace: 'pre-wrap' }}>{preview(text)}</pre>
+          <pre style={{ padding: 10, background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 6, fontSize: 12, color: '#334155', whiteSpace: 'pre-wrap' }}>{preview(text)}</pre>
         </div>
+      )}
+
+      {status && (
+        <div role={status.ok ? 'status' : 'alert'} style={{
+          marginTop: 12, padding: '9px 12px', borderRadius: 8, fontSize: 13,
+          background: status.ok ? '#f0fdf4' : '#fef2f2',
+          border: `1px solid ${status.ok ? '#bbf7d0' : '#fecaca'}`,
+          color: status.ok ? '#166534' : '#991b1b',
+        }}>{status.msg}</div>
       )}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 14 }}>
